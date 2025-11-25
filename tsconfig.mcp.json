@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext",
+    "outDir": "dist/mcp",
+    "types": ["node"]
+  },
+  "include": ["mcp-server/**/*"],
+  "exclude": ["node_modules"]
+}
+

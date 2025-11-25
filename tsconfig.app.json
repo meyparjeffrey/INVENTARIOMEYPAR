@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
+  },
+  "include": ["src/presentation/**/*", "src/domain/**/*", "src/application/**/*", "src/infrastructure/**/*"],
+  "exclude": ["node_modules", "dist", "mcp-server"]
+}
+
