@@ -6,7 +6,7 @@
     "outDir": "dist/main",
     "types": ["node"]
   },
-  "include": ["src/main/**/*"],
+  "include": ["src/main/**/*", "scripts/**/*"],
   "exclude": ["src/presentation", "node_modules"]
 }
 

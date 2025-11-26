@@ -3,6 +3,7 @@ import * as React from "react";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
 import { Button } from "./Button";
 import { cn } from "../../lib/cn";
+import { useRealtime } from "../../hooks/useRealtime";
 
 interface Notification {
   id: string;
@@ -28,78 +29,91 @@ export function NotificationPanel({ count: externalCount, className }: Notificat
   const [loading, setLoading] = React.useState(true);
   const [count, setCount] = React.useState(externalCount ?? 0);
 
-  React.useEffect(() => {
-    async function loadNotifications() {
-      try {
-        // Obtener sugerencias IA pendientes
-        const { data: suggestions } = await supabaseClient
-          .from("ai_suggestions")
-          .select("*")
-          .eq("status", "PENDING")
-          .order("priority", { ascending: false })
-          .order("created_at", { ascending: false })
-          .limit(10);
+  const loadNotifications = React.useCallback(async () => {
+    try {
+      // Obtener sugerencias IA pendientes
+      const { data: suggestions } = await supabaseClient
+        .from("ai_suggestions")
+        .select("*")
+        .eq("status", "PENDING")
+        .order("priority", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(10);
 
-        // Obtener productos con stock bajo (usando SQL directo)
-        const { data: products } = await supabaseClient
-          .from("products")
-          .select("id, code, name, stock_current, stock_min")
-          .eq("is_active", true)
-          .limit(100); // Obtener más y filtrar en cliente
+      // Obtener productos con stock bajo (usando SQL directo)
+      const { data: products } = await supabaseClient
+        .from("products")
+        .select("id, code, name, stock_current, stock_min")
+        .eq("is_active", true)
+        .limit(100); // Obtener más y filtrar en cliente
 
-        const lowStockProducts = (products ?? []).filter(
-          (p) => p.stock_current <= p.stock_min
-        ).slice(0, 5);
+      const lowStockProducts = (products ?? []).filter(
+        (p) => p.stock_current <= p.stock_min
+      ).slice(0, 5);
 
-        const allNotifications: Notification[] = [];
+      const allNotifications: Notification[] = [];
 
-        // Agregar sugerencias
-        suggestions?.forEach((s) => {
-          allNotifications.push({
-            id: `suggestion-${s.id}`,
-            type: "suggestion",
-            title: s.title,
-            description: s.description,
-            priority: s.priority,
-            createdAt: s.created_at,
-            read: false
-          });
+      // Agregar sugerencias
+      suggestions?.forEach((s) => {
+        allNotifications.push({
+          id: `suggestion-${s.id}`,
+          type: "suggestion",
+          title: s.title,
+          description: s.description,
+          priority: s.priority,
+          createdAt: s.created_at,
+          read: false
         });
+      });
 
-        // Agregar alertas de stock
-        lowStockProducts.forEach((p) => {
-          allNotifications.push({
-            id: `stock-${p.id}`,
-            type: "stock",
-            title: `Stock bajo: ${p.name}`,
-            description: `Quedan ${p.stock_current} unidades. Stock mínimo: ${p.stock_min}`,
-            priority: "HIGH",
-            createdAt: new Date().toISOString(),
-            read: false
-          });
+      // Agregar alertas de stock
+      lowStockProducts.forEach((p) => {
+        allNotifications.push({
+          id: `stock-${p.id}`,
+          type: "stock",
+          title: `Stock bajo: ${p.name}`,
+          description: `Quedan ${p.stock_current} unidades. Stock mínimo: ${p.stock_min}`,
+          priority: "HIGH",
+          createdAt: new Date().toISOString(),
+          read: false
         });
+      });
 
-        // Ordenar por prioridad y fecha
-        allNotifications.sort((a, b) => {
-          const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
-          const aPriority = priorityOrder[a.priority ?? "LOW"];
-          const bPriority = priorityOrder[b.priority ?? "LOW"];
-          if (aPriority !== bPriority) return bPriority - aPriority;
-          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-        });
+      // Ordenar por prioridad y fecha
+      allNotifications.sort((a, b) => {
+        const priorityOrder = { URGENT: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+        const aPriority = priorityOrder[a.priority ?? "LOW"];
+        const bPriority = priorityOrder[b.priority ?? "LOW"];
+        if (aPriority !== bPriority) return bPriority - aPriority;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
 
-        setNotifications(allNotifications);
-        setCount(allNotifications.length);
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error("Error cargando notificaciones:", error);
-      } finally {
-        setLoading(false);
-      }
+      setNotifications(allNotifications);
+      setCount(allNotifications.length);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Error cargando notificaciones:", error);
+    } finally {
+      setLoading(false);
     }
-
-    loadNotifications();
   }, []);
+
+  React.useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  // Suscripciones en tiempo real
+  useRealtime({
+    table: "ai_suggestions",
+    onInsert: () => loadNotifications(),
+    onUpdate: () => loadNotifications(),
+    onDelete: () => loadNotifications()
+  });
+
+  useRealtime({
+    table: "products",
+    onUpdate: () => loadNotifications() // Cuando cambie el stock de un producto
+  });
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 

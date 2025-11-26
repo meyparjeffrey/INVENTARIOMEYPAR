@@ -16,6 +16,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit -p tsconfig.app.json",
     "mcp:dev": "ts-node --project tsconfig.mcp.json mcp-server/index.ts",
+    "import:products": "ts-node --project tsconfig.node.json scripts/import-products-from-excel.ts",
     "prepare": "husky install"
   },
   "engines": {
@@ -44,12 +45,14 @@
     "react-router-dom": "^7.9.6",
     "recharts": "^3.5.0",
     "tailwind-merge": "^3.4.0",
+    "xlsx": "^0.18.5",
     "zod": "^3.23.8"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
+    "@types/xlsx": "^0.0.35",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@vitejs/plugin-react": "^4.3.1",

@@ -10,6 +10,7 @@ import type {
 import type { PaginationParams, PaginatedResult } from "@domain/repositories/types";
 import { SupabaseProductRepository } from "@infrastructure/repositories/SupabaseProductRepository";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
+import { useRealtime } from "./useRealtime";
 
 /**
  * Hook para gestionar productos con operaciones CRUD.
@@ -34,6 +35,95 @@ export function useProducts() {
   const serviceRef = React.useRef<ProductService>(
     new ProductService(repositoryRef.current)
   );
+
+  // Función para mapear un producto desde la fila de Supabase (igual que en el repositorio)
+  const mapProductFromRow = React.useCallback((row: any): Product => {
+    const parseDimensions = (raw: string | null) => {
+      if (!raw) return null;
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    };
+
+    return {
+      id: row.id,
+      code: row.code,
+      barcode: row.barcode,
+      name: row.name,
+      description: row.description,
+      category: row.category,
+      stockCurrent: row.stock_current,
+      stockMin: row.stock_min,
+      stockMax: row.stock_max,
+      aisle: row.aisle,
+      shelf: row.shelf,
+      locationExtra: row.location_extra,
+      costPrice: Number(row.cost_price),
+      salePrice: row.sale_price ? Number(row.sale_price) : null,
+      purchaseUrl: row.purchase_url,
+      imageUrl: row.image_url,
+      isActive: row.is_active,
+      isBatchTracked: row.is_batch_tracked,
+      unitOfMeasure: row.unit_of_measure,
+      weightKg: row.weight_kg ? Number(row.weight_kg) : null,
+      dimensionsCm: parseDimensions(row.dimensions_cm),
+      notes: row.notes,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      createdBy: row.created_by,
+      updatedBy: row.updated_by
+    };
+  }, []);
+
+  // Suscripción en tiempo real para productos (solo productos activos)
+  useRealtime<any>({
+    table: "products",
+    filter: "is_active=eq.true",
+    onInsert: (newProduct) => {
+      if (!newProduct.is_active) return; // Ignorar productos inactivos
+      const product = mapProductFromRow(newProduct);
+      setProducts((prev) => {
+        // Evitar duplicados
+        if (prev.some((p) => p.id === product.id)) {
+          return prev;
+        }
+        return [...prev, product].sort((a, b) => a.name.localeCompare(b.name));
+      });
+      setPagination((prev) => ({
+        ...prev,
+        total: prev.total + 1
+      }));
+    },
+    onUpdate: (updatedProduct) => {
+      const product = mapProductFromRow(updatedProduct);
+      if (product.isActive) {
+        // Si está activo, actualizar o añadir
+        setProducts((prev) => {
+          const exists = prev.some((p) => p.id === product.id);
+          if (exists) {
+            return prev.map((p) => (p.id === product.id ? product : p));
+          }
+          return [...prev, product].sort((a, b) => a.name.localeCompare(b.name));
+        });
+      } else {
+        // Si se desactiva, remover de la lista
+        setProducts((prev) => prev.filter((p) => p.id !== product.id));
+        setPagination((prev) => ({
+          ...prev,
+          total: Math.max(0, prev.total - 1)
+        }));
+      }
+    },
+    onDelete: (deletedProduct) => {
+      setProducts((prev) => prev.filter((p) => p.id !== deletedProduct.id));
+      setPagination((prev) => ({
+        ...prev,
+        total: Math.max(0, prev.total - 1)
+      }));
+    }
+  });
 
   /**
    * Lista productos con filtros y paginación.

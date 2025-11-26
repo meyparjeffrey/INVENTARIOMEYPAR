@@ -1,5 +1,6 @@
 import * as React from "react";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
+import { useRealtime } from "../../hooks/useRealtime";
 
 interface TopProduct {
   productId: string;
@@ -20,81 +21,89 @@ export function TopProducts({ period: initialPeriod = "month" }: TopProductsProp
   const [products, setProducts] = React.useState<TopProduct[]>([]);
   const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    async function loadTopProducts() {
-      try {
-        // Calcular fecha de inicio según período
-        const now = new Date();
-        let startDate: Date;
+  const loadTopProducts = React.useCallback(async () => {
+    try {
+      // Calcular fecha de inicio según período
+      const now = new Date();
+      let startDate: Date;
 
-        switch (period) {
-          case "month":
-            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
-            break;
-          case "quarter":
-            const quarter = Math.floor(now.getMonth() / 3);
-            startDate = new Date(now.getFullYear(), quarter * 3, 1);
-            break;
-          case "year":
-            startDate = new Date(now.getFullYear(), 0, 1);
-            break;
-        }
-
-        // Obtener top productos consumidos (movimientos OUT)
-        const { data: movements, error } = await supabaseClient
-          .from("inventory_movements")
-          .select(`
-            product_id,
-            quantity,
-            products:product_id (
-              code,
-              name
-            )
-          `)
-          .eq("movement_type", "OUT")
-          .gte("movement_date", startDate.toISOString())
-          .order("movement_date", { ascending: false });
-
-        if (error) throw error;
-
-        // Agrupar por producto y sumar cantidades
-        const productMap = new Map<string, TopProduct>();
-
-        movements?.forEach((movement) => {
-          const product = movement.products as { code: string; name: string } | null;
-          if (!product) return;
-
-          const productId = movement.product_id as string;
-          const existing = productMap.get(productId);
-
-          if (existing) {
-            existing.totalQuantity += movement.quantity;
-          } else {
-            productMap.set(productId, {
-              productId,
-              productCode: product.code,
-              productName: product.name,
-              totalQuantity: movement.quantity
-            });
-          }
-        });
-
-        // Ordenar por cantidad y tomar top 5
-        const topProducts = Array.from(productMap.values())
-          .sort((a, b) => b.totalQuantity - a.totalQuantity)
-          .slice(0, 5);
-
-        setProducts(topProducts);
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error("Error cargando top productos:", error);
-      } finally {
-        setLoading(false);
+      switch (period) {
+        case "month":
+          startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          break;
+        case "quarter":
+          const quarter = Math.floor(now.getMonth() / 3);
+          startDate = new Date(now.getFullYear(), quarter * 3, 1);
+          break;
+        case "year":
+          startDate = new Date(now.getFullYear(), 0, 1);
+          break;
       }
-    }
 
-    loadTopProducts();
+      // Obtener top productos consumidos (movimientos OUT)
+      const { data: movements, error } = await supabaseClient
+        .from("inventory_movements")
+        .select(`
+          product_id,
+          quantity,
+          products:product_id (
+            code,
+            name
+          )
+        `)
+        .eq("movement_type", "OUT")
+        .gte("movement_date", startDate.toISOString())
+        .order("movement_date", { ascending: false });
+
+      if (error) throw error;
+
+      // Agrupar por producto y sumar cantidades
+      const productMap = new Map<string, TopProduct>();
+
+      movements?.forEach((movement) => {
+        const product = movement.products as { code: string; name: string } | null;
+        if (!product) return;
+
+        const productId = movement.product_id as string;
+        const existing = productMap.get(productId);
+
+        if (existing) {
+          existing.totalQuantity += movement.quantity;
+        } else {
+          productMap.set(productId, {
+            productId,
+            productCode: product.code,
+            productName: product.name,
+            totalQuantity: movement.quantity
+          });
+        }
+      });
+
+      // Ordenar por cantidad y tomar top 5
+      const topProducts = Array.from(productMap.values())
+        .sort((a, b) => b.totalQuantity - a.totalQuantity)
+        .slice(0, 5);
+
+      setProducts(topProducts);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Error cargando top productos:", error);
+    } finally {
+      setLoading(false);
+    }
   }, [period]);
+
+  React.useEffect(() => {
+    loadTopProducts();
+  }, [loadTopProducts]);
+
+  // Suscripción en tiempo real para movimientos
+  useRealtime({
+    table: "inventory_movements",
+    onInsert: () => {
+      loadTopProducts();
+    }
+  });
 
   React.useEffect(() => {
     setPeriod(initialPeriod);

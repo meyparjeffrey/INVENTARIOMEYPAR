@@ -1,6 +1,7 @@
 import * as React from "react";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
+import { useRealtime } from "../../hooks/useRealtime";
 
 interface MovementData {
   date: string;
@@ -15,66 +16,74 @@ export function MovementsChart() {
   const [data, setData] = React.useState<MovementData[]>([]);
   const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    async function loadMovements() {
-      try {
-        // Obtener movimientos de los últimos 7 días
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+  const loadMovements = React.useCallback(async () => {
+    try {
+      // Obtener movimientos de los últimos 7 días
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        const { data: movements, error } = await supabaseClient
-          .from("inventory_movements")
-          .select("movement_type, quantity, movement_date")
-          .gte("movement_date", sevenDaysAgo.toISOString())
-          .order("movement_date", { ascending: true });
+      const { data: movements, error } = await supabaseClient
+        .from("inventory_movements")
+        .select("movement_type, quantity, movement_date")
+        .gte("movement_date", sevenDaysAgo.toISOString())
+        .order("movement_date", { ascending: true });
 
-        if (error) throw error;
+      if (error) throw error;
 
-        // Agrupar por fecha
-        const dateMap = new Map<string, { entradas: number; salidas: number }>();
+      // Agrupar por fecha
+      const dateMap = new Map<string, { entradas: number; salidas: number }>();
 
-        // Inicializar últimos 7 días
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date();
-          date.setDate(date.getDate() - i);
-          const dateKey = date.toISOString().split("T")[0];
-          dateMap.set(dateKey, { entradas: 0, salidas: 0 });
-        }
-
-        // Agregar movimientos
-        movements?.forEach((movement) => {
-          const date = new Date(movement.movement_date);
-          const dateKey = date.toISOString().split("T")[0];
-          const existing = dateMap.get(dateKey);
-
-          if (existing) {
-            if (movement.movement_type === "IN") {
-              existing.entradas += movement.quantity;
-            } else if (movement.movement_type === "OUT") {
-              existing.salidas += movement.quantity;
-            }
-          }
-        });
-
-        // Convertir a array y formatear fechas
-        const chartData: MovementData[] = Array.from(dateMap.entries())
-          .map(([date, values]) => ({
-            date: new Date(date).toLocaleDateString("es-ES", { weekday: "short", day: "numeric" }),
-            entradas: values.entradas,
-            salidas: values.salidas
-          }));
-
-        setData(chartData);
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error("Error cargando movimientos:", error);
-      } finally {
-        setLoading(false);
+      // Inicializar últimos 7 días
+      for (let i = 6; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateKey = date.toISOString().split("T")[0];
+        dateMap.set(dateKey, { entradas: 0, salidas: 0 });
       }
-    }
 
-    loadMovements();
+      // Agregar movimientos
+      movements?.forEach((movement) => {
+        const date = new Date(movement.movement_date);
+        const dateKey = date.toISOString().split("T")[0];
+        const existing = dateMap.get(dateKey);
+
+        if (existing) {
+          if (movement.movement_type === "IN") {
+            existing.entradas += movement.quantity;
+          } else if (movement.movement_type === "OUT") {
+            existing.salidas += movement.quantity;
+          }
+        }
+      });
+
+      // Convertir a array y formatear fechas
+      const chartData: MovementData[] = Array.from(dateMap.entries())
+        .map(([date, values]) => ({
+          date: new Date(date).toLocaleDateString("es-ES", { weekday: "short", day: "numeric" }),
+          entradas: values.entradas,
+          salidas: values.salidas
+        }));
+
+      setData(chartData);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Error cargando movimientos:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  React.useEffect(() => {
+    loadMovements();
+  }, [loadMovements]);
+
+  // Suscripción en tiempo real para movimientos
+  useRealtime({
+    table: "inventory_movements",
+    onInsert: () => {
+      loadMovements();
+    }
+  });
 
   if (loading) {
     return (

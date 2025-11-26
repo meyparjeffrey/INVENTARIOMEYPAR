@@ -1,6 +1,7 @@
 import { Clock } from "lucide-react";
 import * as React from "react";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
+import { useRealtime } from "../../hooks/useRealtime";
 
 interface Activity {
   id: string;
@@ -21,82 +22,90 @@ export function ActivityFeed({ activities = [] }: ActivityFeedProps) {
   const [realActivities, setRealActivities] = React.useState<Activity[]>([]);
   const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    async function loadActivities() {
-      try {
-        // Obtener logs de auditoría recientes
-        const { data: auditLogs, error } = await supabaseClient
-          .from("audit_logs")
-          .select(`
-            *,
-            profiles:user_id (
-              first_name,
-              last_name
-            )
-          `)
-          .order("created_at", { ascending: false })
-          .limit(5);
+  const loadActivities = React.useCallback(async () => {
+    try {
+      // Obtener logs de auditoría recientes
+      const { data: auditLogs, error } = await supabaseClient
+        .from("audit_logs")
+        .select(`
+          *,
+          profiles:user_id (
+            first_name,
+            last_name
+          )
+        `)
+        .order("created_at", { ascending: false })
+        .limit(5);
 
-        if (error) throw error;
+      if (error) throw error;
 
-        const mappedActivities: Activity[] = (auditLogs ?? []).map((log) => {
-          const profile = log.profiles as { first_name: string; last_name: string } | null;
-          const userName = profile ? `${profile.first_name} ${profile.last_name}` : "Usuario";
-          
-          let action = "";
-          let details = "";
+      const mappedActivities: Activity[] = (auditLogs ?? []).map((log) => {
+        const profile = log.profiles as { first_name: string; last_name: string } | null;
+        const userName = profile ? `${profile.first_name} ${profile.last_name}` : "Usuario";
+        
+        let action = "";
+        let details = "";
 
-          switch (log.action) {
-            case "CREATE":
-              action = `creó ${log.entity_type}`;
-              details = log.entity_type === "products" ? `Producto: ${log.new_value || ""}` : "";
-              break;
-            case "UPDATE":
-              action = `actualizó ${log.entity_type}`;
-              details = log.field_name ? `${log.field_name}: ${log.new_value || ""}` : "";
-              break;
-            case "DELETE":
-              action = `eliminó ${log.entity_type}`;
-              break;
-            case "VIEW":
-              action = `consultó ${log.entity_type}`;
-              break;
-            default:
-              action = `${log.action.toLowerCase()} ${log.entity_type}`;
-          }
+        switch (log.action) {
+          case "CREATE":
+            action = `creó ${log.entity_type}`;
+            details = log.entity_type === "products" ? `Producto: ${log.new_value || ""}` : "";
+            break;
+          case "UPDATE":
+            action = `actualizó ${log.entity_type}`;
+            details = log.field_name ? `${log.field_name}: ${log.new_value || ""}` : "";
+            break;
+          case "DELETE":
+            action = `eliminó ${log.entity_type}`;
+            break;
+          case "VIEW":
+            action = `consultó ${log.entity_type}`;
+            break;
+          default:
+            action = `${log.action.toLowerCase()} ${log.entity_type}`;
+        }
 
-          const timeAgo = getTimeAgo(new Date(log.created_at));
+        const timeAgo = getTimeAgo(new Date(log.created_at));
 
-          return {
-            id: log.id,
-            user: userName,
-            action,
-            details,
-            timestamp: timeAgo
-          };
-        });
+        return {
+          id: log.id,
+          user: userName,
+          action,
+          details,
+          timestamp: timeAgo
+        };
+      });
 
-        setRealActivities(mappedActivities);
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error("Error cargando actividad:", error);
-        // Si no hay datos, usar mock
-        setRealActivities([
-          {
-            id: "1",
-            user: "Sistema",
-            action: "inicializado",
-            details: "Dashboard cargado",
-            timestamp: "Ahora"
-          }
-        ]);
-      } finally {
-        setLoading(false);
-      }
+      setRealActivities(mappedActivities);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Error cargando actividad:", error);
+      // Si no hay datos, usar mock
+      setRealActivities([
+        {
+          id: "1",
+          user: "Sistema",
+          action: "inicializado",
+          details: "Dashboard cargado",
+          timestamp: "Ahora"
+        }
+      ]);
+    } finally {
+      setLoading(false);
     }
-
-    loadActivities();
   }, []);
+
+  React.useEffect(() => {
+    loadActivities();
+  }, [loadActivities]);
+
+  // Suscripción en tiempo real para logs de auditoría
+  useRealtime({
+    table: "audit_logs",
+    onInsert: () => {
+      loadActivities();
+    }
+  });
 
   function getTimeAgo(date: Date): string {
     const now = new Date();

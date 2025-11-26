@@ -32,6 +32,11 @@ export const supabaseClient = createClient(url ?? "", anonKey ?? "", {
   auth: {
     persistSession: true,
     detectSessionInUrl: false
+  },
+  realtime: {
+    params: {
+      eventsPerSecond: 10
+    }
   }
 });
 

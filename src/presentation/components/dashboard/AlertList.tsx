@@ -2,6 +2,7 @@ import { AlertTriangle } from "lucide-react";
 import * as React from "react";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
 import { SupabaseProductRepository } from "@infrastructure/repositories/SupabaseProductRepository";
+import { useRealtime } from "../../hooks/useRealtime";
 
 interface Alert {
   id: string;
@@ -23,60 +24,76 @@ export function AlertList({ alerts = [], onViewAll }: AlertListProps) {
   const [realAlerts, setRealAlerts] = React.useState<Alert[]>([]);
   const [loading, setLoading] = React.useState(true);
 
-  React.useEffect(() => {
-    async function loadAlerts() {
-      try {
-        const productRepo = new SupabaseProductRepository(supabaseClient);
-        const allAlerts: Alert[] = [];
+  const loadAlerts = React.useCallback(async () => {
+    try {
+      const productRepo = new SupabaseProductRepository(supabaseClient);
+      const allAlerts: Alert[] = [];
 
-        // Obtener productos con stock bajo
-        const products = await productRepo.list({ includeInactive: false }, { page: 1, pageSize: 10 });
-        const lowStockProducts = products.data
-          .filter((p) => p.stockCurrent <= p.stockMin)
-          .slice(0, 3);
+      // Obtener productos con stock bajo
+      const products = await productRepo.list({ includeInactive: false }, { page: 1, pageSize: 10 });
+      const lowStockProducts = products.data
+        .filter((p) => p.stockCurrent <= p.stockMin)
+        .slice(0, 3);
 
-        lowStockProducts.forEach((product) => {
+      lowStockProducts.forEach((product) => {
+        allAlerts.push({
+          id: `stock-${product.id}`,
+          type: "stock",
+          title: `Stock bajo: ${product.name}`,
+          description: `Quedan ${product.stockCurrent} ${product.unitOfMeasure ?? "uds"} - Stock mínimo: ${product.stockMin}`,
+          timestamp: "Ahora"
+        });
+      });
+
+      // Obtener sugerencias IA pendientes
+      const { data: suggestions } = await supabaseClient
+        .from("ai_suggestions")
+        .select("*")
+        .eq("status", "PENDING")
+        .order("priority", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(3);
+
+      if (suggestions) {
+        suggestions.forEach((suggestion) => {
           allAlerts.push({
-            id: `stock-${product.id}`,
-            type: "stock",
-            title: `Stock bajo: ${product.name}`,
-            description: `Quedan ${product.stockCurrent} ${product.unitOfMeasure ?? "uds"} - Stock mínimo: ${product.stockMin}`,
-            timestamp: "Ahora"
+            id: `suggestion-${suggestion.id}`,
+            type: "suggestion",
+            title: suggestion.title,
+            description: suggestion.description,
+            timestamp: new Date(suggestion.created_at).toLocaleDateString("es-ES")
           });
         });
-
-        // Obtener sugerencias IA pendientes
-        const { data: suggestions } = await supabaseClient
-          .from("ai_suggestions")
-          .select("*")
-          .eq("status", "PENDING")
-          .order("priority", { ascending: false })
-          .order("created_at", { ascending: false })
-          .limit(3);
-
-        if (suggestions) {
-          suggestions.forEach((suggestion) => {
-            allAlerts.push({
-              id: `suggestion-${suggestion.id}`,
-              type: "suggestion",
-              title: suggestion.title,
-              description: suggestion.description,
-              timestamp: new Date(suggestion.created_at).toLocaleDateString("es-ES")
-            });
-          });
-        }
-
-        setRealAlerts(allAlerts.slice(0, 5)); // Máximo 5 alertas
-      } catch (error) {
-        // eslint-disable-next-line no-console
-        console.error("Error cargando alertas:", error);
-      } finally {
-        setLoading(false);
       }
-    }
 
-    loadAlerts();
+      setRealAlerts(allAlerts.slice(0, 5)); // Máximo 5 alertas
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Error cargando alertas:", error);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  React.useEffect(() => {
+    loadAlerts();
+  }, [loadAlerts]);
+
+  // Suscripción en tiempo real para productos (cuando cambie el stock)
+  useRealtime({
+    table: "products",
+    onUpdate: () => {
+      loadAlerts();
+    }
+  });
+
+  // Suscripción en tiempo real para sugerencias IA
+  useRealtime({
+    table: "ai_suggestions",
+    onInsert: () => loadAlerts(),
+    onUpdate: () => loadAlerts(),
+    onDelete: () => loadAlerts()
+  });
 
   const displayAlerts = alerts.length > 0 ? alerts : realAlerts;
 
