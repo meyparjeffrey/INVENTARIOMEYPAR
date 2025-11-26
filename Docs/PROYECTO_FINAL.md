@@ -882,10 +882,57 @@ interface DataTableProps<T> {
 - Toggle tema claro/oscuro
 
 #### 5.5.2. Productos
+
+**Vista de Lista:**
 - Tabla con columnas: Código, Nombre, Stock, Mín, Ubicación, Estado Lotes
 - Barra superior: Búsqueda, Filtros (Activo, En alarma, Con lotes críticos), [+ Nuevo], [Exportar]
 - Badge de estado de lotes en cada fila
 - Acción rápida: hover muestra botones (Ver, Editar, Movimiento)
+
+**Validaciones de Formulario:**
+- Código: Requerido, único, mínimo 3 caracteres, sin espacios
+- Nombre: Requerido, mínimo 2 caracteres
+- Stock actual: Entero >= 0
+- Stock mínimo: Entero >= 0
+- Stock máximo: Entero > stock_min (si se especifica)
+- Pasillo/Estante: Requeridos, formato libre
+- Precio de coste: Decimal >= 0
+- Precio de venta: Decimal >= precio de coste (si se especifica)
+- Barcode: Opcional, único si se proporciona
+- Dimensiones: JSON válido con length, width, height (números positivos)
+
+**Subida de Imágenes:**
+- Formatos permitidos: JPG, PNG, WebP
+- Tamaño máximo: 500 KB (configurable en app_settings)
+- Almacenamiento: Supabase Storage bucket `product-images`
+- Ruta: `{product_id}/{timestamp}.{ext}`
+- Preview antes de guardar
+- Opción de eliminar imagen existente
+
+**Manejo de Errores:**
+- Código duplicado: "Este código ya existe. Elige otro."
+- Barcode duplicado: "Este código de barras ya está en uso."
+- Stock inválido: "El stock mínimo no puede ser mayor que el máximo."
+- Imagen muy grande: "La imagen excede el tamaño máximo (500 KB)."
+- Error de red: "No se pudo guardar. Verifica tu conexión."
+- Sin permisos: "No tienes permisos para realizar esta acción."
+
+**Flujo de Creación/Edición:**
+- Modal o drawer lateral (responsive)
+- Formulario con validación en tiempo real
+- Botones: [Cancelar] [Guardar]
+- Al guardar: mostrar loading, deshabilitar botones
+- Éxito: cerrar modal, refrescar lista, mostrar toast
+- Error: mostrar mensaje específico, mantener modal abierto
+
+**Asociación de Proveedores:**
+- Sección en formulario: "Proveedores"
+- Lista de proveedores asociados con:
+  - Código del producto en el proveedor
+  - Precio de coste (puede diferir del precio general)
+  - Checkbox "Proveedor preferido" (solo uno)
+- Botón [+ Añadir proveedor] abre selector
+- Opción de eliminar asociación
 
 #### 5.5.3. Detalle Producto
 - Layout 2 columnas en desktop

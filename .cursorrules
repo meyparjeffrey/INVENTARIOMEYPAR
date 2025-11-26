@@ -14,6 +14,7 @@
 - Siempre mejora el código existente: refactorizar cuando se toque una zona con deuda.
 - UI y textos en español/catalán según i18n; base de datos y código en inglés.
 - Documenta lo imprescindible en cada PR: resumen técnico y decisiones clave.
+- Documentar cada pieza de código nueva con comentarios y/o descripciones en español, manteniendo la brevedad necesaria.
 
 ## Seguridad y configuración
 - Variables sensibles solo en `.env.local` (ver `Docs/env.example`). Nunca subir claves.

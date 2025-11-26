@@ -33,14 +33,14 @@
 - [x] `env.example` - Template de variables
 
 ### 🔄 En Progreso
-- [ ] Crear primer usuario ADMIN en Supabase Auth
+- [x] Crear primer usuario ADMIN en Supabase Auth (id: 89ff900f-29c9-4509-aece-5a32a91de1fe)
 
 ### ⏳ Pendiente Fase 1
-- [ ] Instalar dependencias npm
-- [ ] Crear entidades de dominio (TypeScript)
-- [ ] Crear repositorios base
-- [ ] Implementar AuthService
-- [ ] UI: Login + Layout principal
+- [x] Instalar dependencias npm
+- [x] Crear entidades de dominio (TypeScript)
+- [x] Crear repositorios base
+- [x] Implementar AuthService
+- [x] UI: Login + Layout principal (base)
 - [ ] Tests unitarios servicios críticos
 
 ### 📋 Fases Siguientes

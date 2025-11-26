@@ -1,28 +1,63 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Variables CSS según PROYECTO_FINAL */
 :root {
-  color-scheme: light dark;
-  font-family: "Inter", "Segoe UI", sans-serif;
+  --primary-50: #fef2f2;
+  --primary-100: #fee2e2;
+  --primary-500: #ef4444;
+  --primary-600: #dc2626;
+  --primary-700: #b91c1c;
+  --secondary-50: #ecfdf5;
+  --secondary-500: #10b981;
+  --secondary-600: #059669;
+  --gray-50: #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+  --success: #10b981;
+  --warning: #f59e0b;
+  --error: #ef4444;
+  --info: #3b82f6;
+  --sidebar-bg: #1f2937;
+  --sidebar-text: #f9fafb;
+  --sidebar-hover: #374151;
+  --sidebar-active: var(--primary-600);
+}
+
+/* Tema oscuro: intercambio de grises */
+.dark {
+  --gray-50: #111827;
+  --gray-100: #1f2937;
+  --gray-200: #374151;
+  --gray-800: #f3f4f6;
+  --gray-900: #f9fafb;
 }
 
 body {
-  margin: 0;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #101828, #1d2939);
-  color: #f8fafc;
+  @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-50;
+  font-family: "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
-.app-shell {
-  display: grid;
-  place-items: center;
-  min-height: 100vh;
-  padding: 2rem;
-  text-align: center;
+/* Utilidades de la app */
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50;
+  }
+  .btn-secondary {
+    @apply inline-flex items-center justify-center rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700;
+  }
+  .input {
+    @apply block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 placeholder-gray-400 transition focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100 dark:placeholder-gray-500;
+  }
+  .card {
+    @apply rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800;
+  }
 }
-
-section {
-  background: rgba(15, 23, 42, 0.75);
-  border-radius: 16px;
-  padding: 2.5rem;
-  max-width: 640px;
-  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.6);
-}
-

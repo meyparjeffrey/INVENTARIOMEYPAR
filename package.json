@@ -22,14 +22,28 @@
     "node": ">=18.19.0"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
+    "@radix-ui/react-label": "^2.1.8",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-toast": "^1.2.15",
     "@supabase/supabase-js": "^2.45.1",
     "@tanstack/react-query": "^5.59.17",
+    "autoprefixer": "^10.4.22",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "electron": "^31.2.0",
     "electron-log": "^5.1.4",
+    "framer-motion": "^12.23.24",
     "i18next": "^23.10.1",
+    "lucide-react": "^0.555.0",
+    "postcss": "^8.5.6",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-i18next": "^15.0.1",
+    "react-router-dom": "^7.9.6",
+    "recharts": "^3.5.0",
+    "tailwind-merge": "^3.4.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -38,16 +52,17 @@
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
+    "@vitejs/plugin-react": "^4.3.1",
     "concurrently": "^9.0.1",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.34.3",
     "eslint-plugin-react-hooks": "^4.6.2",
-    "@vitejs/plugin-react": "^4.3.1",
     "husky": "^9.0.11",
     "lint-staged": "^15.2.9",
     "npm-run-all": "^4.1.5",
     "prettier": "^3.3.3",
+    "tailwindcss": "^3.4.14",
     "ts-node": "^10.9.2",
     "tslib": "^2.7.0",
     "typescript": "^5.6.3",
@@ -61,4 +76,3 @@
     ]
   }
 }
-
