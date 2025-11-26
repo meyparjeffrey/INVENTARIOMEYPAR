@@ -1,8 +1,16 @@
 # Reglas del Proyecto de Inventario
 
+> **Documento de referencia principal: `Docs/PROYECTO_FINAL.md`**
+> Este archivo contiene la especificación completa del proyecto.
+
+## Regla Principal
+- **SIEMPRE** consulta y sigue `Docs/PROYECTO_FINAL.md` como fuente de verdad para toda implementación.
+- Antes de implementar cualquier funcionalidad, verifica que esté alineada con la especificación en ese documento.
+- Si hay dudas sobre cómo implementar algo, la respuesta está en `Docs/PROYECTO_FINAL.md`.
+
 ## Principios generales
 - Mantener arquitectura limpia: domain → infrastructure → application → presentation → mcp-server.
-- Todo nuevo código en TypeScript. Componentes reutilizables, sin lógica pesada en la UI.
+- Todo nuevo código en TypeScript estricto. Componentes reutilizables, sin lógica pesada en la UI.
 - Siempre mejora el código existente: refactorizar cuando se toque una zona con deuda.
 - UI y textos en español/catalán según i18n; base de datos y código en inglés.
 - Documenta lo imprescindible en cada PR: resumen técnico y decisiones clave.
@@ -11,37 +19,40 @@
 - Variables sensibles solo en `.env.local` (ver `Docs/env.example`). Nunca subir claves.
 - Para nuevos servicios, documentar variables requeridas y actualizar el ejemplo.
 - Logs con `electron-log`, diferenciando niveles (info/warn/error) y evitando datos sensibles.
+- Implementar RLS en todas las tablas de Supabase.
 
 ## Datos y negocio
 - Todos los productos que usen lotes deben tener `is_batch_tracked = true` y lotes coherentes.
-- Lotes defectuosos requieren `status = 'DEFECTIVE'`, `defective_qty` y `notes` (añadir cuando se implemente).
+- Lotes defectuosos requieren `status = 'DEFECTIVE'`, `defective_qty` y `notes`.
 - Movimientos siempre con motivo (`request_reason`) y, si aplica, `batch_id`.
-- Exportaciones a Excel deben respetar idioma activo y filtros vigentes.
+- Exportaciones a Excel/PDF deben respetar idioma activo y filtros vigentes.
+- Sistema de permisos granular: ADMIN puede restringir permisos específicos a cualquier usuario.
 
 ## UI / UX
-- Dashboard con tarjetas KPI y alertas de lotes críticos (productos con lotes defectuosos/bloqueados).
+- Diseño moderno con Tailwind CSS + Radix UI + Framer Motion.
+- Dashboard con tarjetas KPI (borde coloreado), alertas de lotes críticos, sugerencias IA.
 - Tabla de productos debe mostrar badges de lote crítico y permitir filtrarlos.
-- Módulo Escáner:
-  - Campo con foco permanente para escáner USB.
-  - Botón para escaneo por cámara (Quagga2 o ZXing).
-  - Resolver automáticamente producto/lote según código.
+- Módulo Escáner: campo con foco permanente (USB) + botón cámara (Quagga2/ZXing).
+- Configuración de usuario amplia: tema, colores, idioma, escáner, notificaciones.
 
 ## IA y MCP
-- `AIProvider` siempre debe manejar caídas de proveedores devolviendo mensajes útiles.
-- MCP server expone tools de lectura (stock, lotes, movimientos); nunca operaciones destructivas.
-- IA puede sugerir reposiciones, resúmenes o detección temprana de defectos, pero pide confirmación antes de acciones manuales.
+- Tools MCP principales: `predict_reorder_needs`, `detect_batch_anomalies`, `suggest_optimal_stock_levels`.
+- Sistema de sugerencias proactivas con tabla `ai_suggestions`.
+- MCP server expone tools de lectura; nunca operaciones destructivas sin confirmación.
+- IA puede sugerir reposiciones y detectar anomalías, pero pide confirmación antes de acciones.
 
 ## Documentación y mantenimiento
 - Cada módulo debe tener README corto (objetivo, dependencias, scripts).
-- Añadir pruebas unitarias a servicios afectados y al menos smoke tests manuales documentados.
+- Añadir pruebas unitarias a servicios afectados (objetivo: 80% cobertura en domain/application).
 - Checklist previo a release:
   1. Migraciones aplicadas en Supabase.
   2. `.env.local` actualizado.
   3. Pruebas de escáner USB y cámara.
-  4. Exportaciones Excel en ambos idiomas.
+  4. Exportaciones Excel/PDF en ambos idiomas.
+  5. Tests E2E pasando.
 
 ## Flujo de trabajo
 - Antes de codificar, valida requisitos con usuario y actualiza plan.
-- Usa ramas temáticas, commits pequeños y mensajes descriptivos.
+- Usa ramas temáticas, commits pequeños y mensajes descriptivos en español.
 - Corre linters/tests antes de pedir revisión.
 
