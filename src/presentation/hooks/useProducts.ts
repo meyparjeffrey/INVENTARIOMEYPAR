@@ -16,7 +16,7 @@ import { useRealtime } from "./useRealtime";
  * Hook para gestionar productos con operaciones CRUD.
  */
 export function useProducts() {
-  const [loading, setLoading] = React.useState(true);
+  const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [pagination, setPagination] = React.useState<{

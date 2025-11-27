@@ -150,7 +150,7 @@ CREATE TABLE products (
   unit_of_measure text DEFAULT 'unidad',
   weight_kg numeric(10,3),
   dimensions_cm text,  -- JSON: {"length": 10, "width": 5, "height": 3}
-  notes text,
+  notes text,  -- Notas adicionales del producto (visible en tabla de productos)
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now(),
   created_by uuid REFERENCES profiles(id),
@@ -673,7 +673,30 @@ Lotes que caducan en los próximos X días.
 
 ## 5. Diseño de UI/UX
 
-### 5.1. Sistema de Diseño
+### 5.1. Principios de Diseño Visual
+
+#### Animaciones y Transiciones
+- **Framer Motion** para animaciones fluidas y profesionales
+- **Entrada escalonada (stagger)** para listas y formularios
+- **Hover effects** sutiles en todos los elementos interactivos
+- **Transiciones suaves** (duration-200 a duration-500) en cambios de estado
+- **Feedback visual inmediato** en interacciones (escala, colores, sombras)
+
+#### Cards y Contenedores
+- **Bordes redondeados** (rounded-xl, rounded-2xl) para un look moderno
+- **Sombras suaves** (shadow-sm, shadow-md) que aumentan en hover
+- **Efectos de brillo** con gradientes sutiles en hover
+- **Bordes coloreados** en hover (primary-300/600 según tema)
+- **Fondos con gradientes** para headers y elementos destacados
+
+#### Validación Visual
+- **Bordes rojos** para campos con error
+- **Bordes verdes** para campos válidos
+- **Iconos de estado** (CheckCircle2 para válido, AlertCircle para error)
+- **Mensajes animados** con fade in/out
+- **Validación en tiempo real** al perder foco (onBlur)
+
+### 5.2. Sistema de Diseño
 
 #### Paleta de Colores (Tema por defecto)
 ```css
@@ -884,10 +907,16 @@ interface DataTableProps<T> {
 #### 5.5.2. Productos
 
 **Vista de Lista:**
-- Tabla con columnas: Código, Nombre, Stock, Mín, Ubicación, Estado Lotes
+- Tabla con columnas: Código, Nombre, Stock, Mín, Ubicación, **Notas**, Estado Lotes
 - Barra superior: Búsqueda, Filtros (Activo, En alarma, Con lotes críticos), [+ Nuevo], [Exportar]
 - Badge de estado de lotes en cada fila
 - Acción rápida: hover muestra botones (Ver, Editar, Movimiento)
+- **Columna Notas:**
+  - Muestra el contenido del campo `notes` de cada producto
+  - Si el producto no tiene notas, muestra "-"
+  - Texto truncado con `max-w-xs truncate` para evitar desbordamiento
+  - Tooltip al hacer hover mostrando el texto completo de las notas
+  - Actualización en tiempo real mediante Supabase Realtime
 
 **Validaciones de Formulario:**
 - Código: Requerido, único, mínimo 3 caracteres, sin espacios
@@ -900,6 +929,7 @@ interface DataTableProps<T> {
 - Precio de venta: Decimal >= precio de coste (si se especifica)
 - Barcode: Opcional, único si se proporciona
 - Dimensiones: JSON válido con length, width, height (números positivos)
+- Notas: Opcional, texto libre sin límite de caracteres (se muestra truncado en tabla con tooltip)
 
 **Subida de Imágenes:**
 - Formatos permitidos: JPG, PNG, WebP
@@ -918,15 +948,59 @@ interface DataTableProps<T> {
 - Sin permisos: "No tienes permisos para realizar esta acción."
 
 **Flujo de Creación/Edición:**
-- Modal o drawer lateral (responsive)
-- Formulario con validación en tiempo real
-- Botones: [Cancelar] [Guardar]
-- Al guardar: mostrar loading, deshabilitar botones
-- Éxito: cerrar modal, refrescar lista, mostrar toast
-- Error: mostrar mensaje específico, mantener modal abierto
+- Página dedicada `/products/new` para crear productos
+- Formulario completo con todas las secciones (Información Básica, Stock, Ubicación, Precios, Información Adicional, Opciones)
+- Validación en tiempo real con mensajes de error inline
+- Botones: [Cancelar] [Crear Producto] / [Actualizar]
+- Al guardar: mostrar loading ("Guardando..."), deshabilitar botones
+- Éxito: redirigir a `/products`, refrescar lista automáticamente
+- Error: mostrar mensaje específico, mantener formulario abierto
+- Componente `ProductForm` reutilizable para crear y editar
+
+**Componente ProductForm:**
+- Componente reutilizable ubicado en `src/presentation/components/products/ProductForm.tsx`
+- **Diseño moderno e interactivo** con animaciones usando Framer Motion
+- Soporta modo creación (sin producto) y edición (con producto)
+- **Secciones organizadas en cards visuales** con iconos y efectos hover:
+  - **Información Básica** (icono Package): Código*, Nombre*, Descripción, Categoría, Código de Barras
+  - **Stock** (icono Box): Stock Actual, Stock Mínimo*, Stock Máximo
+  - **Ubicación** (icono MapPin): Pasillo*, Estante*, Ubicación Extra
+  - **Precios** (icono DollarSign): Precio de Coste*, Precio de Venta
+  - **Información Adicional** (icono Info): Código de Proveedor, Unidad de Medida, URL de Compra, URL de Imagen, Peso (kg), Dimensiones (Largo/Ancho/Alto), Notas
+  - **Opciones** (icono Settings): Producto activo (checkbox), Control por lotes (checkbox)
+- **Características visuales e interactivas:**
+  - Cards con sombras y efectos hover (borde coloreado, sombra aumentada)
+  - Animaciones de entrada escalonadas (stagger) para cada sección
+  - Efectos de brillo sutil en hover sobre las cards
+  - Iconos con fondo coloreado que cambian en hover
+  - Validación en tiempo real con mensajes de error animados (fade in/out)
+  - Indicadores visuales de éxito (CheckCircle2) en campos válidos
+  - Bordes coloreados dinámicos: rojo (error), verde (válido), primario (focus)
+  - Checkboxes con animaciones de escala en hover y tap
+  - Botones con animaciones de escala en hover/tap
+  - Spinner animado durante el guardado
+  - Transiciones suaves en todos los elementos (duration-200)
+- Campos marcados con * son requeridos
+- Botones: [Cancelar] [Crear Producto] / [Actualizar] con animaciones
+- Estado de loading durante el guardado con spinner rotativo
+
+**Página ProductNewPage:**
+- Ruta: `/products/new`
+- Ubicación: `src/presentation/pages/ProductNewPage.tsx`
+- **Diseño moderno con header animado:**
+  - Header con gradiente y efecto de brillo animado
+  - Icono Package animado (rotación y escala) con gradiente de fondo
+  - Título con icono Sparkles decorativo
+  - Descripción mejorada con texto destacado
+  - Animaciones de entrada (fade + slide) para todos los elementos
+- Usa el componente `ProductForm` en modo creación
+- Obtiene el `user.id` del contexto de autenticación para `createdBy`
+- Redirige a `/products` después de crear exitosamente
+- Manejo de errores con mensajes específicos
+- Contenedor del formulario con bordes redondeados y sombras suaves
 
 **Asociación de Proveedores:**
-- Sección en formulario: "Proveedores"
+- Sección en formulario: "Proveedores" (pendiente de implementar)
 - Lista de proveedores asociados con:
   - Código del producto en el proveedor
   - Precio de coste (puede diferir del precio general)
@@ -1555,7 +1629,12 @@ mcp-server/
 - [ ] Tests unitarios de servicios críticos
 
 ### Fase 2: Productos y Lotes (Semanas 3-4)
-- [ ] CRUD completo de productos
+- [x] CRUD completo de productos (crear, leer, actualizar, eliminar)
+- [x] Componente ProductForm con validaciones completas
+- [x] Página ProductNewPage para crear productos
+- [x] Ruta `/products/new` configurada y funcionando
+- [ ] Página ProductEditPage para editar productos
+- [ ] Página ProductDetailPage para ver detalles
 - [ ] CRUD de proveedores
 - [ ] Gestión de lotes con estados
 - [ ] Registro de movimientos IN/OUT

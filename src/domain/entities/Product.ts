@@ -25,6 +25,7 @@ export interface Product {
   salePrice?: Nullable<number>;
   purchaseUrl?: Nullable<string>;
   imageUrl?: Nullable<string>;
+  supplierCode?: Nullable<string>; // Código de Proveedor
   isActive: boolean;
   isBatchTracked: boolean;
   unitOfMeasure?: Nullable<string>;
@@ -32,9 +33,9 @@ export interface Product {
   dimensionsCm?: Nullable<ProductDimensions>;
   notes?: Nullable<string>;
   createdAt: Timestamp;
-  updatedAt: Timestamp;
+  updatedAt: Timestamp; // Fecha de modificación
   createdBy?: Nullable<UUID>;
-  updatedBy?: Nullable<UUID>;
+  updatedBy?: Nullable<UUID>; // Usuario que hizo la modificación
 }
 
 export type BatchStatus =

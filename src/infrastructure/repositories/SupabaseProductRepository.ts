@@ -31,6 +31,7 @@ type ProductRow = {
   sale_price: number | null;
   purchase_url: string | null;
   image_url: string | null;
+  supplier_code: string | null; // Código de Proveedor
   is_active: boolean;
   is_batch_tracked: boolean;
   unit_of_measure: string | null;
@@ -38,9 +39,9 @@ type ProductRow = {
   dimensions_cm: string | null;
   notes: string | null;
   created_at: string;
-  updated_at: string;
+  updated_at: string; // Fecha de modificación
   created_by: string | null;
-  updated_by: string | null;
+  updated_by: string | null; // Usuario que hizo la modificación
 };
 
 type BatchRow = {
@@ -109,6 +110,7 @@ const mapProduct = (row: ProductRow): Product => ({
   salePrice: row.sale_price,
   purchaseUrl: row.purchase_url,
   imageUrl: row.image_url,
+  supplierCode: row.supplier_code, // Código de Proveedor
   isActive: row.is_active,
   isBatchTracked: row.is_batch_tracked,
   unitOfMeasure: row.unit_of_measure,
@@ -116,9 +118,9 @@ const mapProduct = (row: ProductRow): Product => ({
   dimensionsCm: parseDimensions(row.dimensions_cm),
   notes: row.notes,
   createdAt: row.created_at,
-  updatedAt: row.updated_at,
+  updatedAt: row.updated_at, // Fecha de modificación
   createdBy: row.created_by,
-  updatedBy: row.updated_by
+  updatedBy: row.updated_by // Usuario que hizo la modificación
 });
 
 const mapBatch = (row: BatchRow): ProductBatch => ({
@@ -280,6 +282,7 @@ export class SupabaseProductRepository
       sale_price: input.salePrice ?? null,
       purchase_url: input.purchaseUrl ?? null,
       image_url: input.imageUrl ?? null,
+      supplier_code: input.supplierCode ?? null, // Código de Proveedor
       is_active: input.isActive ?? true,
       is_batch_tracked: input.isBatchTracked,
       unit_of_measure: input.unitOfMeasure ?? null,
@@ -320,6 +323,7 @@ export class SupabaseProductRepository
     if (input.salePrice !== undefined) row.sale_price = input.salePrice;
     if (input.purchaseUrl !== undefined) row.purchase_url = input.purchaseUrl;
     if (input.imageUrl !== undefined) row.image_url = input.imageUrl;
+    if (input.supplierCode !== undefined) row.supplier_code = input.supplierCode; // Código de Proveedor
     if (input.isActive !== undefined) row.is_active = input.isActive;
     if (input.isBatchTracked !== undefined)
       row.is_batch_tracked = input.isBatchTracked;

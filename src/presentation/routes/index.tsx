@@ -8,6 +8,10 @@ const ProductsPage = React.lazy(() =>
   import("../pages/ProductsPage").then((module) => ({ default: module.ProductsPage }))
 );
 
+const ProductNewPage = React.lazy(() =>
+  import("../pages/ProductNewPage").then((module) => ({ default: module.ProductNewPage }))
+);
+
 // Lazy load de páginas
 const DashboardPage = React.lazy(() =>
   import("../pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
@@ -60,6 +64,20 @@ const routes: RouteObject[] = [
             }
           >
             <ProductsPage />
+          </React.Suspense>
+        )
+      },
+      {
+        path: "/products/new",
+        element: (
+          <React.Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+              </div>
+            }
+          >
+            <ProductNewPage />
           </React.Suspense>
         )
       },

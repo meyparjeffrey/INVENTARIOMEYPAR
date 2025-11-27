@@ -33,9 +33,10 @@ export interface CreateProductInput {
   shelf: string;
   locationExtra?: string | null;
   costPrice: number;
-  salePrice?: number | null;
+  salePrice?: string | null;
   purchaseUrl?: string | null;
   imageUrl?: string | null;
+  supplierCode?: string | null; // Código de Proveedor
   isActive?: boolean;
   isBatchTracked: boolean;
   unitOfMeasure?: string | null;
@@ -61,6 +62,7 @@ export interface UpdateProductInput {
   salePrice?: number | null;
   purchaseUrl?: string | null;
   imageUrl?: string | null;
+  supplierCode?: string | null; // Código de Proveedor
   isActive?: boolean;
   isBatchTracked?: boolean;
   unitOfMeasure?: string | null;

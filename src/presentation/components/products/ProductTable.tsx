@@ -64,6 +64,9 @@ export function ProductTable({
             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
               Ubicación
             </th>
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Notas
+            </th>
             <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
               Estado
             </th>
@@ -115,6 +118,15 @@ export function ProductTable({
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                   {product.aisle} / {product.shelf}
+                </td>
+                <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                  {product.notes ? (
+                    <span className="max-w-xs truncate" title={product.notes}>
+                      {product.notes}
+                    </span>
+                  ) : (
+                    <span className="text-gray-400 dark:text-gray-500">-</span>
+                  )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-center text-sm">
                   {isLowStock && (
