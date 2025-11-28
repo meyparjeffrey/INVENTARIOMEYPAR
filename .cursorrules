@@ -52,8 +52,34 @@
   4. Exportaciones Excel/PDF en ambos idiomas.
   5. Tests E2E pasando.
 
+## Desarrollo Multiplataforma (Windows + Web)
+- **REGLA CRÍTICA:** TODO el código debe funcionar tanto en Windows (Electron) como en Web (Vercel).
+- **NUNCA** escribir código que solo funcione en un entorno. SIEMPRE verificar compatibilidad dual.
+- **Detección de entorno:** Usar `window.location.protocol === "file:"` para detectar Electron vs Web.
+- **Router:** Usar `createHashRouter` en Electron y `createBrowserRouter` en Web (ver `src/presentation/routes/index.tsx`).
+- **Variables de entorno:** Acceder tanto a `process.env` como a `import.meta.env` para compatibilidad.
+- **Rutas de assets:** En Electron usar `base: "./"`, en Web usar `base: "/"` (ya configurado en Vite).
+- **Navegación:** Detectar entorno y ajustar redirecciones (`window.location.hash` en Electron, `window.location.href` en Web).
+- **Testing:** Probar cambios en AMBOS entornos antes de commit:
+  - `npm run dev:web` → Verificar en `http://localhost:5173`
+  - `npm run dev` → Verificar en Electron
+- **Builds:** Mantener ambos builds funcionando:
+  - `npm run build:web` → Debe generar `dist/web/` correctamente
+  - `npm run build:win` → Debe generar instalador Windows correctamente
+
+## Estrategia de Desarrollo
+- **90% del tiempo:** Usar `npm run dev:web` para desarrollo rápido (localhost:5173).
+- **10% del tiempo:** Usar `npm run dev` solo para probar funcionalidades específicas de Electron.
+- **Antes de commit:** Verificar que el código funciona en AMBOS entornos.
+- **Configuraciones Vite:**
+  - `configs/vite.renderer.config.ts` → Para Electron (base: "./" en producción)
+  - `configs/vite.web.config.ts` → Para Web/Vercel (base: "/" siempre)
+- **Archivos compartidos:** Todo en `src/presentation/` debe funcionar en ambos entornos.
+- **Archivos específicos Electron:** Solo `src/main/electron/` es exclusivo de Electron.
+
 ## Flujo de trabajo
 - Antes de codificar, valida requisitos con usuario y actualiza plan.
 - Usa ramas temáticas, commits pequeños y mensajes descriptivos en español.
 - Corre linters/tests antes de pedir revisión.
+- **SIEMPRE** verificar que los cambios funcionan en Web Y Windows antes de commit.
 
