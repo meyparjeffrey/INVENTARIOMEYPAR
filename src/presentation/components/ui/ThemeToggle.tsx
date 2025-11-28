@@ -9,21 +9,16 @@ import { Button } from "./Button";
 export function ThemeToggle() {
   const { theme, setTheme, effectiveTheme } = useTheme();
 
-  const cycleTheme = () => {
-    if (theme === "light") {
-      setTheme("dark");
-    } else if (theme === "dark") {
-      setTheme("system");
-    } else {
-      setTheme("light");
-    }
+  const toggleTheme = () => {
+    // Solo alternar entre light y dark (un clic)
+    setTheme(effectiveTheme === "dark" ? "light" : "dark");
   };
 
   return (
     <Button
       variant="ghost"
       size="sm"
-      onClick={cycleTheme}
+      onClick={toggleTheme}
       className="h-9 w-9 p-0"
       title={`Tema: ${theme === "system" ? "Sistema" : theme === "light" ? "Claro" : "Oscuro"}`}
     >

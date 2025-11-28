@@ -55,6 +55,9 @@ export function ProductTable({
             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
               Nombre
             </th>
+            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+              Categoría
+            </th>
             <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
               Stock
             </th>
@@ -84,8 +87,8 @@ export function ProductTable({
               <tr
                 key={product.id}
                 className={cn(
-                  "transition-colors",
-                  isHovered && "bg-gray-50 dark:bg-gray-700/50"
+                  "transition-all duration-200",
+                  isHovered && "bg-gray-50 dark:bg-gray-700/50 shadow-sm"
                 )}
                 onMouseEnter={() => setHoveredRow(product.id)}
                 onMouseLeave={() => setHoveredRow(null)}
@@ -102,6 +105,11 @@ export function ProductTable({
                       </span>
                     )}
                   </div>
+                </td>
+                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
+                  {product.category || (
+                    <span className="text-gray-400 dark:text-gray-500">-</span>
+                  )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-50">
                   <span
@@ -142,40 +150,44 @@ export function ProductTable({
                   )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-center text-sm">
-                  {isHovered && (
-                    <div className="flex items-center justify-center gap-1">
-                      {onView && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onView(product)}
-                          title="Ver detalle"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {onEdit && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onEdit(product)}
-                          title="Editar"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {onMovement && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onMovement(product)}
-                          title="Registrar movimiento"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  )}
+                  <div className={cn(
+                    "flex items-center justify-center gap-1 transition-opacity duration-200",
+                    isHovered ? "opacity-100" : "opacity-0"
+                  )}>
+                    {onView && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onView(product)}
+                        title="Ver detalle"
+                        className="transition-transform duration-200 hover:scale-110"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {onEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEdit(product)}
+                        title="Editar"
+                        className="transition-transform duration-200 hover:scale-110"
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {onMovement && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onMovement(product)}
+                        title="Registrar movimiento"
+                        className="transition-transform duration-200 hover:scale-110"
+                      >
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </td>
               </tr>
             );

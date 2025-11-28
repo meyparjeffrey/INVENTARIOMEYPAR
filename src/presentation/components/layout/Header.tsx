@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useAuth } from "../../context/AuthContext";
-import { LanguageSelector, ThemeToggle, UserMenu } from "../ui";
+import { LanguageSelector, ThemeToggle, UserMenu, ConnectionStatus } from "../ui";
 import { GlobalSearch } from "../ui/GlobalSearch";
 import { NotificationPanel } from "../ui/NotificationPanel";
 
@@ -34,6 +34,7 @@ export function Header() {
 
       {/* Controles */}
       <div className="flex items-center gap-2">
+        <ConnectionStatus />
         <LanguageSelector />
         <ThemeToggle />
         <NotificationPanel />

@@ -11,6 +11,7 @@ export interface ProductFilters {
   category?: string;
   includeInactive?: boolean;
   isBatchTracked?: boolean;
+  lowStock?: boolean; // Filtro para productos con stock <= stock_min
 }
 
 export interface BatchFilters {

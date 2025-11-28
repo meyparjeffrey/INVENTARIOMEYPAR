@@ -196,8 +196,22 @@ export class SupabaseProductRepository
     const { data, error, count } = await query.range(from, to);
     this.handleError("listar productos", error);
 
+    // Filtrar por stock bajo después de obtener los datos (ya que Supabase no soporta comparación entre columnas directamente)
+    let products = (data ?? []).map(mapProduct);
+    if (filters?.lowStock) {
+      products = products.filter((p) => p.stockCurrent <= p.stockMin);
+      // Ajustar el count para reflejar el filtro aplicado
+      const filteredCount = products.length;
+      return toPaginatedResult(
+        products,
+        filteredCount,
+        page,
+        pageSize
+      );
+    }
+
     return toPaginatedResult(
-      (data ?? []).map(mapProduct),
+      products,
       count ?? null,
       page,
       pageSize

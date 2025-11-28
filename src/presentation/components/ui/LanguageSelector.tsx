@@ -16,7 +16,7 @@ export function LanguageSelector() {
   ];
 
   return (
-    <div className="relative">
+    <div className="relative" style={{ zIndex: 200 }}>
       <Button
         variant="ghost"
         size="sm"
@@ -32,10 +32,14 @@ export function LanguageSelector() {
       {isOpen && (
         <>
           <div
-            className="fixed inset-0 z-10"
+            className="fixed inset-0"
             onClick={() => setIsOpen(false)}
+            style={{ zIndex: 199, pointerEvents: "auto" }}
           />
-          <div className="absolute right-0 top-full z-20 mt-1 w-32 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+          <div 
+            className="absolute right-0 top-full mt-1 w-32 rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800" 
+            style={{ zIndex: 200, pointerEvents: "auto" }}
+          >
             {languages.map((lang) => (
               <button
                 key={lang.code}

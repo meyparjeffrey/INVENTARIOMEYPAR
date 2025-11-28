@@ -8,6 +8,8 @@ interface ProtectedRouteProps {
 
 /**
  * Wrapper para rutas que requieren autenticación.
+ * SEGURIDAD MEJORADA: Solo permite acceso si hay un authContext válido.
+ * El AuthContext ya maneja la verificación de sesión recordada.
  */
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const { authContext, loading } = useAuth();
@@ -23,6 +25,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
+  // SEGURIDAD: Si no hay authContext, redirigir a login
+  // El AuthContext ya verifica si hay sesión válida al iniciar
   if (!authContext) {
     return <Navigate to="/login" replace />;
   }

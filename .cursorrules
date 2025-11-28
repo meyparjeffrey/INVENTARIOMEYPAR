@@ -13,6 +13,7 @@
 - Todo nuevo código en TypeScript estricto. Componentes reutilizables, sin lógica pesada en la UI.
 - Siempre mejora el código existente: refactorizar cuando se toque una zona con deuda.
 - UI y textos en español/catalán según i18n; base de datos y código en inglés.
+- **REGLA CRÍTICA DE TRADUCCIONES:** TODO texto nuevo visible al usuario DEBE estar traducido a ambos idiomas (español y catalán). Añadir las traducciones en `src/presentation/context/LanguageContext.tsx` o en el sistema de i18n correspondiente. El idioma por defecto es CATALÁN (ca-ES).
 - Documenta lo imprescindible en cada PR: resumen técnico y decisiones clave.
 - Documentar cada pieza de código nueva con comentarios y/o descripciones en español, manteniendo la brevedad necesaria.
 

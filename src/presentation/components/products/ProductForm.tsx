@@ -256,6 +256,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
       animate="visible"
       onSubmit={handleSubmit}
       className="space-y-6"
+      noValidate
     >
       {/* Información Básica */}
       <SectionCard icon={Package} title="Información Básica" delay={0}>

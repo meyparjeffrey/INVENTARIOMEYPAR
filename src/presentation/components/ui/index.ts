@@ -3,6 +3,7 @@ export { Input, type InputProps } from "./Input";
 export { Label } from "./Label";
 export { LanguageSelector } from "./LanguageSelector";
 export { ThemeToggle } from "./ThemeToggle";
+export { ConnectionStatus } from "./ConnectionStatus";
 export { Avatar } from "./Avatar";
 export { SearchInput } from "./SearchInput";
 export { GlobalSearch } from "./GlobalSearch";
