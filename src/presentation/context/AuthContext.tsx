@@ -47,8 +47,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const logout = React.useCallback(async () => {
-    await authService.logout();
-    setAuthContext(null);
+    try {
+      await authService.logout();
+      setAuthContext(null);
+      // Forzar navegación a /login después del logout
+      const isElectron = window.location.protocol === "file:";
+      if (isElectron) {
+        window.location.hash = "#/login";
+      } else {
+        window.location.href = "/login";
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("[AuthContext] Error al cerrar sesión", error);
+      // Aún así, limpiar el contexto local
+      setAuthContext(null);
+    }
   }, [authService]);
 
   const refreshContext = React.useCallback(async () => {

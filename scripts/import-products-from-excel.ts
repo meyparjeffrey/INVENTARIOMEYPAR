@@ -82,8 +82,8 @@ function readExcelFile(filePath: string): ProductToImport[] {
 
   console.log(`✅ Encontradas ${data.length} filas en el Excel`);
 
-  const products: ProductToImport[] = data
-    .map((row) => {
+  const products = data
+    .map((row): ProductToImport | null => {
       const code = String(row.CODIGO || "").trim();
       const name = String(row.NOMBRE || "").trim();
       const supplierCode =

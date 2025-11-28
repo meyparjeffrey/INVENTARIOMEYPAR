@@ -4,13 +4,19 @@
   "private": true,
   "type": "module",
   "description": "Aplicación de inventario con Electron, React, Supabase e IA.",
+  "author": "Inventario Almacén",
+  "main": "dist/main/src/main/electron/main.js",
   "scripts": {
     "dev": "concurrently \"npm:dev:renderer\" \"npm:dev:electron\"",
     "dev:renderer": "vite --config configs/vite.renderer.config.ts",
     "dev:electron": "ts-node --project tsconfig.node.json src/main/electron/main.ts",
-    "build": "run-p build:renderer build:electron",
+    "build": "run-p build:renderer build:electron && npm run build:copy-splash",
     "build:renderer": "vite build --config configs/vite.renderer.config.ts",
     "build:electron": "tsc -p tsconfig.node.json",
+    "build:copy-splash": "node -e \"const fs=require('fs');const path=require('path');const src=path.join('src','main','electron','splash.html');const dst=path.join('dist','main','src','main','electron','splash.html');if(fs.existsSync(src)){fs.mkdirSync(path.dirname(dst),{recursive:true});fs.copyFileSync(src,dst);console.log('✅ Splash copiado');}\"",
+    "build:win": "npm run build && electron-builder --win",
+    "build:win:dir": "npm run build && electron-builder --win --dir",
+    "dist": "npm run build && electron-builder",
     "lint": "eslint \"{src,mcp-server}/**/*.{ts,tsx}\"",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -33,8 +39,6 @@
     "autoprefixer": "^10.4.22",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "electron": "^31.2.0",
-    "electron-log": "^5.1.4",
     "framer-motion": "^12.23.24",
     "i18next": "^23.10.1",
     "lucide-react": "^0.555.0",
@@ -57,6 +61,9 @@
     "@typescript-eslint/parser": "^8.0.0",
     "@vitejs/plugin-react": "^4.3.1",
     "concurrently": "^9.0.1",
+    "electron": "^31.2.0",
+    "electron-builder": "^26.0.12",
+    "electron-log": "^5.1.4",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
     "eslint-plugin-react": "^7.34.3",
@@ -77,5 +84,52 @@
       "eslint --fix",
       "prettier --write"
     ]
+  },
+  "build": {
+    "appId": "com.inventario.almacen",
+    "productName": "ALMACÉN MEYPAR",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json",
+      "!node_modules/**/*",
+      "!src/**/*",
+      "!configs/**/*",
+      "!scripts/**/*",
+      "!mcp-server/**/*",
+      "!Docs/**/*",
+      "!*.config.*",
+      "!tsconfig*.json",
+      "!vitest.config.ts"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "ALMACÉN MEYPAR",
+      "include": "build/installer.nsh",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "menuCategory": false,
+      "warningsAsErrors": false,
+      "installerLanguages": ["es_ES", "en_US"]
+    }
   }
 }

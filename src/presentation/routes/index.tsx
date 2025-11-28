@@ -1,8 +1,11 @@
 import * as React from "react";
-import { createBrowserRouter, Navigate, RouteObject } from "react-router-dom";
+import { createBrowserRouter, createHashRouter, Navigate, RouteObject } from "react-router-dom";
 import { MainLayout } from "../components/layout/MainLayout";
 import { LoginPage } from "../pages/LoginPage";
 import { ProtectedRoute } from "./ProtectedRoute";
+
+// Detectar si estamos en Electron (archivos locales)
+const isElectron = window.location.protocol === "file:";
 
 const ProductsPage = React.lazy(() =>
   import("../pages/ProductsPage").then((module) => ({ default: module.ProductsPage }))
@@ -28,6 +31,10 @@ const PlaceholderPage = ({ title }: { title: string }) => (
 );
 
 const routes: RouteObject[] = [
+  {
+    path: "/",
+    element: <Navigate to="/login" replace />
+  },
   {
     path: "/login",
     element: <LoginPage />
@@ -112,14 +119,24 @@ const routes: RouteObject[] = [
       {
         path: "/admin",
         element: <PlaceholderPage title="Administración" />
-      },
-      {
-        path: "/",
-        element: <Navigate to="/dashboard" replace />
       }
     ]
   }
 ];
 
-export const router = createBrowserRouter(routes);
+// Usar HashRouter en Electron (archivos locales) y BrowserRouter en desarrollo web
+// Forzar ruta inicial a /login
+const routerConfig = {
+  basename: "/",
+  // Forzar que la ruta inicial sea /login
+  ...(isElectron ? {} : { window: window })
+};
+
+export const router = isElectron 
+  ? createHashRouter(routes, {
+      ...routerConfig,
+      // En Electron, forzar hash inicial a /login
+      window: typeof window !== "undefined" ? window : undefined
+    })
+  : createBrowserRouter(routes, routerConfig);
 

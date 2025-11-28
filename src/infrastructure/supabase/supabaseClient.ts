@@ -3,16 +3,19 @@ import { createClient } from "@supabase/supabase-js";
 type SupabaseEnvKey = "SUPABASE_URL" | "SUPABASE_ANON_KEY";
 
 const getEnvValue = (key: SupabaseEnvKey): string | undefined => {
+  // Primero intentar process.env (para Node.js/Electron main process)
   if (typeof process !== "undefined" && process.env?.[key]) {
     return process.env[key];
   }
 
+  // Luego intentar import.meta.env (Vite inyecta las variables aquí en build time)
   try {
     const viteEnv = (import.meta as ImportMeta & {
       env?: Record<string, string | undefined>;
     }).env;
 
-    return viteEnv?.[`VITE_${key}`];
+    // Buscar tanto con VITE_ prefix como sin él
+    return viteEnv?.[`VITE_${key}`] || viteEnv?.[key] || undefined;
   } catch {
     return undefined;
   }
