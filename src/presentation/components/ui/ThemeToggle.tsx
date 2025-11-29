@@ -19,13 +19,13 @@ export function ThemeToggle() {
       variant="ghost"
       size="sm"
       onClick={toggleTheme}
-      className="h-9 w-9 p-0"
-      title={`Tema: ${theme === "system" ? "Sistema" : theme === "light" ? "Claro" : "Oscuro"}`}
+      className="h-9 w-9 p-0 transition-all hover:bg-gray-100 dark:hover:bg-gray-800"
+      title={`${theme === "system" ? "Sistema" : theme === "light" ? "Tema claro" : "Tema oscuro"}`}
     >
       {effectiveTheme === "dark" ? (
-        <Moon className="h-4 w-4" />
+        <Moon className="h-4 w-4 transition-transform hover:rotate-12" />
       ) : (
-        <Sun className="h-4 w-4" />
+        <Sun className="h-4 w-4 transition-transform hover:rotate-12" />
       )}
       <span className="sr-only">Cambiar tema</span>
     </Button>

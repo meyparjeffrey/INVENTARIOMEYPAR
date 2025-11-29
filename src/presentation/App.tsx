@@ -3,6 +3,7 @@ import { RouterProvider } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 import { LanguageProvider } from "./context/LanguageContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { AiChatProvider } from "./context/AiChatContext";
 import { router } from "./routes";
 import "./styles.css";
 
@@ -32,7 +33,9 @@ export function App() {
     <ThemeProvider>
       <LanguageProvider>
         <AuthProvider>
-          <RouterProvider router={router} />
+          <AiChatProvider>
+            <RouterProvider router={router} />
+          </AiChatProvider>
         </AuthProvider>
       </LanguageProvider>
     </ThemeProvider>

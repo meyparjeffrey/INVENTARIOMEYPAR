@@ -34,7 +34,7 @@ export function Avatar({ name, initials, imageUrl, size = "md", className }: Ava
   return (
     <div
       className={cn(
-        "flex items-center justify-center rounded-full bg-primary-600 font-semibold text-white",
+        "flex items-center justify-center rounded-full bg-primary-600 font-semibold text-white transition-all duration-200 hover:scale-110 hover:shadow-md",
         sizeClasses[size],
         className
       )}

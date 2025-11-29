@@ -6,6 +6,8 @@ import type { Product } from "@domain/entities";
 import { Button } from "../ui/Button";
 import { Input } from "../ui/Input";
 import { Label } from "../ui/Label";
+import { useLanguage } from "../../context/LanguageContext";
+import { formatCurrency } from "../../utils/formatCurrency";
 import { cn } from "../../lib/cn";
 
 interface ProductFormProps {
@@ -19,6 +21,7 @@ interface ProductFormProps {
  * Formulario moderno e interactivo para crear o editar productos.
  */
 export function ProductForm({ product, onSubmit, onCancel, loading = false }: ProductFormProps) {
+  const { t } = useLanguage();
   const isEditing = !!product;
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [touchedFields, setTouchedFields] = React.useState<Set<string>>(new Set());
@@ -53,52 +56,52 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
     const newErrors: Record<string, string> = {};
 
     if (!formData.code.trim()) {
-      newErrors.code = "El código es requerido";
+      newErrors.code = t("validation.code.required");
     } else if (formData.code.trim().length < 3) {
-      newErrors.code = "El código debe tener al menos 3 caracteres";
+      newErrors.code = t("validation.code.minLength");
     } else if (/\s/.test(formData.code)) {
-      newErrors.code = "El código no puede contener espacios";
+      newErrors.code = t("validation.code.noSpaces");
     }
 
     if (!formData.name.trim()) {
-      newErrors.name = "El nombre es requerido";
+      newErrors.name = t("validation.name.required");
     } else if (formData.name.trim().length < 2) {
-      newErrors.name = "El nombre debe tener al menos 2 caracteres";
+      newErrors.name = t("validation.name.minLength");
     }
 
     const stockMin = Number(formData.stockMin);
     if (isNaN(stockMin) || stockMin < 0) {
-      newErrors.stockMin = "El stock mínimo debe ser un número >= 0";
+      newErrors.stockMin = t("validation.stockMin.invalid");
     }
 
     const stockCurrent = Number(formData.stockCurrent);
     if (isNaN(stockCurrent) || stockCurrent < 0) {
-      newErrors.stockCurrent = "El stock actual debe ser un número >= 0";
+      newErrors.stockCurrent = t("validation.stockCurrent.invalid");
     }
 
     if (formData.stockMax !== "" && formData.stockMax !== null) {
       const stockMax = Number(formData.stockMax);
       if (isNaN(stockMax) || stockMax <= stockMin) {
-        newErrors.stockMax = `El stock máximo debe ser mayor que el mínimo (${stockMin})`;
+        newErrors.stockMax = `${t("validation.stockMax.invalid")} (${stockMin})`;
       }
     }
 
     if (!formData.aisle.trim()) {
-      newErrors.aisle = "El pasillo es requerido";
+      newErrors.aisle = t("validation.aisle.required");
     }
     if (!formData.shelf.trim()) {
-      newErrors.shelf = "El estante es requerido";
+      newErrors.shelf = t("validation.shelf.required");
     }
 
     const costPrice = Number(formData.costPrice);
     if (isNaN(costPrice) || costPrice < 0) {
-      newErrors.costPrice = "El precio de coste debe ser un número >= 0";
+      newErrors.costPrice = t("validation.costPrice.invalid");
     }
 
     if (formData.salePrice !== "" && formData.salePrice !== null) {
       const salePrice = Number(formData.salePrice);
       if (isNaN(salePrice) || salePrice < costPrice) {
-        newErrors.salePrice = `El precio de venta debe ser >= precio de coste (${costPrice})`;
+        newErrors.salePrice = `${t("validation.salePrice.invalid")} (${formatCurrency(costPrice)})`;
       }
     }
 
@@ -108,7 +111,23 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
       const height = formData.dimensionsHeight ? Number(formData.dimensionsHeight) : 0;
 
       if (length < 0 || width < 0 || height < 0) {
-        newErrors.dimensions = "Las dimensiones deben ser números positivos";
+        newErrors.dimensions = t("validation.dimensions.invalid");
+      }
+    }
+
+    // Validar URLs si están presentes
+    if (formData.purchaseUrl && formData.purchaseUrl.trim()) {
+      try {
+        new URL(formData.purchaseUrl);
+      } catch {
+        newErrors.purchaseUrl = t("validation.url.invalid");
+      }
+    }
+    if (formData.imageUrl && formData.imageUrl.trim()) {
+      try {
+        new URL(formData.imageUrl);
+      } catch {
+        newErrors.imageUrl = t("validation.url.invalid");
       }
     }
 
@@ -259,12 +278,12 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
       noValidate
     >
       {/* Información Básica */}
-      <SectionCard icon={Package} title="Información Básica" delay={0}>
+      <SectionCard icon={Package} title={t("form.basicInfo")} delay={0}>
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <FieldWrapper error={errors.code} touched={touchedFields.has("code")}>
               <Label htmlFor="code" className="flex items-center gap-1.5">
-                Código <span className="text-red-500">*</span>
+                {t("table.code")} <span className="text-red-500">*</span>
                 {!errors.code && touchedFields.has("code") && formData.code && (
                   <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
                 )}
@@ -287,7 +306,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
             </FieldWrapper>
 
             <FieldWrapper error={errors.barcode} touched={touchedFields.has("barcode")}>
-              <Label htmlFor="barcode">Código de Barras</Label>
+              <Label htmlFor="barcode">{t("form.barcode")}</Label>
               <Input
                 id="barcode"
                 value={formData.barcode}
@@ -300,7 +319,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
 
           <FieldWrapper error={errors.name} touched={touchedFields.has("name")}>
             <Label htmlFor="name" className="flex items-center gap-1.5">
-              Nombre <span className="text-red-500">*</span>
+              {t("table.name")} <span className="text-red-500">*</span>
               {!errors.name && touchedFields.has("name") && formData.name && (
                 <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
               )}
@@ -322,7 +341,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
           </FieldWrapper>
 
           <div>
-            <Label htmlFor="description">Descripción</Label>
+            <Label htmlFor="description">{t("form.description")}</Label>
             <textarea
               id="description"
               value={formData.description}
@@ -333,7 +352,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
           </div>
 
           <div>
-            <Label htmlFor="category">Categoría</Label>
+            <Label htmlFor="category">{t("table.category")}</Label>
             <Input
               id="category"
               value={formData.category}
@@ -345,10 +364,10 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
       </SectionCard>
 
       {/* Stock */}
-      <SectionCard icon={Box} title="Stock" delay={0.1}>
+      <SectionCard icon={Box} title={t("form.stock")} delay={0.1}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <FieldWrapper error={errors.stockCurrent} touched={touchedFields.has("stockCurrent")}>
-            <Label htmlFor="stockCurrent">Stock Actual</Label>
+            <Label htmlFor="stockCurrent">{t("form.stockCurrent")}</Label>
             <Input
               id="stockCurrent"
               type="number"
@@ -367,7 +386,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
 
           <FieldWrapper error={errors.stockMin} touched={touchedFields.has("stockMin")}>
             <Label htmlFor="stockMin">
-              Stock Mínimo <span className="text-red-500">*</span>
+              {t("form.stockMin")} <span className="text-red-500">*</span>
             </Label>
             <Input
               id="stockMin"
@@ -386,7 +405,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
           </FieldWrapper>
 
           <FieldWrapper error={errors.stockMax} touched={touchedFields.has("stockMax")}>
-            <Label htmlFor="stockMax">Stock Máximo</Label>
+            <Label htmlFor="stockMax">{t("form.stockMax")}</Label>
             <Input
               id="stockMax"
               type="number"
@@ -406,11 +425,11 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
       </SectionCard>
 
       {/* Ubicación */}
-      <SectionCard icon={MapPin} title="Ubicación" delay={0.2}>
+      <SectionCard icon={MapPin} title={t("form.location")} delay={0.2}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <FieldWrapper error={errors.aisle} touched={touchedFields.has("aisle")}>
             <Label htmlFor="aisle">
-              Pasillo <span className="text-red-500">*</span>
+              {t("form.aisle")} <span className="text-red-500">*</span>
             </Label>
             <Input
               id="aisle"
@@ -428,7 +447,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
 
           <FieldWrapper error={errors.shelf} touched={touchedFields.has("shelf")}>
             <Label htmlFor="shelf">
-              Estante <span className="text-red-500">*</span>
+              {t("form.shelf")} <span className="text-red-500">*</span>
             </Label>
             <Input
               id="shelf"
@@ -445,7 +464,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
           </FieldWrapper>
 
           <div>
-            <Label htmlFor="locationExtra">Ubicación Extra</Label>
+            <Label htmlFor="locationExtra">{t("form.locationExtra")}</Label>
             <Input
               id="locationExtra"
               value={formData.locationExtra}
@@ -457,56 +476,66 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
       </SectionCard>
 
       {/* Precios */}
-      <SectionCard icon={DollarSign} title="Precios" delay={0.3}>
+      <SectionCard icon={DollarSign} title={t("form.prices")} delay={0.3}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FieldWrapper error={errors.costPrice} touched={touchedFields.has("costPrice")}>
             <Label htmlFor="costPrice">
-              Precio de Coste <span className="text-red-500">*</span>
+              {t("form.costPrice")} (€) <span className="text-red-500">*</span>
             </Label>
-            <Input
-              id="costPrice"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.costPrice}
-              onChange={(e) => handleChange("costPrice", e.target.value)}
-              onBlur={() => handleBlur("costPrice")}
-              className={cn(
-                "transition-all duration-200",
-                errors.costPrice && touchedFields.has("costPrice")
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                  : "focus:border-primary-500 focus:ring-primary-500"
-              )}
-            />
+            <div className="relative">
+              <Input
+                id="costPrice"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.costPrice}
+                onChange={(e) => handleChange("costPrice", e.target.value)}
+                onBlur={() => handleBlur("costPrice")}
+                className={cn(
+                  "pr-8 transition-all duration-200",
+                  errors.costPrice && touchedFields.has("costPrice")
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                    : "focus:border-primary-500 focus:ring-primary-500"
+                )}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 dark:text-gray-400">
+                €
+              </span>
+            </div>
           </FieldWrapper>
 
           <FieldWrapper error={errors.salePrice} touched={touchedFields.has("salePrice")}>
-            <Label htmlFor="salePrice">Precio de Venta</Label>
-            <Input
-              id="salePrice"
-              type="number"
-              step="0.01"
-              min="0"
-              value={formData.salePrice}
-              onChange={(e) => handleChange("salePrice", e.target.value)}
-              onBlur={() => handleBlur("salePrice")}
-              className={cn(
-                "transition-all duration-200",
-                errors.salePrice && touchedFields.has("salePrice")
-                  ? "border-red-500 focus:border-red-500 focus:ring-red-500"
-                  : "focus:border-primary-500 focus:ring-primary-500"
-              )}
-            />
+            <Label htmlFor="salePrice">{t("form.salePrice")} (€)</Label>
+            <div className="relative">
+              <Input
+                id="salePrice"
+                type="number"
+                step="0.01"
+                min="0"
+                value={formData.salePrice}
+                onChange={(e) => handleChange("salePrice", e.target.value)}
+                onBlur={() => handleBlur("salePrice")}
+                className={cn(
+                  "pr-8 transition-all duration-200",
+                  errors.salePrice && touchedFields.has("salePrice")
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                    : "focus:border-primary-500 focus:ring-primary-500"
+                )}
+              />
+              <span className="absolute right-3 top-1/2 -translate-y-1/2 text-sm text-gray-500 dark:text-gray-400">
+                €
+              </span>
+            </div>
           </FieldWrapper>
         </div>
       </SectionCard>
 
       {/* Información Adicional */}
-      <SectionCard icon={Info} title="Información Adicional" delay={0.4}>
+      <SectionCard icon={Info} title={t("form.additionalInfo")} delay={0.4}>
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
-              <Label htmlFor="supplierCode">Código de Proveedor</Label>
+              <Label htmlFor="supplierCode">{t("form.supplierCode")}</Label>
               <Input
                 id="supplierCode"
                 value={formData.supplierCode}
@@ -516,7 +545,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
             </div>
 
             <div>
-              <Label htmlFor="unitOfMeasure">Unidad de Medida</Label>
+              <Label htmlFor="unitOfMeasure">{t("form.unitOfMeasure")}</Label>
               <Input
                 id="unitOfMeasure"
                 value={formData.unitOfMeasure}
@@ -527,32 +556,44 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
             </div>
           </div>
 
-          <div>
-            <Label htmlFor="purchaseUrl">URL de Compra</Label>
+          <FieldWrapper error={errors.purchaseUrl} touched={touchedFields.has("purchaseUrl")}>
+            <Label htmlFor="purchaseUrl">{t("form.purchaseUrl")}</Label>
             <Input
               id="purchaseUrl"
               type="url"
               value={formData.purchaseUrl}
               onChange={(e) => handleChange("purchaseUrl", e.target.value)}
+              onBlur={() => handleBlur("purchaseUrl")}
               placeholder="https://..."
-              className="transition-all duration-200 focus:border-primary-500 focus:ring-primary-500"
+              className={cn(
+                "transition-all duration-200",
+                errors.purchaseUrl && touchedFields.has("purchaseUrl")
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                  : "focus:border-primary-500 focus:ring-primary-500"
+              )}
             />
-          </div>
+          </FieldWrapper>
 
-          <div>
-            <Label htmlFor="imageUrl">URL de Imagen</Label>
+          <FieldWrapper error={errors.imageUrl} touched={touchedFields.has("imageUrl")}>
+            <Label htmlFor="imageUrl">{t("form.imageUrl")}</Label>
             <Input
               id="imageUrl"
               type="url"
               value={formData.imageUrl}
               onChange={(e) => handleChange("imageUrl", e.target.value)}
+              onBlur={() => handleBlur("imageUrl")}
               placeholder="https://..."
-              className="transition-all duration-200 focus:border-primary-500 focus:ring-primary-500"
+              className={cn(
+                "transition-all duration-200",
+                errors.imageUrl && touchedFields.has("imageUrl")
+                  ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                  : "focus:border-primary-500 focus:ring-primary-500"
+              )}
             />
-          </div>
+          </FieldWrapper>
 
           <div>
-            <Label htmlFor="weightKg">Peso (kg)</Label>
+            <Label htmlFor="weightKg">{t("form.weightKg")}</Label>
             <Input
               id="weightKg"
               type="number"
@@ -565,10 +606,10 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
           </div>
 
           <FieldWrapper error={errors.dimensions} touched={touchedFields.has("dimensions")}>
-            <Label>Dimensiones (cm)</Label>
+            <Label>{t("form.dimensions")}</Label>
             <div className="grid grid-cols-3 gap-2">
               <Input
-                placeholder="Largo"
+                placeholder={t("form.length")}
                 type="number"
                 step="0.1"
                 min="0"
@@ -583,7 +624,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
                 )}
               />
               <Input
-                placeholder="Ancho"
+                placeholder={t("form.width")}
                 type="number"
                 step="0.1"
                 min="0"
@@ -598,7 +639,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
                 )}
               />
               <Input
-                placeholder="Alto"
+                placeholder={t("form.height")}
                 type="number"
                 step="0.1"
                 min="0"
@@ -616,7 +657,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
           </FieldWrapper>
 
           <div>
-            <Label htmlFor="notes">Notas</Label>
+            <Label htmlFor="notes">{t("form.notes")}</Label>
             <textarea
               id="notes"
               value={formData.notes}
@@ -629,7 +670,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
       </SectionCard>
 
       {/* Opciones */}
-      <SectionCard icon={Settings} title="Opciones" delay={0.5}>
+      <SectionCard icon={Settings} title={t("form.options")} delay={0.5}>
         <div className="space-y-3">
           <motion.label
             whileHover={{ scale: 1.02 }}
@@ -642,7 +683,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
               onChange={(e) => handleChange("isActive", e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-blue-600 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Producto activo</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t("form.activeProduct")}</span>
           </motion.label>
 
           <motion.label
@@ -656,7 +697,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
               onChange={(e) => handleChange("isBatchTracked", e.target.checked)}
               className="h-4 w-4 rounded border-gray-300 text-blue-600 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Control por lotes</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t("form.batchTracked")}</span>
           </motion.label>
         </div>
       </SectionCard>
@@ -676,7 +717,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
           className="transition-all duration-200 hover:scale-105"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Cancelar
+          {t("form.cancel")}
         </Button>
         <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
           <Button type="submit" disabled={loading} className="min-w-[140px] transition-all duration-200">
@@ -687,10 +728,10 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
                   transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                   className="mr-2 h-4 w-4 rounded-full border-2 border-white border-t-transparent"
                 />
-                Guardando...
+                {t("form.save")}
               </>
             ) : (
-              isEditing ? "Actualizar" : "Crear Producto"
+              isEditing ? t("form.update") : t("form.create")
             )}
           </Button>
         </motion.div>

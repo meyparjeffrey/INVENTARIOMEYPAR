@@ -2,6 +2,8 @@ import * as React from "react";
 import { Outlet } from "react-router-dom";
 import { Header } from "./Header";
 import { Sidebar } from "./Sidebar";
+import { AiChatButton } from "../ai/AiChatButton";
+import { AiChatPanel } from "../ai/AiChatPanel";
 
 /**
  * Layout principal que combina Sidebar, Header y área de contenido.
@@ -16,6 +18,9 @@ export function MainLayout() {
           <Outlet />
         </main>
       </div>
+      {/* Botón flotante y panel de chat de IA */}
+      <AiChatButton />
+      <AiChatPanel />
     </div>
   );
 }

@@ -42,6 +42,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     async (email: string, password: string, rememberSession = true) => {
       const context = await authService.login({ email, password, rememberSession });
       setAuthContext(context);
+      
+      // Sincronizar idioma desde user_settings después del login
+      if (context.settings?.language) {
+        const storedLanguage = localStorage.getItem("language");
+        const settingsLanguage = context.settings.language;
+        
+        // Si el idioma en Supabase es diferente al de localStorage, usar el de Supabase
+        if (storedLanguage !== settingsLanguage) {
+          localStorage.setItem("language", settingsLanguage);
+          // Disparar evento para que LanguageContext se actualice
+          window.dispatchEvent(new CustomEvent("language-changed", { detail: settingsLanguage }));
+        }
+      } else {
+        // Si no hay settings, crear con el idioma actual de localStorage
+        const currentLanguage = localStorage.getItem("language") || "ca-ES";
+        try {
+          const { supabaseClient } = await import("@infrastructure/supabase/supabaseClient");
+          await supabaseClient
+            .from("user_settings")
+            .upsert({
+              user_id: context.profile.id,
+              language: currentLanguage,
+              updated_at: new Date().toISOString()
+            }, {
+              onConflict: "user_id"
+            });
+        } catch (error) {
+          // eslint-disable-next-line no-console
+          console.warn("[AuthContext] Error creando user_settings:", error);
+        }
+      }
     },
     [authService]
   );

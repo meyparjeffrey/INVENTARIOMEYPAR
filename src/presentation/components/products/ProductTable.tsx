@@ -1,7 +1,8 @@
-import { AlertTriangle, Edit, Eye, MoreVertical, Package } from "lucide-react";
+import { AlertTriangle, Edit, Eye, MoreVertical, Package, Trash2, Copy, History, Download as DownloadIcon } from "lucide-react";
 import * as React from "react";
 import type { Product } from "@domain/entities";
 import { Button } from "../ui/Button";
+import { useLanguage } from "../../context/LanguageContext";
 import { cn } from "../../lib/cn";
 
 interface ProductTableProps {
@@ -10,6 +11,11 @@ interface ProductTableProps {
   onView?: (product: Product) => void;
   onEdit?: (product: Product) => void;
   onMovement?: (product: Product) => void;
+  onDelete?: (product: Product) => void;
+  onDuplicate?: (product: Product) => void;
+  onHistory?: (product: Product) => void;
+  onExport?: (product: Product) => void;
+  onToggleActive?: (product: Product) => void;
 }
 
 /**
@@ -20,9 +26,16 @@ export function ProductTable({
   loading = false,
   onView,
   onEdit,
-  onMovement
+  onMovement,
+  onDelete,
+  onDuplicate,
+  onHistory,
+  onExport,
+  onToggleActive
 }: ProductTableProps) {
+  const { t } = useLanguage();
   const [hoveredRow, setHoveredRow] = React.useState<string | null>(null);
+  const [actionMenuOpen, setActionMenuOpen] = React.useState<string | null>(null);
 
   if (loading) {
     return (
@@ -38,43 +51,76 @@ export function ProductTable({
     return (
       <div className="flex h-64 flex-col items-center justify-center text-gray-500 dark:text-gray-400">
         <Package className="mb-4 h-12 w-12" />
-        <p className="text-lg font-medium">No hay productos</p>
-        <p className="text-sm">Crea tu primer producto para comenzar</p>
+        <p className="text-lg font-medium">{t("products.noProducts")}</p>
+        <p className="text-sm">{t("products.createFirst")}</p>
       </div>
     );
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-gray-200 dark:border-gray-700">
-      <table className="w-full">
+    <div className="relative rounded-lg border border-gray-200 dark:border-gray-700">
+      {/* Scroll horizontal con indicadores */}
+      <div 
+        className="overflow-x-auto"
+        style={{
+          scrollbarWidth: "thin",
+          scrollbarColor: "#d1d5db #f3f4f6"
+        }}
+      >
+        <style>{`
+          div::-webkit-scrollbar {
+            height: 8px;
+          }
+          div::-webkit-scrollbar-track {
+            background: #f3f4f4;
+            border-radius: 4px;
+          }
+          div::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 4px;
+          }
+          div::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+          }
+          .dark div::-webkit-scrollbar-track {
+            background: #1f2937;
+          }
+          .dark div::-webkit-scrollbar-thumb {
+            background: #4b5563;
+          }
+          .dark div::-webkit-scrollbar-thumb:hover {
+            background: #6b7280;
+          }
+        `}</style>
+        <table className="w-full min-w-[800px]">
         <thead className="bg-gray-50 dark:bg-gray-800">
           <tr>
             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Código
+              {t("table.code")}
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Nombre
+              {t("table.name")}
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Categoría
+              {t("table.category")}
             </th>
             <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Stock
+              {t("table.stock")}
             </th>
             <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Mín
+              {t("table.min")}
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Ubicación
+              {t("table.location")}
             </th>
             <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Notas
+              {t("table.supplierCode")}
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Estado
+              {t("table.status")}
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              Acciones
+              {t("table.actions")}
             </th>
           </tr>
         </thead>
@@ -101,7 +147,7 @@ export function ProductTable({
                     <span>{product.name}</span>
                     {product.isBatchTracked && (
                       <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                        Lotes
+                        {t("products.batches")}
                       </span>
                     )}
                   </div>
@@ -128,9 +174,9 @@ export function ProductTable({
                   {product.aisle} / {product.shelf}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                  {product.notes ? (
-                    <span className="max-w-xs truncate" title={product.notes}>
-                      {product.notes}
+                  {product.supplierCode ? (
+                    <span className="max-w-xs truncate" title={product.supplierCode}>
+                      {product.supplierCode}
                     </span>
                   ) : (
                     <span className="text-gray-400 dark:text-gray-500">-</span>
@@ -140,52 +186,162 @@ export function ProductTable({
                   {isLowStock && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
                       <AlertTriangle className="h-3 w-3" />
-                      Alarma
+                      {t("products.alarm")}
                     </span>
                   )}
                   {!isLowStock && (
                     <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
-                      OK
+                      {t("products.ok")}
                     </span>
                   )}
                 </td>
                 <td className="whitespace-nowrap px-4 py-3 text-center text-sm">
-                  <div className={cn(
-                    "flex items-center justify-center gap-1 transition-opacity duration-200",
-                    isHovered ? "opacity-100" : "opacity-0"
-                  )}>
-                    {onView && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onView(product)}
-                        title="Ver detalle"
-                        className="transition-transform duration-200 hover:scale-110"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {onEdit && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEdit(product)}
-                        title="Editar"
-                        className="transition-transform duration-200 hover:scale-110"
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                    )}
-                    {onMovement && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onMovement(product)}
-                        title="Registrar movimiento"
-                        className="transition-transform duration-200 hover:scale-110"
-                      >
-                        <MoreVertical className="h-4 w-4" />
-                      </Button>
+                  <div className="relative flex items-center justify-center gap-1">
+                    {/* Botones principales siempre visibles */}
+                    <div className={cn(
+                      "flex items-center gap-1 transition-opacity duration-200",
+                      isHovered ? "opacity-100" : "opacity-70"
+                    )}>
+                      {onView && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onView(product)}
+                          title={t("actions.view")}
+                          className="transition-all duration-200 hover:scale-110 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {onEdit && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEdit(product)}
+                          title={t("actions.edit")}
+                          className="transition-all duration-200 hover:scale-110 hover:bg-green-50 dark:hover:bg-green-900/20"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Menú de acciones adicionales */}
+                    {(onDelete || onDuplicate || onHistory || onExport || onMovement || onToggleActive) && (
+                      <div className="relative">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setActionMenuOpen(actionMenuOpen === product.id ? null : product.id)}
+                          title="Más acciones"
+                          className={cn(
+                            "transition-all duration-200",
+                            isHovered ? "opacity-100" : "opacity-70",
+                            "hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700"
+                          )}
+                        >
+                          <MoreVertical className="h-4 w-4" />
+                        </Button>
+
+                        {actionMenuOpen === product.id && (
+                          <>
+                            <div
+                              className="fixed inset-0 z-10"
+                              onClick={() => setActionMenuOpen(null)}
+                            />
+                            <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                              <div className="py-1">
+                                {onMovement && (
+                                  <button
+                                    onClick={() => {
+                                      onMovement(product);
+                                      setActionMenuOpen(null);
+                                    }}
+                                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                  >
+                                    <MoreVertical className="h-4 w-4" />
+                                    {t("actions.movement")}
+                                  </button>
+                                )}
+                                {onDuplicate && (
+                                  <button
+                                    onClick={() => {
+                                      onDuplicate(product);
+                                      setActionMenuOpen(null);
+                                    }}
+                                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                  >
+                                    <Copy className="h-4 w-4" />
+                                    {t("actions.duplicate")}
+                                  </button>
+                                )}
+                                {onHistory && (
+                                  <button
+                                    onClick={() => {
+                                      onHistory(product);
+                                      setActionMenuOpen(null);
+                                    }}
+                                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                  >
+                                    <History className="h-4 w-4" />
+                                    {t("actions.history")}
+                                  </button>
+                                )}
+                                {onExport && (
+                                  <button
+                                    onClick={() => {
+                                      onExport(product);
+                                      setActionMenuOpen(null);
+                                    }}
+                                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                  >
+                                    <DownloadIcon className="h-4 w-4" />
+                                    {t("actions.export")}
+                                  </button>
+                                )}
+                                {onToggleActive && (
+                                  <button
+                                    onClick={() => {
+                                      onToggleActive(product);
+                                      setActionMenuOpen(null);
+                                    }}
+                                    className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                  >
+                                    {product.isActive ? (
+                                      <>
+                                        <AlertTriangle className="h-4 w-4" />
+                                        {t("actions.deactivate")}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Package className="h-4 w-4" />
+                                        {t("actions.activate")}
+                                      </>
+                                    )}
+                                  </button>
+                                )}
+                                {onDelete && (
+                                  <>
+                                    <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
+                                    <button
+                                      onClick={() => {
+                                        if (window.confirm(t("actions.confirmDelete") || `¿Estás seguro de eliminar ${product.name}?`)) {
+                                          onDelete(product);
+                                        }
+                                        setActionMenuOpen(null);
+                                      }}
+                                      className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                      {t("actions.delete")}
+                                    </button>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     )}
                   </div>
                 </td>
@@ -194,6 +350,7 @@ export function ProductTable({
           })}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

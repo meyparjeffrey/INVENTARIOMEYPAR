@@ -7,7 +7,7 @@ import { Button } from "./Button";
  * Selector de idioma (ES/CAT).
  */
 export function LanguageSelector() {
-  const { language, setLanguage } = useLanguage();
+  const { language, setLanguage, t } = useLanguage();
   const [isOpen, setIsOpen] = React.useState(false);
 
   const languages: Array<{ code: "es-ES" | "ca-ES"; label: string; flag: string }> = [
@@ -21,9 +21,10 @@ export function LanguageSelector() {
         variant="ghost"
         size="sm"
         onClick={() => setIsOpen(!isOpen)}
-        className="h-9 gap-1.5 px-2.5"
+        className="h-9 gap-1.5 px-2.5 transition-all hover:bg-gray-100 dark:hover:bg-gray-800"
+        title={`${t("nav.language")}: ${languages.find((l) => l.code === language)?.label ?? "Español"}`}
       >
-        <Globe className="h-4 w-4" />
+        <Globe className="h-4 w-4 transition-transform hover:rotate-12" />
         <span className="text-xs font-medium">
           {languages.find((l) => l.code === language)?.flag ?? "ES"}
         </span>

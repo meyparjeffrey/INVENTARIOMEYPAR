@@ -23,6 +23,18 @@ const ProductEditPage = React.lazy(() =>
   import("../pages/ProductEditPage").then((module) => ({ default: module.ProductEditPage }))
 );
 
+const ProfilePage = React.lazy(() =>
+  import("../pages/ProfilePage").then((module) => ({ default: module.ProfilePage }))
+);
+
+const SettingsPage = React.lazy(() =>
+  import("../pages/SettingsPage").then((module) => ({ default: module.SettingsPage }))
+);
+
+const AdminPage = React.lazy(() =>
+  import("../pages/AdminPage").then((module) => ({ default: module.AdminPage }))
+);
+
 // Lazy load de páginas
 const DashboardPage = React.lazy(() =>
   import("../pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
@@ -149,12 +161,46 @@ const routes: RouteObject[] = [
         element: <PlaceholderPage title="Reportes" />
       },
       {
+        path: "/profile",
+        element: (
+          <React.Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+              </div>
+            }
+          >
+            <ProfilePage />
+          </React.Suspense>
+        )
+      },
+      {
         path: "/settings",
-        element: <PlaceholderPage title="Configuración" />
+        element: (
+          <React.Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+              </div>
+            }
+          >
+            <SettingsPage />
+          </React.Suspense>
+        )
       },
       {
         path: "/admin",
-        element: <PlaceholderPage title="Administración" />
+        element: (
+          <React.Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+              </div>
+            }
+          >
+            <AdminPage />
+          </React.Suspense>
+        )
       }
     ]
   }

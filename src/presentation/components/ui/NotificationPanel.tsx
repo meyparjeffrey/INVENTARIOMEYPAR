@@ -2,6 +2,7 @@ import { Bell } from "lucide-react";
 import * as React from "react";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
 import { Button } from "./Button";
+import { useLanguage } from "../../context/LanguageContext";
 import { cn } from "../../lib/cn";
 import { useRealtime } from "../../hooks/useRealtime";
 
@@ -24,6 +25,7 @@ interface NotificationPanelProps {
  * Panel de notificaciones con dropdown.
  */
 export function NotificationPanel({ count: externalCount, className }: NotificationPanelProps) {
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = React.useState(false);
   const [notifications, setNotifications] = React.useState<Notification[]>([]);
   const [loading, setLoading] = React.useState(true);
@@ -124,7 +126,7 @@ export function NotificationPanel({ count: externalCount, className }: Notificat
         size="sm"
         onClick={() => setIsOpen(!isOpen)}
         className="relative h-9 w-9 p-0"
-        title={unreadCount > 0 ? `${unreadCount} notificaciones` : "Notificaciones"}
+        title={unreadCount > 0 ? `${unreadCount} ${t("notifications.title").toLowerCase()}` : t("notifications.title")}
       >
         <Bell className="h-4 w-4" />
         {unreadCount > 0 && (
@@ -142,21 +144,21 @@ export function NotificationPanel({ count: externalCount, className }: Notificat
             <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-50">
-                  Notificaciones
+                  {t("notifications.title")}
                 </h3>
                 {unreadCount > 0 && (
                   <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {unreadCount} sin leer
+                    {unreadCount} {t("notifications.unread")}
                   </span>
                 )}
               </div>
             </div>
             <div className="max-h-96 overflow-y-auto">
               {loading ? (
-                <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">Cargando...</div>
+                <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">{t("notifications.loading")}</div>
               ) : notifications.length === 0 ? (
                 <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                  No hay notificaciones
+                  {t("notifications.empty")}
                 </div>
               ) : (
                 <ul className="py-1">
@@ -214,7 +216,7 @@ export function NotificationPanel({ count: externalCount, className }: Notificat
                   className="w-full text-center text-xs text-primary-600 hover:text-primary-700 dark:text-primary-400"
                   onClick={() => setIsOpen(false)}
                 >
-                  Ver todas las notificaciones
+                  {t("notifications.viewAll")}
                 </button>
               </div>
             )}
