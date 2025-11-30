@@ -12,7 +12,7 @@ import { cn } from "../../lib/cn";
  */
 export function AiChatPanel() {
   const { t } = useLanguage();
-  const { isOpen, closeChat, messages, sendMessage, isLoading } = useAiChat();
+  const { isOpen, closeChat, messages, sendMessage, isLoading, aiEngine, setAiEngine } = useAiChat();
   const [inputValue, setInputValue] = React.useState("");
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   const inputRef = React.useRef<HTMLTextAreaElement>(null);
@@ -93,13 +93,42 @@ export function AiChatPanel() {
                   <p className="text-xs text-white/80">{t("ai.chat.subtitle")}</p>
                 </div>
               </div>
-              <button
-                onClick={closeChat}
-                className="rounded-lg p-1.5 text-white/80 transition-colors hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50"
-                aria-label={t("ai.chat.close")}
-              >
-                <X className="h-5 w-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Toggle entre sistemas de IA */}
+                <div className="flex items-center gap-2 rounded-lg bg-white/10 px-2 py-1 backdrop-blur-sm">
+                  <button
+                    onClick={() => setAiEngine("local")}
+                    className={cn(
+                      "rounded px-2 py-1 text-xs font-medium transition-colors",
+                      aiEngine === "local"
+                        ? "bg-white/20 text-white"
+                        : "text-white/70 hover:text-white hover:bg-white/10"
+                    )}
+                    title={t("ai.chat.engine.local")}
+                  >
+                    {t("ai.chat.engine.local")}
+                  </button>
+                  <button
+                    onClick={() => setAiEngine("gemini")}
+                    className={cn(
+                      "rounded px-2 py-1 text-xs font-medium transition-colors",
+                      aiEngine === "gemini"
+                        ? "bg-white/20 text-white"
+                        : "text-white/70 hover:text-white hover:bg-white/10"
+                    )}
+                    title={t("ai.chat.engine.gemini")}
+                  >
+                    {t("ai.chat.engine.gemini")}
+                  </button>
+                </div>
+                <button
+                  onClick={closeChat}
+                  className="rounded-lg p-1.5 text-white/80 transition-colors hover:bg-white/20 hover:text-white focus:outline-none focus:ring-2 focus:ring-white/50"
+                  aria-label={t("ai.chat.close")}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
             </div>
 
             {/* Mensajes */}

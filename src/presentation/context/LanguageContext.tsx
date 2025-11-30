@@ -105,6 +105,8 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "ai.chat.error": "Lo siento, hubo un error al procesar tu mensaje. Por favor, inténtalo de nuevo.",
     "ai.chat.close": "Cerrar chat",
     "ai.chat.open": "Abrir chat de IA",
+    "ai.chat.engine.local": "Local",
+    "ai.chat.engine.gemini": "Gemini",
     // Filtros
     "filters.title": "Filtros",
     "filters.all": "Todas",
@@ -382,6 +384,8 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "ai.chat.error": "Ho sento, hi ha hagut un error en processar el teu missatge. Si us plau, torna-ho a intentar.",
     "ai.chat.close": "Tancar xat",
     "ai.chat.open": "Obrir xat d'IA",
+    "ai.chat.engine.local": "Local",
+    "ai.chat.engine.gemini": "Gemini",
     // Filtres
     "filters.title": "Filtres",
     "filters.all": "Totes",

@@ -31,6 +31,7 @@
     "node": ">=18.19.0"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@radix-ui/react-dialog": "^1.1.15",
     "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-label": "^2.1.8",
@@ -131,7 +132,10 @@
       "runAfterFinish": true,
       "menuCategory": false,
       "warningsAsErrors": false,
-      "installerLanguages": ["es_ES", "en_US"]
+      "installerLanguages": [
+        "es_ES",
+        "en_US"
+      ]
     }
   }
 }

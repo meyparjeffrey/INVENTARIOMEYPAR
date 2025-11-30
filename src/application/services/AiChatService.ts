@@ -9,14 +9,16 @@ import { SupabaseInventoryMovementRepository } from "@infrastructure/repositorie
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
 import { getAiResponse } from "@infrastructure/ai/responseTranslations";
 import { nlg } from "@infrastructure/ai/NaturalLanguageGenerator";
+import type { IAiService } from "./interfaces/IAiService";
 
 type LanguageCode = "es-ES" | "ca-ES";
 
 /**
- * Servicio que procesa mensajes del chat de IA
+ * Servicio que procesa mensajes del chat de IA (sistema local)
  * Consulta directamente las tablas de Supabase para datos siempre actualizados
+ * Implementa IAiService para permitir intercambio con otros sistemas (Gemini)
  */
-export class AiChatService {
+export class AiChatService implements IAiService {
   private responseEngine: ResponseEngine;
   private codeAnalyzer: CodeAnalyzer;
   private productRepository: ProductRepository;

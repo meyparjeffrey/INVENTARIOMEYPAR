@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useAuth } from "./AuthContext";
 import { useLanguage } from "./LanguageContext";
-import type { AiChatService } from "../../application/services/AiChatService";
+import type { IAiService } from "../../application/services/interfaces/IAiService";
 
 /**
  * Tipos de mensajes del chat
@@ -19,12 +19,19 @@ export interface ChatMessage {
 }
 
 /**
+ * Tipo de motor de IA disponible
+ */
+export type AiEngineType = "local" | "gemini";
+
+/**
  * Contexto del chat de IA
  */
 interface AiChatContextValue {
   isOpen: boolean;
   messages: ChatMessage[];
   isLoading: boolean;
+  aiEngine: AiEngineType;
+  setAiEngine: (engine: AiEngineType) => void;
   toggleChat: () => void;
   openChat: () => void;
   closeChat: () => void;
@@ -43,7 +50,12 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
   const [isOpen, setIsOpen] = React.useState(false);
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
-  const aiServiceRef = React.useRef<AiChatService | null>(null);
+  const [aiEngine, setAiEngineState] = React.useState<AiEngineType>(() => {
+    // Leer preferencia del localStorage
+    const stored = localStorage.getItem("aiEngine");
+    return (stored === "gemini" || stored === "local") ? stored : "local";
+  });
+  const aiServiceRef = React.useRef<IAiService | null>(null);
 
   const toggleChat = React.useCallback(() => {
     setIsOpen((prev) => !prev);
@@ -61,14 +73,51 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
     setMessages([]);
   }, []);
 
-  // Inicializar el servicio de IA
-  React.useEffect(() => {
-    if (!aiServiceRef.current) {
-      import("../../application/services/AiChatService").then(({ AiChatService }) => {
-        aiServiceRef.current = new AiChatService();
-      });
-    }
+  // Función para cambiar el motor de IA
+  const setAiEngine = React.useCallback((engine: AiEngineType) => {
+    setAiEngineState(engine);
+    localStorage.setItem("aiEngine", engine);
+    // Reinicializar el servicio cuando cambia el motor
+    aiServiceRef.current = null;
   }, []);
+
+  // Inicializar el servicio de IA según el motor seleccionado
+  React.useEffect(() => {
+    const initService = async () => {
+      if (aiServiceRef.current) {
+        // Si ya existe y es del mismo tipo, no reinicializar
+        return;
+      }
+
+      try {
+        if (aiEngine === "gemini") {
+          const { GeminiAiService } = await import("../../application/services/GeminiAiService");
+          const geminiService = new GeminiAiService();
+          // Si Gemini no está disponible, usar local
+          if (!geminiService.isAvailable()) {
+            console.warn("[AiChat] Gemini no disponible, usando servicio local");
+            const { AiChatService } = await import("../../application/services/AiChatService");
+            aiServiceRef.current = new AiChatService();
+            setAiEngineState("local");
+            localStorage.setItem("aiEngine", "local");
+          } else {
+            aiServiceRef.current = geminiService;
+          }
+        } else {
+          const { AiChatService } = await import("../../application/services/AiChatService");
+          aiServiceRef.current = new AiChatService();
+        }
+      } catch (error) {
+        console.error("[AiChat] Error inicializando servicio de IA:", error);
+        // Fallback a servicio local
+        const { AiChatService } = await import("../../application/services/AiChatService");
+        aiServiceRef.current = new AiChatService();
+        setAiEngineState("local");
+      }
+    };
+
+    initService();
+  }, [aiEngine]);
 
   // Usar el servicio de IA
   const sendMessage = React.useCallback(async (content: string) => {
@@ -95,8 +144,16 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
     try {
       // Esperar a que el servicio esté disponible
       if (!aiServiceRef.current) {
-        const { AiChatService } = await import("../../application/services/AiChatService");
-        aiServiceRef.current = new AiChatService();
+        if (aiEngine === "gemini") {
+          const { GeminiAiService } = await import("../../application/services/GeminiAiService");
+          const geminiService = new GeminiAiService();
+          aiServiceRef.current = geminiService.isAvailable() ? geminiService : null;
+        }
+        
+        if (!aiServiceRef.current) {
+          const { AiChatService } = await import("../../application/services/AiChatService");
+          aiServiceRef.current = new AiChatService();
+        }
       }
 
       // Obtener permisos y rol del usuario actual
@@ -145,6 +202,8 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
     isOpen,
     messages,
     isLoading,
+    aiEngine,
+    setAiEngine,
     toggleChat,
     openChat,
     closeChat,
