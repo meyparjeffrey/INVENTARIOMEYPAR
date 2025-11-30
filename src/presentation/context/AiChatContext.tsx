@@ -39,7 +39,7 @@ const AiChatContext = React.createContext<AiChatContextValue | undefined>(undefi
  */
 export function AiChatProvider({ children }: { children: React.ReactNode }) {
   const { authContext } = useAuth();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [isOpen, setIsOpen] = React.useState(false);
   const [messages, setMessages] = React.useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = React.useState(false);
@@ -74,6 +74,8 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
   const sendMessage = React.useCallback(async (content: string) => {
     if (!content.trim()) return;
 
+    console.log("[AiChat] Enviando mensaje:", content);
+    
     // Añadir mensaje del usuario
     const userMessage: ChatMessage = {
       id: `user-${Date.now()}`,
@@ -82,7 +84,12 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
       timestamp: new Date()
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    console.log("[AiChat] Mensaje del usuario creado:", userMessage);
+    setMessages((prev) => {
+      const newMessages = [...prev, userMessage];
+      console.log("[AiChat] Mensajes actualizados (después de usuario):", newMessages.length, newMessages);
+      return newMessages;
+    });
     setIsLoading(true);
 
     try {
@@ -99,7 +106,8 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
       const response = await aiServiceRef.current.processMessage(
         content.trim(),
         userPermissions,
-        userRole
+        userRole,
+        language
       );
       
       const assistantMessage: ChatMessage = {
@@ -113,7 +121,12 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
         }
       };
 
-      setMessages((prev) => [...prev, assistantMessage]);
+      console.log("[AiChat] Respuesta del asistente:", assistantMessage);
+      setMessages((prev) => {
+        const newMessages = [...prev, assistantMessage];
+        console.log("[AiChat] Mensajes actualizados (después de asistente):", newMessages.length, newMessages);
+        return newMessages;
+      });
     } catch (error) {
       console.error("Error en chat de IA:", error);
       const errorMessage: ChatMessage = {
@@ -126,7 +139,7 @@ export function AiChatProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [authContext, t]);
+  }, [authContext, t, language]);
 
   const value: AiChatContextValue = {
     isOpen,

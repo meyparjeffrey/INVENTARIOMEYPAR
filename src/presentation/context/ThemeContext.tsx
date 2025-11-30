@@ -6,6 +6,10 @@ interface ThemeContextValue {
   theme: ThemeMode;
   setTheme: (theme: ThemeMode) => void;
   effectiveTheme: "light" | "dark";
+  primaryColor: string;
+  secondaryColor: string;
+  setPrimaryColor: (color: string) => void;
+  setSecondaryColor: (color: string) => void;
 }
 
 const ThemeContext = React.createContext<ThemeContextValue | undefined>(
@@ -21,6 +25,16 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return stored ?? "system";
   });
 
+  const [primaryColor, setPrimaryColorState] = React.useState<string>(() => {
+    const stored = localStorage.getItem("primaryColor");
+    return stored ?? "#e62144"; // Color corporativo por defecto
+  });
+
+  const [secondaryColor, setSecondaryColorState] = React.useState<string>(() => {
+    const stored = localStorage.getItem("secondaryColor");
+    return stored ?? "#059669"; // Verde esmeralda por defecto
+  });
+
   const [effectiveTheme, setEffectiveTheme] = React.useState<"light" | "dark">(
     () => {
       if (theme === "system") {
@@ -32,6 +46,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   );
 
+  // Aplicar tema y colores al DOM
   React.useEffect(() => {
     const root = document.documentElement;
     if (effectiveTheme === "dark") {
@@ -39,7 +54,11 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     } else {
       root.classList.remove("dark");
     }
-  }, [effectiveTheme]);
+
+    // Aplicar colores personalizados como variables CSS
+    root.style.setProperty("--color-primary", primaryColor);
+    root.style.setProperty("--color-secondary", secondaryColor);
+  }, [effectiveTheme, primaryColor, secondaryColor]);
 
   React.useEffect(() => {
     localStorage.setItem("theme", theme);
@@ -61,8 +80,43 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     setThemeState(newTheme);
   }, []);
 
+  const setPrimaryColor = React.useCallback((color: string) => {
+    setPrimaryColorState(color);
+    localStorage.setItem("primaryColor", color);
+    document.documentElement.style.setProperty("--color-primary", color);
+  }, []);
+
+  const setSecondaryColor = React.useCallback((color: string) => {
+    setSecondaryColorState(color);
+    localStorage.setItem("secondaryColor", color);
+    document.documentElement.style.setProperty("--color-secondary", color);
+  }, []);
+
+  // Cargar colores desde user_settings si están disponibles
+  React.useEffect(() => {
+    const loadColorsFromSettings = async () => {
+      try {
+        const { useAuth } = await import("../context/AuthContext");
+        // Esto se hará desde SettingsPage cuando se cargue
+      } catch (error) {
+        // Ignorar errores
+      }
+    };
+    loadColorsFromSettings();
+  }, []);
+
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, effectiveTheme }}>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        setTheme,
+        effectiveTheme,
+        primaryColor,
+        secondaryColor,
+        setPrimaryColor,
+        setSecondaryColor
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );

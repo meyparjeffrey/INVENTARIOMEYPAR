@@ -10,6 +10,7 @@ export { GlobalSearch } from "./GlobalSearch";
 export { NotificationBell } from "./NotificationBell";
 export { NotificationPanel } from "./NotificationPanel";
 export { UserMenu } from "./UserMenu";
+export { ImageUpload } from "./ImageUpload";
 export {
   Dialog,
   DialogContent,

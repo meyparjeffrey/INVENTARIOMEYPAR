@@ -5,6 +5,10 @@ import type {
   QuestionCategory
 } from "./types";
 import { CodeAnalyzer } from "./CodeAnalyzer";
+import { getAiResponse } from "./responseTranslations";
+import { nlg } from "./NaturalLanguageGenerator";
+
+type LanguageCode = "es-ES" | "ca-ES";
 
 /**
  * Motor que clasifica preguntas y genera respuestas contextuales
@@ -19,7 +23,7 @@ export class ResponseEngine {
   /**
    * Clasifica la intención de una pregunta
    */
-  async classifyQuestion(question: string): Promise<QuestionIntent> {
+  async classifyQuestion(question: string, language: LanguageCode = "es-ES"): Promise<QuestionIntent> {
     try {
       if (!question || typeof question !== "string" || !question.trim()) {
         return {
@@ -31,40 +35,42 @@ export class ResponseEngine {
       
       const lowerQuestion = question.toLowerCase();
 
-    // Palabras clave para cada categoría (ES y CA)
-    const howToKeywords = [
-      "cómo", "como", "com", "com fer", "com crear", "com utilitzar", "com usar",
-      "como hacer", "cómo hacer", "como crear", "cómo crear", "como editar", "cómo editar",
-      "como usar", "cómo usar", "como escanear", "cómo escanear", "com escanejar",
-      "como modificar", "cómo modificar", "com modificar",
-      "pasos", "passos", "explicar", "explicar-me", "ayuda con", "ajuda amb"
-    ];
+    // Obtener palabras clave desde las traducciones
+    const howToKeywordsStr = getAiResponse(language, "keywords.howTo");
+    const dataQueryKeywordsStr = getAiResponse(language, "keywords.dataQuery");
+    const permissionsKeywordsStr = getAiResponse(language, "keywords.permissions");
+    const featuresKeywordsStr = getAiResponse(language, "keywords.features");
 
-    const dataQueryKeywords = [
-      "qué", "que", "què", "cuántos", "cuantos", "quants", "cuántas", "cuantas", "quantes",
-      "listar", "llistar", "mostrar", "dame", "dona'm", "dime", "digues-me",
-      "buscar", "cercar", "encontrar", "trobar",
-      "productos en alarma", "productes en alarma", "stock", "estoc",
-      "lotes", "lots", "movimientos", "moviments"
-    ];
+    // Separar por comas
+    const howToKeywords = howToKeywordsStr.split(", ").map(k => k.trim()).filter(Boolean);
+    const dataQueryKeywords = dataQueryKeywordsStr.split(", ").map(k => k.trim()).filter(Boolean);
+    const permissionsKeywords = permissionsKeywordsStr.split(", ").map(k => k.trim()).filter(Boolean);
+    const featuresKeywords = featuresKeywordsStr.split(", ").map(k => k.trim()).filter(Boolean);
 
-    const permissionsKeywords = [
-      "permiso", "permisos", "permís", "permisos",
-      "rol", "roles", "puedo", "puc", "puede", "pot",
-      "autorización", "autorització", "acceso", "accés"
+    // Detectar acciones directas PRIMERO (tienen alta prioridad)
+    const directActions = [
+      "crear", "editar", "modificar", "eliminar", "esborrar",
+      "añadir", "afegir", "registrar", "escanear", "escanejar", "escanejar"
     ];
-
-    const featuresKeywords = [
-      "funcionalidad",
-      "funcionalidades",
-      "características",
-      "caracteristicas",
-      "qué hace",
-      "que hace",
-      "para qué sirve",
-      "para que sirve"
-    ];
-
+    const hasDirectAction = directActions.some(action => lowerQuestion.includes(action));
+    
+    // Detectar objetos comunes
+    const hasProduct = lowerQuestion.includes("producto") || lowerQuestion.includes("producte") || 
+                      lowerQuestion.includes("productos") || lowerQuestion.includes("productes");
+    const hasMovement = lowerQuestion.includes("movimiento") || lowerQuestion.includes("moviment");
+    const hasScanner = lowerQuestion.includes("escáner") || lowerQuestion.includes("escàner") || 
+                      lowerQuestion.includes("escanner");
+    
+    // Si hay acción directa + objeto, es definitivamente "how_to" con alta confianza
+    if (hasDirectAction && (hasProduct || hasMovement || hasScanner)) {
+      return {
+        category: "how_to",
+        keywords: question.split(/\s+/),
+        confidence: 0.95,
+        action: this.extractAction(question)
+      };
+    }
+    
     // Contar coincidencias
     const howToScore = howToKeywords.filter((kw) =>
       lowerQuestion.includes(kw)
@@ -79,9 +85,12 @@ export class ResponseEngine {
       lowerQuestion.includes(kw)
     ).length;
 
+    // Dar bonus a "how_to" si hay acción directa
+    const boostedHowToScore = howToScore + (hasDirectAction ? 2 : 0);
+
     // Determinar categoría principal
     const scores = [
-      { category: "how_to" as QuestionCategory, score: howToScore },
+      { category: "how_to" as QuestionCategory, score: boostedHowToScore },
       { category: "data_query" as QuestionCategory, score: dataQueryScore },
       { category: "permissions" as QuestionCategory, score: permissionsScore },
       { category: "features" as QuestionCategory, score: featuresScore }
@@ -90,6 +99,16 @@ export class ResponseEngine {
     scores.sort((a, b) => b.score - a.score);
     const maxScore = scores[0].score;
 
+    // Si hay acción directa pero no se clasificó como "how_to", forzar clasificación
+    if (hasDirectAction && scores[0].category !== "how_to" && maxScore < 2) {
+      return {
+        category: "how_to",
+        keywords: question.split(/\s+/),
+        confidence: 0.8,
+        action: this.extractAction(question)
+      };
+    }
+    
     // Si no hay coincidencias claras, es una pregunta general
     if (maxScore === 0) {
       return {
@@ -152,31 +171,41 @@ export class ResponseEngine {
     question: string,
     intent: QuestionIntent,
     userPermissions: string[],
-    userRole?: string
+    userRole?: string,
+    language: LanguageCode = "es-ES"
   ): Promise<AiResponse> {
     try {
       const structure = await this.codeAnalyzer.analyzeProject();
 
     switch (intent.category) {
       case "how_to":
-        return this.generateHowToResponse(question, intent, structure, userPermissions, userRole);
+        return this.generateHowToResponse(question, intent, structure, userPermissions, userRole, language);
 
       case "data_query":
         return this.generateDataQueryResponse(question, intent);
 
       case "permissions":
-        return this.generatePermissionsResponse(question, intent, structure, userPermissions, userRole);
+        return this.generatePermissionsResponse(question, intent, structure, userPermissions, userRole, language);
 
       case "features":
-        return this.generateFeaturesResponse(question, intent, structure);
+        return this.generateFeaturesResponse(question, intent, structure, language);
 
       default:
-        return this.generateGeneralResponse(question);
+        // Antes de devolver respuesta general, verificar si hay acción directa que debería procesarse como "how_to"
+        const lowerQuestion = question.toLowerCase();
+        const hasDirectAction = lowerQuestion.includes("editar") || lowerQuestion.includes("crear") || 
+                               lowerQuestion.includes("modificar") || lowerQuestion.includes("eliminar") ||
+                               lowerQuestion.includes("escanear") || lowerQuestion.includes("escanejar");
+        if (hasDirectAction) {
+          // Si hay acción directa, tratar como "how_to" aunque no se clasificó así
+          return this.generateHowToResponse(question, { category: "how_to", keywords: [], confidence: 0.7 }, structure, userPermissions || [], userRole, language);
+        }
+        return this.generateGeneralResponse(question, language);
     }
     } catch (error) {
       console.error("Error en generateResponse:", error);
       return {
-        content: "Lo siento, hubo un error al generar la respuesta. Por favor, inténtalo de nuevo."
+        content: getAiResponse(language, "error.generic")
       };
     }
   }
@@ -189,168 +218,140 @@ export class ResponseEngine {
     intent: QuestionIntent,
     structure: ProjectStructure,
     userPermissions: string[],
-    userRole?: string
+    userRole?: string,
+    language: LanguageCode = "es-ES"
   ): AiResponse {
     const lowerQuestion = question.toLowerCase();
     let response = "";
     const sources: string[] = [];
     let requiresPermission: string | undefined;
 
-    // Detectar qué acción quiere hacer
-    if (lowerQuestion.includes("producto")) {
-      if (lowerQuestion.includes("crear") || lowerQuestion.includes("añadir") || lowerQuestion.includes("nuevo")) {
+    // Detectar acciones directas primero (más específico)
+    // Mejora: Detectar formas conjugadas y variantes de verbos con expresiones regulares
+    const editPattern = /edit(a|ar|es|en|em|ant|ant)|modifiqu(e|es|en|em|ant|ant)|canvi(ar|a|es|en|em)/;
+    const hasEditAction = editPattern.test(lowerQuestion) || lowerQuestion.includes("editar") || 
+                         lowerQuestion.includes("modificar") || lowerQuestion.includes("canviar");
+    
+    // Detectar crear en todas sus formas: crear, creo, crea, creamos, crean, creem, etc.
+    const createPattern = /cre(a|ar|o|es|en|em|ant|ant|ant)|afeg(eix|ir|eixo|eixes|eixen|eixem)/;
+    const hasCreateAction = createPattern.test(lowerQuestion) || lowerQuestion.includes("crear") || 
+                           lowerQuestion.includes("creo") || lowerQuestion.includes("crea") ||
+                           lowerQuestion.includes("creem") || lowerQuestion.includes("añadir") || 
+                           lowerQuestion.includes("afegir") || lowerQuestion.includes("nuevo") || 
+                           lowerQuestion.includes("nou");
+    
+    const isProductQuestion = lowerQuestion.includes("producto") || lowerQuestion.includes("producte") ||
+                             lowerQuestion.includes("productes") || lowerQuestion.includes("productos");
+    
+    // Detección mejorada: Si menciona "editar" y "existente" o "producto", es editar producto
+    const isEditing = hasEditAction && (
+      isProductQuestion || 
+      lowerQuestion.includes("existente") || 
+      lowerQuestion.includes("existent") ||
+      lowerQuestion.includes("producto existente") || 
+      lowerQuestion.includes("producte existent")
+    );
+    
+    // Mejora: Detectar "crear producto" - PRIORIDAD ALTA si tiene crear/creo + producte/producto
+    // IMPORTANTE: "creo" es la primera persona del singular del verbo "crear" en catalán/español
+    const isCreating = hasCreateAction && isProductQuestion;
+    
+    // Detectar qué acción quiere hacer (ES y CA) - Mejorado para detectar acciones directas
+    // Priorizar crear si está presente, luego editar
+    if (isCreating || isEditing || (isProductQuestion && (hasCreateAction || hasEditAction))) {
+      // Crear producto - PRIORIDAD MÁXIMA si detecta crear/creo + producto/producte
+      if (isCreating) {
         requiresPermission = "products.create";
         if (!userPermissions.includes(requiresPermission)) {
           return this.generatePermissionDeniedResponse(
-            "crear productos",
+            language === "ca-ES" ? "crear productes" : "crear productos",
             requiresPermission,
             userRole,
-            ["WAREHOUSE", "ADMIN"]
+            ["WAREHOUSE", "ADMIN"],
+            language
           );
         }
 
-        response = `Para crear un producto en la aplicación, sigue estos pasos:
-
-1. **Navega a la página de productos**: Haz clic en "Productos" en el menú lateral o ve a la ruta `/products`.
-
-2. **Haz clic en el botón "Nuevo Producto"**: Encontrarás este botón en la parte superior de la tabla de productos, junto a los botones de exportar.
-
-3. **Completa el formulario**: El formulario tiene varias secciones:
-   - **Información Básica**: Código*, Nombre*, Descripción, Categoría, Código de Barras
-   - **Stock**: Stock Actual, Stock Mínimo*, Stock Máximo
-   - **Ubicación**: Pasillo*, Estante*, Ubicación Extra
-   - **Precios**: Precio de Coste*, Precio de Venta
-   - **Información Adicional**: Código de Proveedor, Unidad de Medida, URL de Compra, URL de Imagen, Peso, Dimensiones, Notas
-   - **Opciones**: Producto activo, Control por lotes
-
-4. **Los campos marcados con * son obligatorios**.
-
-5. **Haz clic en "Crear Producto"** para guardar.
-
-Una vez creado, serás redirigido a la lista de productos.`;
-
+        const baseResponse = getAiResponse(language, "howTo.createProduct");
+        // Aplicar técnicas de NLG para hacer la respuesta más humana
+        response = nlg.generateResponse(baseResponse, language, {
+          variation: "friendly",
+          addPersonalTouch: true,
+          includeTransitions: true
+        });
         sources.push("/products/new");
-      } else if (lowerQuestion.includes("editar") || lowerQuestion.includes("modificar")) {
+      } 
+      // Editar producto - Prioridad alta si detecta editar + producto
+      else if (isEditing || (hasEditAction && isProductQuestion) || (isProductQuestion && (lowerQuestion.includes("cambiar") || lowerQuestion.includes("canviar")))) {
         requiresPermission = "products.edit";
         if (!userPermissions.includes(requiresPermission)) {
           return this.generatePermissionDeniedResponse(
-            "editar productos",
+            language === "ca-ES" ? "editar productes" : "editar productos",
             requiresPermission,
             userRole,
-            ["WAREHOUSE", "ADMIN"]
+            ["WAREHOUSE", "ADMIN"],
+            language
           );
         }
 
-        response = `Para editar un producto existente:
-
-1. **Ve a la lista de productos**: Navega a `/products` desde el menú lateral.
-
-2. **Busca el producto** que quieres editar usando el campo de búsqueda o navegando por la tabla.
-
-3. **Haz clic en el botón de editar** en la fila del producto (icono de lápiz) o haz clic directamente en el producto para ver sus detalles.
-
-4. **Desde la página de detalle**: Haz clic en el botón "Editar" que aparece en la parte superior.
-
-5. **Modifica los campos** que necesites cambiar en el formulario.
-
-6. **Guarda los cambios** haciendo clic en "Actualizar".
-
-**Nota**: Solo puedes editar productos si tienes el permiso "products.edit".`;
-
+        const baseResponse = getAiResponse(language, "howTo.editProduct");
+        // Aplicar técnicas de NLG para hacer la respuesta más humana
+        response = nlg.generateResponse(baseResponse, language, {
+          variation: "friendly",
+          addPersonalTouch: true,
+          includeTransitions: true
+        });
         sources.push("/products", "/products/:id/edit");
-      } else {
-        response = `¿Qué te gustaría hacer con productos? Puedo ayudarte a:
-- Crear un nuevo producto
-- Editar un producto existente
-- Ver detalles de un producto
-- Buscar productos
-
-¿Cuál de estas acciones necesitas?`;
+      } 
+      // Pregunta genérica sobre productos
+      else {
+        // Si solo menciona productos sin acción específica, dar opciones
+        response = language === "ca-ES" 
+          ? "Què vols fer amb productes? Puc ajudar-te a:\n- Crear un nou producte\n- Editar un producte existent\n- Veure detalls d'un producte\n- Buscar productes\n\nQuina d'aquestes accions necessites?"
+          : "¿Qué te gustaría hacer con productos? Puedo ayudarte a:\n- Crear un nuevo producto\n- Editar un producto existente\n- Ver detalles de un producto\n- Buscar productos\n\n¿Cuál de estas acciones necesitas?";
       }
-    } else if (lowerQuestion.includes("escanear") || lowerQuestion.includes("escáner") || lowerQuestion.includes("escanner")) {
+    } else if (lowerQuestion.includes("escanear") || lowerQuestion.includes("escáner") || lowerQuestion.includes("escanner") || lowerQuestion.includes("escanejar") || lowerQuestion.includes("escàner")) {
       requiresPermission = "scanner.use";
       if (!userPermissions.includes(requiresPermission)) {
         return this.generatePermissionDeniedResponse(
-          "usar el escáner",
+          language === "ca-ES" ? "utilitzar l'escàner" : "usar el escáner",
           requiresPermission,
           userRole,
-          ["WAREHOUSE", "ADMIN"]
+          ["WAREHOUSE", "ADMIN"],
+          language
         );
       }
 
-      response = `Para usar el escáner en la aplicación:
-
-1. **Navega al módulo de Escáner**: Haz clic en "Escáner" en el menú lateral o ve a `/scanner`.
-
-2. **Elige el modo de escaneo**:
-   - **Escáner USB**: El campo de escaneo estará activo automáticamente. Simplemente escanea el código y se detectará automáticamente.
-   - **Cámara**: Haz clic en el botón "Activar cámara" para usar la cámara del dispositivo.
-
-3. **Después de escanear**:
-   - Si es un código de producto, verás la ficha del producto con opciones para ver detalles, registrar entrada o salida.
-   - Si es un código de lote, verás la información del lote y el producto asociado.
-
-4. **Acciones disponibles**:
-   - Ver detalle del producto/lote
-   - Registrar un movimiento (entrada o salida)
-   - Si encuentras un defecto, puedes reportarlo directamente.
-
-**Tip**: El escáner USB se comporta como un teclado, escribe el código y envía Enter automáticamente.`;
-
+      const baseResponse = getAiResponse(language, "howTo.useScanner");
+      // Aplicar técnicas de NLG para hacer la respuesta más humana
+      response = nlg.generateResponse(baseResponse, language, {
+        variation: "detailed",
+        addPersonalTouch: true,
+        includeTransitions: true
+      });
       sources.push("/scanner");
-    } else if (lowerQuestion.includes("movimiento") || lowerQuestion.includes("entrada") || lowerQuestion.includes("salida")) {
+    } else if (lowerQuestion.includes("movimiento") || lowerQuestion.includes("moviment") || lowerQuestion.includes("entrada") || lowerQuestion.includes("entrada") || lowerQuestion.includes("salida") || lowerQuestion.includes("sortida")) {
       requiresPermission = "movements.create_in";
       if (!userPermissions.includes(requiresPermission) && !userPermissions.includes("movements.create_out")) {
         return this.generatePermissionDeniedResponse(
-          "registrar movimientos",
+          language === "ca-ES" ? "registrar moviments" : "registrar movimientos",
           "movements.create_in",
           userRole,
-          ["WAREHOUSE", "ADMIN"]
+          ["WAREHOUSE", "ADMIN"],
+          language
         );
       }
 
-      response = `Para registrar un movimiento de inventario:
-
-1. **Opción 1 - Desde el escáner**:
-   - Escanea el código del producto o lote
-   - Selecciona la acción "Registrar entrada" o "Registrar salida"
-   - Completa el formulario con la cantidad y el motivo
-
-2. **Opción 2 - Desde la página de movimientos**:
-   - Navega a `/movements` desde el menú
-   - Haz clic en "Nuevo Movimiento"
-   - Selecciona el producto y, si aplica, el lote
-   - Elige el tipo: Entrada, Salida, Ajuste o Transferencia
-   - Completa la cantidad y el motivo (requerido)
-
-3. **Campos importantes**:
-   - **Motivo** (requerido): Explica por qué se realiza el movimiento
-   - **Cantidad**: Número de unidades
-   - **Lote**: Si el producto tiene control por lotes, selecciona el lote
-
-**Nota**: El stock se actualiza automáticamente después de registrar el movimiento.`;
-
+      const baseResponse = getAiResponse(language, "howTo.createMovement");
+      // Aplicar técnicas de NLG para hacer la respuesta más humana
+      response = nlg.generateResponse(baseResponse, language, {
+        variation: "detailed",
+        addPersonalTouch: true,
+        includeTransitions: true
+      });
       sources.push("/movements", "/scanner");
     } else {
-      response = `Puedo ayudarte con varias tareas en la aplicación:
-
-**Gestión de Productos**:
-- Crear, editar y ver productos
-- Buscar productos por código o nombre
-
-**Escáner**:
-- Usar escáner USB o cámara
-- Escanear códigos de barras y QR
-
-**Movimientos**:
-- Registrar entradas y salidas
-- Ver historial de movimientos
-
-**Reportes**:
-- Exportar datos a Excel
-- Ver alarmas de stock
-
-¿Sobre qué funcionalidad específica te gustaría saber más?`;
+      response = getAiResponse(language, "howTo.general");
     }
 
     return {
@@ -384,12 +385,13 @@ Una vez creado, serás redirigido a la lista de productos.`;
     intent: QuestionIntent,
     structure: ProjectStructure,
     userPermissions: string[],
-    userRole?: string
+    userRole?: string,
+    language: LanguageCode = "es-ES"
   ): AiResponse {
     const lowerQuestion = question.toLowerCase();
     let response = "";
 
-    if (lowerQuestion.includes("puedo") || lowerQuestion.includes("permiso")) {
+    if (lowerQuestion.includes("puedo") || lowerQuestion.includes("puc") || lowerQuestion.includes("permiso") || lowerQuestion.includes("permís")) {
       // Buscar qué permiso está preguntando
       const permissionInfo = this.codeAnalyzer.getPermissionInfo(
         this.extractPermissionFromQuestion(lowerQuestion)
@@ -398,21 +400,28 @@ Una vez creado, serás redirigido a la lista de productos.`;
       if (permissionInfo) {
         const hasPermission = userPermissions.includes(permissionInfo.key);
         if (hasPermission) {
-          response = `Sí, tienes permiso para "${permissionInfo.description}" (${permissionInfo.key}).`;
+          response = getAiResponse(language, "permissions.hasPermission", {
+            desc: permissionInfo.description,
+            key: permissionInfo.key
+          });
         } else {
-          response = `No, no tienes permiso para "${permissionInfo.description}".\n\nEste permiso está disponible para los roles: ${permissionInfo.roles.join(", ")}.`;
+          response = getAiResponse(language, "permissions.noPermission", {
+            desc: permissionInfo.description,
+            roles: permissionInfo.roles.join(", ")
+          });
           if (userRole) {
-            response += `\n\nTu rol actual es: ${userRole}.`;
+            response += getAiResponse(language, "permissions.currentRole", { role: userRole });
           }
-          response += `\n\nContacta a un administrador si necesitas este permiso.`;
+          response += getAiResponse(language, "permissions.contactAdmin");
         }
       } else {
-        response = `Para saber qué permisos tienes, puedo ayudarte. ¿Qué acción específica quieres realizar? Por ejemplo: "¿Puedo crear productos?" o "¿Puedo usar el escáner?"`;
+        response = getAiResponse(language, "permissions.askSpecific");
       }
     } else {
-      response = `Tu rol actual es: ${userRole || "No identificado"}.\n\n`;
-      response += `Tienes los siguientes permisos:\n`;
-      response += userPermissions.map((p) => `- ${p}`).join("\n");
+      response = getAiResponse(language, "permissions.list", {
+        role: userRole || "No identificado",
+        permissions: userPermissions.map((p) => `- ${p}`).join("\n")
+      });
     }
 
     return {
@@ -427,12 +436,52 @@ Una vez creado, serás redirigido a la lista de productos.`;
   private generateFeaturesResponse(
     question: string,
     intent: QuestionIntent,
-    structure: ProjectStructure
+    structure: ProjectStructure,
+    language: LanguageCode = "es-ES"
   ): AiResponse {
+    const lowerQuestion = question.toLowerCase();
     const routes = structure.routes;
-    let response = `La aplicación incluye las siguientes funcionalidades principales:\n\n`;
+    let response = "";
+    
+    // Si pregunta sobre base de datos o tablas, dar información específica
+    if (lowerQuestion.includes("base de datos") || lowerQuestion.includes("base de dades") || 
+        lowerQuestion.includes("tabla") || lowerQuestion.includes("taula") ||
+        lowerQuestion.includes("tablas") || lowerQuestion.includes("taules")) {
+      
+      const tables = structure.databaseTables || [];
+      if (tables.length > 0) {
+        response = language === "ca-ES"
+          ? `La base de dades de Supabase inclou les següents taules principals:\n\n`
+          : `La base de datos de Supabase incluye las siguientes tablas principales:\n\n`;
+        
+        tables.forEach((table) => {
+          response += `**${table.name}**: ${table.description}\n`;
+          if (table.keyFields && table.keyFields.length > 0) {
+            response += `  - Camps principals: ${table.keyFields.slice(0, 5).join(", ")}${table.keyFields.length > 5 ? "..." : ""}\n`;
+          }
+          if (table.relationships && table.relationships.length > 0) {
+            response += `  - Relacions: ${table.relationships.map(r => `${r.table} (${r.relation})`).join(", ")}\n`;
+          }
+          response += `\n`;
+        });
+      } else {
+        response = language === "ca-ES"
+          ? "La base de dades utilitza Supabase amb diverses taules per gestionar productes, lots, moviments i usuaris."
+          : "La base de datos utiliza Supabase con varias tablas para gestionar productos, lotes, movimientos y usuarios.";
+      }
+      
+      return {
+        content: response,
+        sources: []
+      };
+    }
+    
+    // Respuesta estándar sobre funcionalidades
+    response = language === "ca-ES"
+      ? `L'aplicació inclou les següents funcionalitats principals:\n\n`
+      : `La aplicación incluye las siguientes funcionalidades principales:\n\n`;
 
-    response += `**Páginas disponibles:**\n`;
+    response += language === "ca-ES" ? `**Pàgines disponibles:**\n` : `**Páginas disponibles:**\n`;
     routes.forEach((route) => {
       if (route.label && route.path !== "/") {
         response += `- **${route.label}** (${route.path})`;
@@ -443,7 +492,7 @@ Una vez creado, serás redirigido a la lista de productos.`;
       }
     });
 
-    response += `\n**Servicios disponibles:**\n`;
+    response += language === "ca-ES" ? `\n**Servicis disponibles:**\n` : `\n**Servicios disponibles:**\n`;
     structure.services.forEach((service) => {
       response += `- **${service.name}**: ${service.description || ""}\n`;
     });
@@ -457,16 +506,70 @@ Una vez creado, serás redirigido a la lista de productos.`;
   /**
    * Genera respuesta general
    */
-  private generateGeneralResponse(question: string): AiResponse {
+  private generateGeneralResponse(question: string, language: LanguageCode = "es-ES"): AiResponse {
+    const lowerQuestion = question.toLowerCase();
+    
+    // Si hay una acción directa pero no se detectó en how_to, intentar detectarla aquí
+    // Usar patrones para detectar formas conjugadas
+    const createPattern = /cre[ao]|crea|creem|afeg|afegix|nuevo|nou/;
+    const editPattern = /edit|modifiqu|canvi/;
+    
+    const hasCreateAction = createPattern.test(lowerQuestion);
+    const hasEditAction = editPattern.test(lowerQuestion);
+    const hasProduct = lowerQuestion.includes("producto") || lowerQuestion.includes("producte");
+    
+    if (hasCreateAction && hasProduct) {
+      // Si detecta crear/creo + producto, redirigir a generateHowToResponse
+      return {
+        content: language === "ca-ES"
+          ? "Per crear un nou producte, ves a la pàgina de productes i fes clic al botó 'Nou producte'. Allà podràs omplir tots els camps necessaris."
+          : "Para crear un nuevo producto, ve a la página de productos y haz clic en el botón 'Nuevo producto'. Allí podrás llenar todos los campos necesarios.",
+        sources: ["/products/new"]
+      };
+    }
+    
+    if (hasEditAction && hasProduct) {
+      // Probablemente se refiere a editar producto
+      const response = language === "ca-ES"
+        ? "Per editar un producte existent, ves a la llista de productes, cerca el producte que vols editar i fes clic al botó d'editar."
+        : "Para editar un producto existente, ve a la lista de productos, busca el producto que quieres editar y haz clic en el botón de editar.";
+      
+      return {
+        content: response,
+        sources: ["/products"]
+      };
+    }
+    
+    if (hasEditAction || hasCreateAction) {
+      // Intentar generar una respuesta útil incluso si no se clasificó como how_to
+      if (hasEditAction) {
+        const response = language === "ca-ES"
+          ? "Per editar un element a l'aplicació, pots fer-ho des de les seves pàgines corresponents. Per exemple:\n\n- **Editar producte**: Ves a la llista de productes, cerca el producte i fes clic a editar\n- **Editar lot**: Ves a la llista de lots i selecciona el lot a editar\n\nQuè vols editar específicament?"
+          : "Para editar un elemento en la aplicación, puedes hacerlo desde sus páginas correspondientes. Por ejemplo:\n\n- **Editar producto**: Ve a la lista de productos, busca el producto y haz clic en editar\n- **Editar lote**: Ve a la lista de lotes y selecciona el lote a editar\n\n¿Qué quieres editar específicamente?";
+        
+        return {
+          content: response,
+          suggestedActions: []
+        };
+      }
+    }
+    
+    const baseWelcome = getAiResponse(language, "general.welcome");
+    // Aplicar técnicas de NLG para hacer el mensaje de bienvenida más humano
+    const welcomeMessage = nlg.generateResponse(baseWelcome, language, {
+      variation: "friendly",
+      addPersonalTouch: true
+    });
+    
     return {
-      content: `Hola, soy tu asistente de IA. Puedo ayudarte con:\n\n- **Cómo usar la aplicación**: Explicarte paso a paso cómo realizar acciones\n- **Consultar datos**: Buscar información sobre productos, lotes, movimientos\n- **Permisos**: Explicarte qué puedes hacer según tu rol\n- **Funcionalidades**: Mostrarte qué características están disponibles\n\n¿En qué puedo ayudarte específicamente?`,
+      content: welcomeMessage,
       suggestedActions: [
         {
-          label: "¿Cómo creo un producto?",
+          label: language === "ca-ES" ? "Com creo un producte?" : "¿Cómo creo un producto?",
           path: "/products/new"
         },
         {
-          label: "¿Cómo uso el escáner?",
+          label: language === "ca-ES" ? "Com utilitzo l'escàner?" : "¿Cómo uso el escáner?",
           path: "/scanner"
         }
       ]
@@ -480,28 +583,24 @@ Una vez creado, serás redirigido a la lista de productos.`;
     action: string,
     requiredPermission: string,
     userRole?: string,
-    allowedRoles?: string[]
+    allowedRoles?: string[],
+    language: LanguageCode = "es-ES"
   ): AiResponse {
     const roleInfo = this.codeAnalyzer.getPermissionInfo(requiredPermission);
-    let response = `No puedes ${action} porque no tienes el permiso necesario.\n\n`;
-    response += `**Permiso requerido**: ${requiredPermission}\n`;
-    if (roleInfo) {
-      response += `**Descripción**: ${roleInfo.description}\n`;
-    }
-    if (userRole) {
-      response += `**Tu rol actual**: ${userRole}\n`;
-    }
-    if (allowedRoles && allowedRoles.length > 0) {
-      response += `**Roles permitidos**: ${allowedRoles.join(", ")}\n`;
-    }
-    response += `\nContacta a un administrador si necesitas acceso a esta funcionalidad.`;
+    const response = getAiResponse(language, "permissionDenied.message", {
+      action,
+      permission: requiredPermission,
+      desc: roleInfo?.description || requiredPermission,
+      role: userRole || "No identificado",
+      allowedRoles: allowedRoles?.join(", ") || ""
+    });
 
     return {
       content: response,
       requiresPermission: requiredPermission,
       suggestedActions: [
         {
-          label: "Contactar administrador",
+          label: language === "ca-ES" ? "Contactar administrador" : "Contactar administrador",
           permission: "admin.users"
         }
       ]
@@ -509,22 +608,30 @@ Una vez creado, serás redirigido a la lista de productos.`;
   }
 
   /**
-   * Extrae el permiso de una pregunta
+   * Extrae el permiso de una pregunta (reconoce ES y CA)
    */
   private extractPermissionFromQuestion(question: string): string {
-    // Mapeo simple de palabras clave a permisos
+    // Mapeo simple de palabras clave a permisos (ES y CA)
     const mapping: Record<string, string> = {
       producto: "products.view",
+      producte: "products.view",
       crear: "products.create",
       editar: "products.edit",
       modificar: "products.edit",
       eliminar: "products.delete",
+      esborrar: "products.delete",
       escanear: "scanner.use",
       escáner: "scanner.use",
+      escàner: "scanner.use",
+      escanejar: "scanner.use",
       movimiento: "movements.view",
+      moviment: "movements.view",
       reporte: "reports.view",
+      informe: "reports.view",
       exportar: "reports.export_excel",
-      lote: "batches.view"
+      exportar: "reports.export_excel",
+      lote: "batches.view",
+      lot: "batches.view"
     };
 
     for (const [keyword, permission] of Object.entries(mapping)) {

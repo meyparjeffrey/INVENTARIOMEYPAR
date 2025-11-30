@@ -30,12 +30,23 @@ export interface HookInfo {
   returns?: string;
 }
 
+export interface DatabaseTableInfo {
+  name: string;
+  description: string;
+  keyFields: string[];
+  relationships?: Array<{
+    table: string;
+    relation: string;
+  }>;
+}
+
 export interface ProjectStructure {
   routes: RouteInfo[];
   components: ComponentInfo[];
   services: ServiceInfo[];
   hooks: HookInfo[];
   permissions: string[];
+  databaseTables?: DatabaseTableInfo[];
   lastAnalyzed: Date;
 }
 

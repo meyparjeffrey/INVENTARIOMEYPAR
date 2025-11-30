@@ -1,5 +1,6 @@
 import type {
   ComponentInfo,
+  DatabaseTableInfo,
   HookInfo,
   ProjectStructure,
   RouteInfo,
@@ -42,6 +43,7 @@ export class CodeAnalyzer {
     const services = this.getServicesInfo();
     const hooks = this.getHooksInfo();
     const permissions = this.getPermissionsInfo();
+    const databaseTables = this.getDatabaseTablesInfo();
 
       this.cachedStructure = {
         routes,
@@ -49,6 +51,7 @@ export class CodeAnalyzer {
         services,
         hooks,
         permissions,
+        databaseTables,
         lastAnalyzed: new Date()
       };
 
@@ -62,6 +65,7 @@ export class CodeAnalyzer {
         services: [],
         hooks: [],
         permissions: [],
+        databaseTables: [],
         lastAnalyzed: new Date()
       };
     }
@@ -395,6 +399,104 @@ export class CodeAnalyzer {
       key: permissionKey,
       ...info
     };
+  }
+
+  /**
+   * Obtiene información sobre las tablas de la base de datos
+   */
+  private getDatabaseTablesInfo(): DatabaseTableInfo[] {
+    return [
+      {
+        name: "products",
+        description: "Tabla principal de productos del inventario. Almacena información de cada producto: código, nombre, stock, ubicación, precios, etc.",
+        keyFields: ["id", "code", "barcode", "name", "stock_current", "stock_min", "aisle", "shelf", "is_batch_tracked"],
+        relationships: [
+          { table: "product_batches", relation: "Un producto puede tener múltiples lotes" },
+          { table: "inventory_movements", relation: "Un producto tiene múltiples movimientos" }
+        ]
+      },
+      {
+        name: "product_batches",
+        description: "Tabla de lotes de productos. Para productos con control por lotes (is_batch_tracked=true), almacena información de cada lote recibido.",
+        keyFields: ["id", "product_id", "batch_code", "batch_barcode", "quantity_total", "quantity_available", "status", "expiry_date"],
+        relationships: [
+          { table: "products", relation: "Cada lote pertenece a un producto" },
+          { table: "batch_defect_reports", relation: "Un lote puede tener múltiples reportes de defectos" },
+          { table: "inventory_movements", relation: "Los movimientos pueden estar asociados a un lote específico" }
+        ]
+      },
+      {
+        name: "inventory_movements",
+        description: "Tabla de movimientos de inventario. Registra todas las entradas (IN) y salidas (OUT) de productos, con motivo obligatorio.",
+        keyFields: ["id", "product_id", "batch_id", "movement_type", "quantity", "request_reason", "movement_date"],
+        relationships: [
+          { table: "products", relation: "Cada movimiento está asociado a un producto" },
+          { table: "product_batches", relation: "Opcionalmente, un movimiento puede estar asociado a un lote" },
+          { table: "profiles", relation: "Cada movimiento es registrado por un usuario" }
+        ]
+      },
+      {
+        name: "batch_defect_reports",
+        description: "Tabla de reportes de defectos en lotes. Almacena información sobre lotes defectuosos con cantidad y descripción.",
+        keyFields: ["id", "batch_id", "defective_qty", "notes", "status"],
+        relationships: [
+          { table: "product_batches", relation: "Cada reporte está asociado a un lote" },
+          { table: "profiles", relation: "Cada reporte es creado por un usuario" }
+        ]
+      },
+      {
+        name: "suppliers",
+        description: "Tabla de proveedores. Almacena información de las empresas que suministran productos.",
+        keyFields: ["id", "name", "contact_email", "contact_phone"],
+        relationships: [
+          { table: "products", relation: "Los productos pueden tener múltiples proveedores (relación N:M)" }
+        ]
+      },
+      {
+        name: "profiles",
+        description: "Tabla de perfiles de usuario. Almacena información básica de cada usuario: nombre, rol, etc.",
+        keyFields: ["id", "first_name", "last_name", "role"],
+        relationships: [
+          { table: "user_settings", relation: "Cada usuario tiene configuración personalizada" },
+          { table: "user_permissions", relation: "Cada usuario tiene permisos granulares" },
+          { table: "inventory_movements", relation: "Cada movimiento es registrado por un usuario" }
+        ]
+      },
+      {
+        name: "user_permissions",
+        description: "Tabla de permisos granulares por usuario. Permite a ADMIN restringir permisos específicos a cualquier usuario.",
+        keyFields: ["id", "user_id", "permission_key", "is_granted"],
+        relationships: [
+          { table: "profiles", relation: "Cada permiso está asociado a un usuario" }
+        ]
+      },
+      {
+        name: "ai_suggestions",
+        description: "Tabla de sugerencias generadas por la IA. Almacena predicciones de reposición, anomalías, etc.",
+        keyFields: ["id", "suggestion_type", "product_id", "content", "priority"],
+        relationships: [
+          { table: "products", relation: "Las sugerencias pueden estar relacionadas con productos específicos" }
+        ]
+      }
+    ];
+  }
+
+  /**
+   * Busca información de tablas por palabra clave
+   */
+  findTablesByKeyword(keyword: string): DatabaseTableInfo[] {
+    const structure = this.cachedStructure;
+    if (!structure || !structure.databaseTables) {
+      return [];
+    }
+
+    const lowerKeyword = keyword.toLowerCase();
+    return structure.databaseTables.filter(
+      (table) =>
+        table.name.toLowerCase().includes(lowerKeyword) ||
+        table.description.toLowerCase().includes(lowerKeyword) ||
+        table.keyFields.some((field) => field.toLowerCase().includes(lowerKeyword))
+    );
   }
 
   /**

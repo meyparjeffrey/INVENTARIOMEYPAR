@@ -189,7 +189,7 @@ export class SupabaseProductRepository
     if (filters?.search) {
       const term = `%${filters.search}%`;
       query = query.or(
-        `code.ilike.${term},name.ilike.${term},barcode.ilike.${term}`
+        `code.ilike.${term},name.ilike.${term},barcode.ilike.${term},description.ilike.${term}`
       );
     }
 

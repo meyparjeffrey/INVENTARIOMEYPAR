@@ -33,9 +33,14 @@ export function AiChatPanel() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputValue.trim() || isLoading) return;
+    console.log("[AiChatPanel] handleSubmit llamado, inputValue:", inputValue, "isLoading:", isLoading);
+    if (!inputValue.trim() || isLoading) {
+      console.log("[AiChatPanel] handleSubmit cancelado - input vacío o cargando");
+      return;
+    }
 
     const message = inputValue.trim();
+    console.log("[AiChatPanel] Enviando mensaje:", message);
     setInputValue("");
     await sendMessage(message);
   };
@@ -124,9 +129,8 @@ export function AiChatPanel() {
                     ].map((suggestion) => (
                       <button
                         key={suggestion}
-                        onClick={() => {
-                          setInputValue(suggestion);
-                          inputRef.current?.focus();
+                        onClick={async () => {
+                          await sendMessage(suggestion);
                         }}
                         className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
                       >
@@ -137,9 +141,14 @@ export function AiChatPanel() {
                 </div>
               ) : (
                 <>
-                  {messages.map((message) => (
-                    <MessageBubble key={message.id} message={message} />
-                  ))}
+                  {(() => {
+                    console.log("[AiChatPanel] Renderizando mensajes, cantidad:", messages.length);
+                    return null;
+                  })()}
+                  {messages.map((message) => {
+                    console.log("[AiChatPanel] Renderizando mensaje:", message.id, message.role, message.content.substring(0, 50));
+                    return <MessageBubble key={message.id} message={message} />;
+                  })}
                   {isLoading && <TypingIndicator />}
                   <div ref={messagesEndRef} />
                 </>
@@ -152,7 +161,10 @@ export function AiChatPanel() {
                 <textarea
                   ref={inputRef}
                   value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
+                  onChange={(e) => {
+                    console.log("[AiChatPanel] onChange llamado, nuevo valor:", e.target.value);
+                    setInputValue(e.target.value);
+                  }}
                   onKeyDown={handleKeyDown}
                   placeholder={t("ai.chat.placeholder")}
                   disabled={isLoading}
