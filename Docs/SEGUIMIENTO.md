@@ -1,10 +1,10 @@
 # Seguimiento del Proyecto
 
-> Última actualización: 1 Dic 2025 (Rama: PRODUCTO-V4) - Módulos implementados
+> Última actualización: 1 Dic 2025 (Rama: PRODUCTO-V4) - Mejoras profesionales implementadas
 
 ## Resumen Ejecutivo
 
-El proyecto está en **Fase 2 avanzada**. La base de datos está completa, la arquitectura de código bien establecida, y el módulo de Productos funcional. Faltan por implementar varios módulos de UI y funcionalidades específicas.
+El proyecto está en **Fase 2 muy avanzada**. La base de datos está completa, la arquitectura de código bien establecida, módulo de Productos funcional, y ahora con **mejoras profesionales de UX/UI**. Se han añadido exportaciones avanzadas, sistema de toasts, skeleton loaders y atajos de teclado.
 
 ---
 
@@ -60,13 +60,18 @@ src/
 
 ---
 
-### ✅ Dashboard - COMPLETADO
+### ✅ Dashboard - COMPLETADO (MEJORADO)
 
 - [x] Tarjetas KPI (Total productos, En alarma, Movimientos hoy)
-- [x] Gráfica de movimientos por día
+- [x] **NUEVO**: Valor del inventario a coste y venta
+- [x] **NUEVO**: Margen potencial calculado
+- [x] **NUEVO**: Contador de categorías
+- [x] **NUEVO**: Movimientos hoy vs esta semana
+- [x] Gráfica de movimientos mejorada (área/barras toggle)
 - [x] Top productos consumidos
 - [x] Lista de alertas de stock
 - [x] Feed de actividad reciente
+- [x] **NUEVO**: Botón de refrescar datos
 
 ---
 
@@ -197,17 +202,19 @@ src/
 
 ---
 
-### ⏳ Exportación Excel/PDF - PARCIAL
+### ✅ Exportación Excel/PDF - COMPLETADO (MEJORADO)
 
 **Implementado:**
 - [x] Exportar productos (`ExportDialog.tsx`)
+- [x] **NUEVO**: Soporte Excel (.xlsx), CSV y PDF
+- [x] **NUEVO**: Selector de formato visual
+- [x] **NUEVO**: Incluir filtros aplicados en exportación
+- [x] **NUEVO**: Servicio centralizado (`ExportService.ts`)
+- [x] **NUEVO**: Cabeceras traducidas ES/CAT
+- [x] **NUEVO**: Ancho de columnas automático
 
 **Pendiente:**
-- [ ] Exportar movimientos
-- [ ] Exportar lotes
-- [ ] Exportar alarmas
-- [ ] Selector de columnas
-- [ ] Cabeceras en idioma actual
+- [ ] Integrar exportación en módulos Lotes/Movimientos/Alarmas
 
 ---
 
@@ -232,37 +239,40 @@ src/
 
 ## Componentes UI Existentes
 
-| Componente | Ubicación | Estado |
-|------------|-----------|--------|
-| `Avatar` | ui/ | ✅ |
-| `Button` | ui/ | ✅ |
-| `Dialog` | ui/ | ✅ |
-| `Input` | ui/ | ✅ |
-| `Label` | ui/ | ✅ |
-| `SearchInput` | ui/ | ✅ |
-| `LanguageSelector` | ui/ | ✅ |
-| `ThemeToggle` | ui/ | ✅ |
-| `UserMenu` | ui/ | ✅ |
-| `GlobalSearch` | ui/ | ✅ |
-| `NotificationBell` | ui/ | ✅ |
-| `NotificationPanel` | ui/ | ✅ |
-| `ConnectionStatus` | ui/ | ✅ |
-| `Header` | layout/ | ✅ |
-| `Sidebar` | layout/ | ✅ |
-| `MainLayout` | layout/ | ✅ |
-| `KPICard` | dashboard/ | ✅ |
-| `AlertList` | dashboard/ | ✅ |
-| `TopProducts` | dashboard/ | ✅ |
-| `MovementsChart` | dashboard/ | ✅ |
-| `ActivityFeed` | dashboard/ | ✅ |
-| `ProductTable` | products/ | ✅ |
-| `ProductForm` | products/ | ✅ |
-| `ProductFilters` | products/ | ✅ |
-| `ExportDialog` | products/ | ✅ |
-| `AiChatPanel` | ai/ | ✅ |
-| `AiChatButton` | ai/ | ✅ |
-| `MessageBubble` | ai/ | ✅ |
-| `TypingIndicator` | ai/ | ✅ |
+| Componente | Ubicación | Estado | Notas |
+|------------|-----------|--------|-------|
+| `Avatar` | ui/ | ✅ | |
+| `Button` | ui/ | ✅ | |
+| `Dialog` | ui/ | ✅ | |
+| `Input` | ui/ | ✅ | |
+| `Label` | ui/ | ✅ | |
+| `SearchInput` | ui/ | ✅ | |
+| `LanguageSelector` | ui/ | ✅ | |
+| `ThemeToggle` | ui/ | ✅ | |
+| `UserMenu` | ui/ | ✅ | |
+| `GlobalSearch` | ui/ | ✅ | |
+| `NotificationBell` | ui/ | ✅ | |
+| `NotificationPanel` | ui/ | ✅ | |
+| `ConnectionStatus` | ui/ | ✅ | |
+| `Toast` | ui/ | ✅ | **NUEVO** Sistema de toasts con animaciones |
+| `Skeleton` | ui/ | ✅ | **NUEVO** Componentes skeleton loader |
+| `ShortcutsPanel` | ui/ | ✅ | **NUEVO** Panel de atajos de teclado |
+| `Header` | layout/ | ✅ | |
+| `Sidebar` | layout/ | ✅ | |
+| `MainLayout` | layout/ | ✅ | |
+| `KPICard` | dashboard/ | ✅ | |
+| `AlertList` | dashboard/ | ✅ | |
+| `TopProducts` | dashboard/ | ✅ | |
+| `MovementsChart` | dashboard/ | ✅ | Mejorado con toggle área/barras |
+| `ActivityFeed` | dashboard/ | ✅ | |
+| `ProductTable` | products/ | ✅ | |
+| `ProductForm` | products/ | ✅ | |
+| `ProductFilters` | products/ | ✅ | |
+| `ExportDialog` | products/ | ✅ | Mejorado con PDF/CSV |
+| `AiChatPanel` | ai/ | ✅ | |
+| `AiChatButton` | ai/ | ✅ | |
+| `MessageBubble` | ai/ | ✅ | |
+| `TypingIndicator` | ai/ | ✅ | |
 
 ---
 
@@ -295,19 +305,24 @@ src/
 2. **Módulo Lotes** - ✅ Implementado (falta detalle individual)
 3. **Módulo Alarmas** - ✅ Implementado completo
 4. **Módulo Escáner** - ✅ Implementado (falta cámara)
+5. **Dashboard mejorado** - ✅ Valor inventario, gráficos mejorados
+6. **Exportación Excel/PDF** - ✅ Servicio centralizado con filtros
+7. **Sistema de Toasts** - ✅ Notificaciones visuales
+8. **Skeleton Loaders** - ✅ Estados de carga profesionales
+9. **Atajos de Teclado** - ✅ Navegación rápida
 
 ### Pendiente - Alta Prioridad
-5. **Tools MCP completos** - IA funcional con datos
-6. **Exportaciones completas** - Todos los módulos a Excel
+10. **Tools MCP completos** - IA funcional con datos
+11. **Integrar exportaciones** - Usar ExportService en todos los módulos
 
 ### Pendiente - Media Prioridad
-7. **Chat interno** - Comunicación interna
-8. **Detalle de lote** - Página individual de lote
-9. **Escáner por cámara** - Quagga2/ZXing
+12. **Chat interno** - Comunicación interna
+13. **Detalle de lote** - Página individual de lote
+14. **Escáner por cámara** - Quagga2/ZXing
 
 ### Pendiente - Baja Prioridad
-10. **Modo semi-offline** - Caché local
-11. **Admin completo** - Gestión de usuarios
+15. **Modo semi-offline** - Caché local
+16. **Admin completo** - Gestión de usuarios
 
 ---
 
@@ -320,6 +335,10 @@ src/
 | 26/11/25 | Permisos granulares separados del rol | Flexibilidad para ADMIN |
 | 01/12/25 | Estados extendidos en lotes | CONSUMED, EXPIRED además de OK/DEFECTIVE/BLOCKED |
 | 01/12/25 | Categorías de razón en movimientos | Mejor clasificación y reportes |
+| 01/12/25 | jspdf + jspdf-autotable | Exportación PDF profesional |
+| 01/12/25 | Sistema de toasts con Framer Motion | Feedback visual profesional |
+| 01/12/25 | Skeleton loaders reutilizables | UX mejorada durante carga |
+| 01/12/25 | Atajos de teclado globales | Productividad para power users |
 
 ---
 

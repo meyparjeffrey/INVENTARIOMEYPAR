@@ -1,0 +1,419 @@
+import * as XLSX from "xlsx";
+import type { Product } from "@domain/entities/Product";
+import type { ProductBatch } from "@domain/entities/Product";
+import type { InventoryMovement } from "@domain/entities/InventoryMovement";
+
+/**
+ * Configuración de exportación
+ */
+export interface ExportConfig {
+  fileName: string;
+  sheetName?: string;
+  columns: string[];
+  format: "xlsx" | "csv" | "pdf";
+  includeFilters?: boolean;
+  filtersSummary?: Record<string, string>;
+  language?: "es-ES" | "ca-ES";
+}
+
+/**
+ * Mapeo de traducciones para columnas
+ */
+const COLUMN_TRANSLATIONS = {
+  "es-ES": {
+    // Productos
+    code: "Código",
+    name: "Nombre",
+    description: "Descripción",
+    category: "Categoría",
+    barcode: "Código de Barras",
+    stockCurrent: "Stock Actual",
+    stockMin: "Stock Mínimo",
+    stockMax: "Stock Máximo",
+    unit: "Unidad",
+    location: "Ubicación",
+    costPrice: "Precio Coste",
+    salePrice: "Precio Venta",
+    supplierCode: "Código Proveedor",
+    isActive: "Activo",
+    isBatchTracked: "Seguimiento por Lotes",
+    createdAt: "Fecha Creación",
+    updatedAt: "Última Actualización",
+    // Lotes
+    batchNumber: "Número de Lote",
+    expirationDate: "Fecha Caducidad",
+    manufacturingDate: "Fecha Fabricación",
+    quantity: "Cantidad",
+    status: "Estado",
+    productName: "Producto",
+    // Movimientos
+    movementType: "Tipo Movimiento",
+    movementDate: "Fecha Movimiento",
+    quantityBefore: "Cantidad Antes",
+    quantityAfter: "Cantidad Después",
+    requestReason: "Motivo",
+    reasonCategory: "Categoría Motivo",
+    referenceDocument: "Documento Referencia",
+    comments: "Comentarios",
+    userName: "Usuario"
+  },
+  "ca-ES": {
+    // Productes
+    code: "Codi",
+    name: "Nom",
+    description: "Descripció",
+    category: "Categoria",
+    barcode: "Codi de Barres",
+    stockCurrent: "Estoc Actual",
+    stockMin: "Estoc Mínim",
+    stockMax: "Estoc Màxim",
+    unit: "Unitat",
+    location: "Ubicació",
+    costPrice: "Preu Cost",
+    salePrice: "Preu Venda",
+    supplierCode: "Codi Proveïdor",
+    isActive: "Actiu",
+    isBatchTracked: "Seguiment per Lots",
+    createdAt: "Data Creació",
+    updatedAt: "Última Actualització",
+    // Lots
+    batchNumber: "Número de Lot",
+    expirationDate: "Data Caducitat",
+    manufacturingDate: "Data Fabricació",
+    quantity: "Quantitat",
+    status: "Estat",
+    productName: "Producte",
+    // Moviments
+    movementType: "Tipus Moviment",
+    movementDate: "Data Moviment",
+    quantityBefore: "Quantitat Abans",
+    quantityAfter: "Quantitat Després",
+    requestReason: "Motiu",
+    reasonCategory: "Categoria Motiu",
+    referenceDocument: "Document Referència",
+    comments: "Comentaris",
+    userName: "Usuari"
+  }
+};
+
+/**
+ * Traducciones de valores de estado
+ */
+const STATUS_TRANSLATIONS = {
+  "es-ES": {
+    OK: "OK",
+    DEFECTIVE: "Defectuoso",
+    BLOCKED: "Bloqueado",
+    CONSUMED: "Consumido",
+    EXPIRED: "Caducado",
+    IN: "Entrada",
+    OUT: "Salida",
+    ADJUSTMENT: "Ajuste",
+    TRANSFER: "Transferencia",
+    true: "Sí",
+    false: "No"
+  },
+  "ca-ES": {
+    OK: "OK",
+    DEFECTIVE: "Defectuós",
+    BLOCKED: "Bloquejat",
+    CONSUMED: "Consumit",
+    EXPIRED: "Caducat",
+    IN: "Entrada",
+    OUT: "Sortida",
+    ADJUSTMENT: "Ajust",
+    TRANSFER: "Transferència",
+    true: "Sí",
+    false: "No"
+  }
+};
+
+/**
+ * Servicio de exportación a Excel/CSV/PDF
+ */
+export class ExportService {
+  /**
+   * Exporta productos a Excel/CSV
+   */
+  static exportProducts(
+    products: Product[],
+    config: ExportConfig
+  ): void {
+    const lang = config.language || "es-ES";
+    const translations = COLUMN_TRANSLATIONS[lang];
+    const statusTrans = STATUS_TRANSLATIONS[lang];
+
+    // Crear datos para exportar
+    const exportData = products.map((product) => {
+      const row: Record<string, unknown> = {};
+
+      config.columns.forEach((col) => {
+        const header = translations[col as keyof typeof translations] || col;
+        let value = product[col as keyof Product];
+
+        // Formatear valores especiales
+        if (col === "isActive" || col === "isBatchTracked") {
+          value = statusTrans[String(value) as keyof typeof statusTrans] || value;
+        } else if (col === "createdAt" || col === "updatedAt") {
+          value = value ? new Date(value as string).toLocaleDateString(lang) : "";
+        } else if (col === "costPrice" || col === "salePrice") {
+          value = typeof value === "number" ? `${value.toFixed(2)} €` : "";
+        }
+
+        row[header] = value ?? "";
+      });
+
+      return row;
+    });
+
+    // Crear hoja de resumen de filtros si aplica
+    const sheets: { name: string; data: Record<string, unknown>[] }[] = [];
+
+    if (config.includeFilters && config.filtersSummary) {
+      const filterData = Object.entries(config.filtersSummary).map(([key, value]) => ({
+        [translations.name || "Filtro"]: key,
+        [translations.description || "Valor"]: value
+      }));
+      sheets.push({ name: lang === "ca-ES" ? "Filtres Aplicats" : "Filtros Aplicados", data: filterData });
+    }
+
+    sheets.push({ name: config.sheetName || (lang === "ca-ES" ? "Productes" : "Productos"), data: exportData });
+
+    ExportService.generateExcel(sheets, config);
+  }
+
+  /**
+   * Exporta lotes a Excel/CSV
+   */
+  static exportBatches(
+    batches: (ProductBatch & { productName?: string })[],
+    config: ExportConfig
+  ): void {
+    const lang = config.language || "es-ES";
+    const translations = COLUMN_TRANSLATIONS[lang];
+    const statusTrans = STATUS_TRANSLATIONS[lang];
+
+    const exportData = batches.map((batch) => {
+      const row: Record<string, unknown> = {};
+
+      config.columns.forEach((col) => {
+        const header = translations[col as keyof typeof translations] || col;
+        let value = batch[col as keyof typeof batch];
+
+        // Formatear valores especiales
+        if (col === "status") {
+          value = statusTrans[value as keyof typeof statusTrans] || value;
+        } else if (col === "expirationDate" || col === "manufacturingDate" || col === "createdAt") {
+          value = value ? new Date(value as string).toLocaleDateString(lang) : "";
+        }
+
+        row[header] = value ?? "";
+      });
+
+      return row;
+    });
+
+    const sheets: { name: string; data: Record<string, unknown>[] }[] = [];
+
+    if (config.includeFilters && config.filtersSummary) {
+      const filterData = Object.entries(config.filtersSummary).map(([key, value]) => ({
+        [lang === "ca-ES" ? "Filtre" : "Filtro"]: key,
+        [lang === "ca-ES" ? "Valor" : "Valor"]: value
+      }));
+      sheets.push({ name: lang === "ca-ES" ? "Filtres Aplicats" : "Filtros Aplicados", data: filterData });
+    }
+
+    sheets.push({ name: config.sheetName || (lang === "ca-ES" ? "Lots" : "Lotes"), data: exportData });
+
+    ExportService.generateExcel(sheets, config);
+  }
+
+  /**
+   * Exporta movimientos a Excel/CSV
+   */
+  static exportMovements(
+    movements: (InventoryMovement & { productName?: string; userName?: string })[],
+    config: ExportConfig
+  ): void {
+    const lang = config.language || "es-ES";
+    const translations = COLUMN_TRANSLATIONS[lang];
+    const statusTrans = STATUS_TRANSLATIONS[lang];
+
+    const exportData = movements.map((movement) => {
+      const row: Record<string, unknown> = {};
+
+      config.columns.forEach((col) => {
+        const header = translations[col as keyof typeof translations] || col;
+        let value = movement[col as keyof typeof movement];
+
+        // Formatear valores especiales
+        if (col === "movementType") {
+          value = statusTrans[value as keyof typeof statusTrans] || value;
+        } else if (col === "movementDate" || col === "createdAt") {
+          value = value ? new Date(value as string).toLocaleString(lang) : "";
+        }
+
+        row[header] = value ?? "";
+      });
+
+      return row;
+    });
+
+    const sheets: { name: string; data: Record<string, unknown>[] }[] = [];
+
+    if (config.includeFilters && config.filtersSummary) {
+      const filterData = Object.entries(config.filtersSummary).map(([key, value]) => ({
+        [lang === "ca-ES" ? "Filtre" : "Filtro"]: key,
+        [lang === "ca-ES" ? "Valor" : "Valor"]: value
+      }));
+      sheets.push({ name: lang === "ca-ES" ? "Filtres Aplicats" : "Filtros Aplicados", data: filterData });
+    }
+
+    sheets.push({ name: config.sheetName || (lang === "ca-ES" ? "Moviments" : "Movimientos"), data: exportData });
+
+    ExportService.generateExcel(sheets, config);
+  }
+
+  /**
+   * Genera y descarga el archivo Excel/CSV
+   */
+  private static generateExcel(
+    sheets: { name: string; data: Record<string, unknown>[] }[],
+    config: ExportConfig
+  ): void {
+    const workbook = XLSX.utils.book_new();
+
+    sheets.forEach((sheet) => {
+      const worksheet = XLSX.utils.json_to_sheet(sheet.data);
+
+      // Aplicar estilos básicos (ancho de columnas)
+      const maxWidths: number[] = [];
+      sheet.data.forEach((row) => {
+        Object.values(row).forEach((val, idx) => {
+          const length = String(val ?? "").length;
+          maxWidths[idx] = Math.max(maxWidths[idx] || 10, length);
+        });
+      });
+
+      worksheet["!cols"] = maxWidths.map((w) => ({ wch: Math.min(w + 2, 50) }));
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, sheet.name.slice(0, 31));
+    });
+
+    // Generar archivo
+    const timestamp = new Date().toISOString().split("T")[0];
+    const fileName = `${config.fileName}_${timestamp}`;
+
+    if (config.format === "csv") {
+      // Exportar solo la primera hoja como CSV
+      const csvData = XLSX.utils.sheet_to_csv(workbook.Sheets[sheets[0].name]);
+      const blob = new Blob([csvData], { type: "text/csv;charset=utf-8;" });
+      ExportService.downloadBlob(blob, `${fileName}.csv`);
+    } else {
+      // Exportar como XLSX
+      const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      });
+      ExportService.downloadBlob(blob, `${fileName}.xlsx`);
+    }
+  }
+
+  /**
+   * Descarga un blob como archivo
+   */
+  private static downloadBlob(blob: Blob, fileName: string): void {
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Genera un PDF con los datos (usa jspdf)
+   * Nota: Requiere instalación de jspdf y jspdf-autotable
+   */
+  static async exportToPDF(
+    title: string,
+    headers: string[],
+    rows: string[][],
+    config: Partial<ExportConfig>
+  ): Promise<void> {
+    // Importación dinámica para evitar carga innecesaria
+    const { jsPDF } = await import("jspdf");
+    const autoTable = (await import("jspdf-autotable")).default;
+
+    const doc = new jsPDF({
+      orientation: rows[0]?.length > 5 ? "landscape" : "portrait",
+      unit: "mm",
+      format: "a4"
+    });
+
+    // Título
+    doc.setFontSize(16);
+    doc.text(title, 14, 20);
+
+    // Fecha
+    const lang = config.language || "es-ES";
+    doc.setFontSize(10);
+    doc.text(
+      `${lang === "ca-ES" ? "Data" : "Fecha"}: ${new Date().toLocaleDateString(lang)}`,
+      14,
+      28
+    );
+
+    // Filtros aplicados
+    let startY = 35;
+    if (config.includeFilters && config.filtersSummary) {
+      doc.setFontSize(11);
+      doc.text(lang === "ca-ES" ? "Filtres aplicats:" : "Filtros aplicados:", 14, startY);
+      startY += 5;
+      doc.setFontSize(9);
+      Object.entries(config.filtersSummary).forEach(([key, value]) => {
+        doc.text(`• ${key}: ${value}`, 18, startY);
+        startY += 4;
+      });
+      startY += 5;
+    }
+
+    // Tabla de datos
+    autoTable(doc, {
+      head: [headers],
+      body: rows,
+      startY,
+      styles: {
+        fontSize: 8,
+        cellPadding: 2
+      },
+      headStyles: {
+        fillColor: [59, 130, 246],
+        textColor: 255,
+        fontStyle: "bold"
+      },
+      alternateRowStyles: {
+        fillColor: [245, 247, 250]
+      }
+    });
+
+    // Pie de página
+    const pageCount = doc.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFontSize(8);
+      doc.text(
+        `${lang === "ca-ES" ? "Pàgina" : "Página"} ${i} ${lang === "ca-ES" ? "de" : "de"} ${pageCount}`,
+        doc.internal.pageSize.getWidth() - 30,
+        doc.internal.pageSize.getHeight() - 10
+      );
+    }
+
+    // Descargar
+    const timestamp = new Date().toISOString().split("T")[0];
+    doc.save(`${config.fileName || "export"}_${timestamp}.pdf`);
+  }
+}
+

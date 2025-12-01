@@ -43,6 +43,8 @@
     "clsx": "^2.1.1",
     "framer-motion": "^12.23.24",
     "i18next": "^23.10.1",
+    "jspdf": "^3.0.4",
+    "jspdf-autotable": "^5.0.2",
     "lucide-react": "^0.555.0",
     "postcss": "^8.5.6",
     "react": "^18.3.1",
@@ -131,7 +133,10 @@
       "runAfterFinish": true,
       "menuCategory": false,
       "warningsAsErrors": false,
-      "installerLanguages": ["es_ES", "en_US"]
+      "installerLanguages": [
+        "es_ES",
+        "en_US"
+      ]
     }
   }
 }
