@@ -113,6 +113,23 @@ export interface ProductRepository {
   getBatches(productId: UUID, filters?: BatchFilters): Promise<ProductBatch[]>;
 
   /**
+   * Lista todos los lotes con filtros y paginación.
+   */
+  listBatches(
+    filters?: BatchFilters,
+    pagination?: PaginationParams
+  ): Promise<PaginatedResult<ProductBatch>>;
+
+  /**
+   * Actualiza el estado de un lote.
+   */
+  updateBatchStatus(
+    batchId: UUID,
+    status: ProductBatch["status"],
+    reason?: string
+  ): Promise<ProductBatch>;
+
+  /**
    * Recupera los reportes de defectos asociados a un lote.
    */
   getDefectReports(batchId: UUID): Promise<BatchDefectReport[]>;

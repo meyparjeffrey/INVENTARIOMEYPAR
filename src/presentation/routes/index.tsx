@@ -35,6 +35,22 @@ const AdminPage = React.lazy(() =>
   import("../pages/AdminPage").then((module) => ({ default: module.AdminPage }))
 );
 
+const MovementsPage = React.lazy(() =>
+  import("../pages/MovementsPage").then((module) => ({ default: module.MovementsPage }))
+);
+
+const AlarmsPage = React.lazy(() =>
+  import("../pages/AlarmsPage").then((module) => ({ default: module.AlarmsPage }))
+);
+
+const ScannerPage = React.lazy(() =>
+  import("../pages/ScannerPage").then((module) => ({ default: module.ScannerPage }))
+);
+
+const BatchesPage = React.lazy(() =>
+  import("../pages/BatchesPage").then((module) => ({ default: module.BatchesPage }))
+);
+
 // Lazy load de páginas
 const DashboardPage = React.lazy(() =>
   import("../pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
@@ -138,19 +154,59 @@ const routes: RouteObject[] = [
       },
       {
         path: "/batches",
-        element: <PlaceholderPage title="Lotes" />
+        element: (
+          <React.Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+              </div>
+            }
+          >
+            <BatchesPage />
+          </React.Suspense>
+        )
       },
       {
         path: "/movements",
-        element: <PlaceholderPage title="Movimientos" />
+        element: (
+          <React.Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+              </div>
+            }
+          >
+            <MovementsPage />
+          </React.Suspense>
+        )
       },
       {
         path: "/alerts",
-        element: <PlaceholderPage title="Alarmas" />
+        element: (
+          <React.Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+              </div>
+            }
+          >
+            <AlarmsPage />
+          </React.Suspense>
+        )
       },
       {
         path: "/scanner",
-        element: <PlaceholderPage title="Escáner" />
+        element: (
+          <React.Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+              </div>
+            }
+          >
+            <ScannerPage />
+          </React.Suspense>
+        )
       },
       {
         path: "/chat",

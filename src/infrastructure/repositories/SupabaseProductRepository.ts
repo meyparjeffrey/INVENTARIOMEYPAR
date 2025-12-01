@@ -372,5 +372,70 @@ export class SupabaseProductRepository
 
     this.handleError("eliminar producto", error);
   }
+
+  /**
+   * Lista todos los lotes con filtros opcionales y paginación.
+   */
+  async listBatches(filters?: BatchFilters, pagination?: PaginationParams) {
+    const { page, pageSize, from, to } = buildPagination(pagination);
+    let query = this.client
+      .from("product_batches")
+      .select("*", { count: "exact" })
+      .order("received_at", { ascending: false });
+
+    if (filters?.status?.length) {
+      query = query.in("status", filters.status);
+    }
+
+    if (filters?.expiryBefore) {
+      query = query.lte("expiry_date", filters.expiryBefore);
+    }
+
+    if (filters?.expiryAfter) {
+      query = query.gte("expiry_date", filters.expiryAfter);
+    }
+
+    if (filters?.onlyAvailable) {
+      query = query.gt("quantity_available", 0);
+    }
+
+    const { data, error, count } = await query.range(from, to);
+    this.handleError("listar todos los lotes", error);
+
+    return toPaginatedResult(
+      (data ?? []).map((row) => mapBatch(row as BatchRow)),
+      count ?? null,
+      page,
+      pageSize
+    );
+  }
+
+  /**
+   * Actualiza el estado de un lote.
+   */
+  async updateBatchStatus(
+    batchId: string,
+    status: ProductBatch["status"],
+    reason?: string
+  ): Promise<ProductBatch> {
+    const updateData: Partial<BatchRow> = {
+      status,
+      updated_at: new Date().toISOString()
+    };
+
+    if (status === "BLOCKED" && reason) {
+      updateData.blocked_reason = reason;
+    }
+
+    const { data, error } = await this.client
+      .from("product_batches")
+      .update(updateData)
+      .eq("id", batchId)
+      .select("*")
+      .single();
+
+    this.handleError("actualizar estado de lote", error);
+    return mapBatch(data as BatchRow);
+  }
 }
 
