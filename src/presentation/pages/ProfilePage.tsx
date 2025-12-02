@@ -20,6 +20,7 @@ import { uploadAvatar, deleteAvatar } from "@infrastructure/storage/avatarStorag
 import { AvatarUpload } from "../components/profile/AvatarUpload";
 import { AvatarEditor } from "../components/profile/AvatarEditor";
 import { ProfileFormField } from "../components/profile/ProfileFormField";
+import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
 
 /**
  * Página de perfil de usuario con formulario editable y mejoras profesionales.
@@ -42,6 +43,7 @@ export function ProfilePage() {
   // Estados del formulario
   const [firstName, setFirstName] = React.useState(authContext?.profile.firstName || "");
   const [lastName, setLastName] = React.useState(authContext?.profile.lastName || "");
+  const [initials, setInitials] = React.useState(authContext?.profile.initials || "");
   const [avatarUrl, setAvatarUrl] = React.useState<string | null>(
     authContext?.profile.avatarUrl || null
   );
@@ -80,10 +82,60 @@ export function ProfilePage() {
     if (authContext) {
       setFirstName(authContext.profile.firstName);
       setLastName(authContext.profile.lastName);
+      setInitials(authContext.profile.initials || "");
       setAvatarUrl(authContext.profile.avatarUrl || null);
       setAvatarPreview(null);
     }
   }, [authContext]);
+
+  // Suscripción Realtime para sincronización bidireccional con Supabase
+  React.useEffect(() => {
+    if (!authContext) return;
+
+    const channel = supabaseClient
+      .channel(`profile-${authContext.profile.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${authContext.profile.id}`
+        },
+        (payload) => {
+          // Cuando hay cambios en Supabase, actualizar el contexto local
+          const updatedProfile = payload.new as {
+            first_name: string;
+            last_name: string;
+            initials: string;
+            avatar_url: string | null;
+            role: string;
+            updated_at: string;
+          };
+
+          // Actualizar contexto optimista
+          updateProfileOptimistic({
+            firstName: updatedProfile.first_name,
+            lastName: updatedProfile.last_name,
+            initials: updatedProfile.initials,
+            avatarUrl: updatedProfile.avatar_url || undefined,
+            role: updatedProfile.role as "ADMIN" | "WAREHOUSE" | "VIEWER",
+            updatedAt: updatedProfile.updated_at
+          });
+
+          // Sincronizar estados locales
+          setFirstName(updatedProfile.first_name);
+          setLastName(updatedProfile.last_name);
+          setInitials(updatedProfile.initials);
+          setAvatarUrl(updatedProfile.avatar_url || null);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabaseClient.removeChannel(channel);
+    };
+  }, [authContext, updateProfileOptimistic]);
 
   // Resetear mensajes después de 3 segundos
   React.useEffect(() => {
@@ -216,7 +268,8 @@ export function ProfilePage() {
       
       const updatedProfile = await userRepository.updateProfile(authContext.profile.id, {
         firstName,
-        lastName
+        lastName,
+        initials
       });
 
       // Actualizar el contexto de forma optimista INMEDIATAMENTE
@@ -224,7 +277,7 @@ export function ProfilePage() {
       updateProfileOptimistic({
         firstName: updatedProfile.firstName,
         lastName: updatedProfile.lastName,
-        initials: updatedProfile.initials, // Ya viene recalculado de la BD
+        initials: updatedProfile.initials,
         updatedAt: updatedProfile.updatedAt
       });
 
@@ -271,14 +324,15 @@ export function ProfilePage() {
     navigate(-1);
   };
 
-  const hasChanges = React.useMemo(() => {
-    if (!authContext) return false;
-    return (
-      firstName !== authContext.profile.firstName ||
-      lastName !== authContext.profile.lastName ||
-      avatarPreview !== null
-    );
-  }, [authContext, firstName, lastName, avatarPreview]);
+      const hasChanges = React.useMemo(() => {
+        if (!authContext) return false;
+        return (
+          firstName !== authContext.profile.firstName ||
+          lastName !== authContext.profile.lastName ||
+          initials !== (authContext.profile.initials || "") ||
+          avatarPreview !== null
+        );
+      }, [authContext, firstName, lastName, initials, avatarPreview]);
 
   const isFormValid = firstNameValidation.isValid && lastNameValidation.isValid;
 
@@ -407,6 +461,43 @@ export function ProfilePage() {
                 disabled
                 className="bg-gray-50 dark:bg-gray-900"
               />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {t("profile.roleHelp")}
+              </p>
+            </div>
+
+            {/* Campo de iniciales */}
+            <div>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="initials">{t("profile.initials")}</Label>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    // Auto-generar iniciales desde nombre y apellido
+                    const autoInitials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+                    setInitials(autoInitials);
+                  }}
+                  className="h-7 text-xs"
+                >
+                  {t("profile.initialsAuto")}
+                </Button>
+              </div>
+              <Input
+                id="initials"
+                value={initials}
+                onChange={(e) => {
+                  const value = e.target.value.toUpperCase().slice(0, 2);
+                  setInitials(value);
+                }}
+                disabled={loading}
+                maxLength={2}
+                className="bg-white dark:bg-gray-800 uppercase"
+                placeholder="JB"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {t("profile.initialsHelp")}
+              </p>
             </div>
           </div>
 

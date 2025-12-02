@@ -131,10 +131,9 @@ export class SupabaseUserRepository
     if (input.avatarUrl !== undefined) {
       updateData.avatar_url = input.avatarUrl;
     }
-
-    // NOTA: initials es una columna GENERATED ALWAYS AS STORED en la base de datos
-    // Se calcula automáticamente cuando se actualizan first_name o last_name
-    // NO intentar actualizarla manualmente
+    if (input.initials !== undefined) {
+      updateData.initials = input.initials;
+    }
 
     const { data, error } = await this.client
       .from("profiles")

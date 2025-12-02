@@ -9,6 +9,7 @@ import type {
 export interface UpdateProfileInput {
   firstName?: string;
   lastName?: string;
+  initials?: string;
   avatarUrl?: string | null;
 }
 
