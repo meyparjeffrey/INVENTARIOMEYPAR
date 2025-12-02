@@ -32,10 +32,9 @@ export function ProfileFormField({
   showCharCount = false
 }: ProfileFormFieldProps) {
   const [isFocused, setIsFocused] = React.useState(false);
-  const [hasInteracted, setHasInteracted] = React.useState(false);
   
-  // Solo mostrar validación después de que el usuario haya interactuado (focus o cambio)
-  const showValidation = hasInteracted && validation !== undefined;
+  // Solo mostrar validación cuando el campo está enfocado
+  const showValidation = isFocused && validation !== undefined;
 
   return (
     <div className="space-y-1.5">
@@ -57,14 +56,8 @@ export function ProfileFormField({
         <Input
           id={id}
           value={value}
-          onChange={(e) => {
-            onChange(e.target.value);
-            setHasInteracted(true);
-          }}
-          onFocus={() => {
-            setIsFocused(true);
-            setHasInteracted(true);
-          }}
+          onChange={(e) => onChange(e.target.value)}
+          onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
           disabled={disabled}
           maxLength={maxLength}
