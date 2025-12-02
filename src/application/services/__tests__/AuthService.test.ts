@@ -81,8 +81,11 @@ const createUserRepositoryMock = () => {
     ]);
   const listLoginEvents = vi.fn().mockResolvedValue([]);
 
+  const updateProfile = vi.fn().mockResolvedValue(profile);
+  
   const repo: UserRepository = {
     getProfileById,
+    updateProfile,
     getSettings,
     listPermissions,
     listLoginEvents

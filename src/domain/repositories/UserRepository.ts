@@ -6,11 +6,22 @@ import type {
   UUID
 } from "@domain/entities";
 
+export interface UpdateProfileInput {
+  firstName?: string;
+  lastName?: string;
+  avatarUrl?: string | null;
+}
+
 export interface UserRepository {
   /**
    * Obtiene el perfil básico (tabla profiles).
    */
   getProfileById(id: UUID): Promise<UserProfile | null>;
+
+  /**
+   * Actualiza el perfil del usuario.
+   */
+  updateProfile(id: UUID, input: UpdateProfileInput): Promise<UserProfile>;
 
   /**
    * Obtiene los ajustes personalizados del usuario.

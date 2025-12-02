@@ -117,6 +117,41 @@ export class SupabaseUserRepository
     return data ? mapProfile(data as ProfileRow) : null;
   }
 
+  async updateProfile(id: string, input: import("@domain/repositories/UserRepository").UpdateProfileInput) {
+    const updateData: Partial<ProfileRow> = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (input.firstName !== undefined) {
+      updateData.first_name = input.firstName;
+    }
+    if (input.lastName !== undefined) {
+      updateData.last_name = input.lastName;
+    }
+    if (input.avatarUrl !== undefined) {
+      updateData.avatar_url = input.avatarUrl;
+    }
+
+    // Si se actualiza nombre/apellido, recalcular initials
+    if (input.firstName !== undefined || input.lastName !== undefined) {
+      const current = await this.getProfileById(id);
+      const firstName = input.firstName ?? current?.firstName ?? "";
+      const lastName = input.lastName ?? current?.lastName ?? "";
+      const initials = `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase().slice(0, 2);
+      updateData.initials = initials;
+    }
+
+    const { data, error } = await this.client
+      .from("profiles")
+      .update(updateData)
+      .eq("id", id)
+      .select("*")
+      .single();
+
+    this.handleError("actualizar perfil", error);
+    return mapProfile(data as ProfileRow);
+  }
+
   async getSettings(userId: string) {
     const { data, error } = await this.client
       .from("user_settings")
