@@ -19,6 +19,10 @@ export type LanguageCode = "es-ES" | "ca-ES";
 
 export type ThemeMode = "light" | "dark" | "system";
 
+export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl" | "custom";
+export type AvatarShape = "circle" | "square" | "rounded";
+export type AvatarShadowIntensity = "none" | "sm" | "md" | "lg";
+
 export interface UserSettings {
   userId: UUID;
   language: LanguageCode;
@@ -32,6 +36,16 @@ export interface UserSettings {
   defaultMovementType: MovementType;
   itemsPerPage: number;
   dateFormat: string;
+  // Avatar settings
+  avatarSize: AvatarSize;
+  avatarCustomSize?: Nullable<number>;
+  avatarBorderEnabled: boolean;
+  avatarBorderWidth: number;
+  avatarBorderColor: string;
+  avatarShadowEnabled: boolean;
+  avatarShadowIntensity: AvatarShadowIntensity;
+  avatarShape: AvatarShape;
+  avatarAnimationEnabled: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }

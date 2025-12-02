@@ -32,6 +32,16 @@ type SettingsRow = {
   default_movement_type: UserSettings["defaultMovementType"];
   items_per_page: number;
   date_format: string;
+  // Avatar settings
+  avatar_size: UserSettings["avatarSize"];
+  avatar_custom_size: number | null;
+  avatar_border_enabled: boolean;
+  avatar_border_width: number;
+  avatar_border_color: string;
+  avatar_shadow_enabled: boolean;
+  avatar_shadow_intensity: UserSettings["avatarShadowIntensity"];
+  avatar_shape: UserSettings["avatarShape"];
+  avatar_animation_enabled: boolean;
   created_at: string;
   updated_at: string;
 };
@@ -73,16 +83,27 @@ const mapSettings = (row: SettingsRow): UserSettings => ({
   themeMode: row.theme_mode,
   primaryColor: row.primary_color,
   secondaryColor: row.secondary_color,
-  sidebarCollapsed: row.sidebar_collapsed,
-  notificationsEnabled: row.notifications_enabled,
-  scannerSoundEnabled: row.scanner_sound_enabled,
-  scannerVibrationEnabled: row.scanner_vibration_enabled,
-  defaultMovementType: row.default_movement_type,
-  itemsPerPage: row.items_per_page,
-  dateFormat: row.date_format,
+  sidebarCollapsed: row.sidebar_collapsed ?? false,
+  notificationsEnabled: row.notifications_enabled ?? true,
+  scannerSoundEnabled: row.scanner_sound_enabled ?? true,
+  scannerVibrationEnabled: row.scanner_vibration_enabled ?? true,
+  defaultMovementType: row.default_movement_type ?? "OUT",
+  itemsPerPage: row.items_per_page ?? 25,
+  dateFormat: row.date_format ?? "DD/MM/YYYY",
+  // Avatar settings
+  avatarSize: (row.avatar_size ?? "md") as UserSettings["avatarSize"],
+  avatarCustomSize: row.avatar_custom_size ?? undefined,
+  avatarBorderEnabled: row.avatar_border_enabled ?? false,
+  avatarBorderWidth: row.avatar_border_width ?? 2,
+  avatarBorderColor: row.avatar_border_color ?? "#DC2626",
+  avatarShadowEnabled: row.avatar_shadow_enabled ?? true,
+  avatarShadowIntensity: (row.avatar_shadow_intensity ?? "md") as UserSettings["avatarShadowIntensity"],
+  avatarShape: (row.avatar_shape ?? "circle") as UserSettings["avatarShape"],
+  avatarAnimationEnabled: row.avatar_animation_enabled ?? true,
   createdAt: row.created_at,
   updatedAt: row.updated_at
 });
+
 
 const mapPermission = (row: PermissionRow): UserPermission => ({
   id: row.id,
@@ -154,6 +175,50 @@ export class SupabaseUserRepository
       .maybeSingle();
     this.handleError("obtener ajustes usuario", error);
     return data ? mapSettings(data as SettingsRow) : null;
+  }
+
+  async updateSettings(userId: string, input: import("@domain/repositories/UserRepository").UpdateSettingsInput) {
+    const updateData: Partial<SettingsRow> = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (input.language !== undefined) updateData.language = input.language;
+    if (input.themeMode !== undefined) updateData.theme_mode = input.themeMode;
+    if (input.primaryColor !== undefined) updateData.primary_color = input.primaryColor;
+    if (input.secondaryColor !== undefined) updateData.secondary_color = input.secondaryColor;
+    if (input.sidebarCollapsed !== undefined) updateData.sidebar_collapsed = input.sidebarCollapsed;
+    if (input.notificationsEnabled !== undefined) updateData.notifications_enabled = input.notificationsEnabled;
+    if (input.scannerSoundEnabled !== undefined) updateData.scanner_sound_enabled = input.scannerSoundEnabled;
+    if (input.scannerVibrationEnabled !== undefined) updateData.scanner_vibration_enabled = input.scannerVibrationEnabled;
+    if (input.defaultMovementType !== undefined) updateData.default_movement_type = input.defaultMovementType;
+    if (input.itemsPerPage !== undefined) updateData.items_per_page = input.itemsPerPage;
+    if (input.dateFormat !== undefined) updateData.date_format = input.dateFormat;
+    
+    // Avatar settings
+    if (input.avatarSize !== undefined) updateData.avatar_size = input.avatarSize;
+    if (input.avatarCustomSize !== undefined) updateData.avatar_custom_size = input.avatarCustomSize;
+    if (input.avatarBorderEnabled !== undefined) updateData.avatar_border_enabled = input.avatarBorderEnabled;
+    if (input.avatarBorderWidth !== undefined) updateData.avatar_border_width = input.avatarBorderWidth;
+    if (input.avatarBorderColor !== undefined) updateData.avatar_border_color = input.avatarBorderColor;
+    if (input.avatarShadowEnabled !== undefined) updateData.avatar_shadow_enabled = input.avatarShadowEnabled;
+    if (input.avatarShadowIntensity !== undefined) updateData.avatar_shadow_intensity = input.avatarShadowIntensity;
+    if (input.avatarShape !== undefined) updateData.avatar_shape = input.avatarShape;
+    if (input.avatarAnimationEnabled !== undefined) updateData.avatar_animation_enabled = input.avatarAnimationEnabled;
+
+    const { data, error } = await this.client
+      .from("user_settings")
+      .upsert(
+        {
+          user_id: userId,
+          ...updateData
+        },
+        { onConflict: "user_id" }
+      )
+      .select("*")
+      .single();
+
+    this.handleError("actualizar ajustes usuario", error);
+    return mapSettings(data as SettingsRow);
   }
 
   async listPermissions(userId: string) {

@@ -30,14 +30,14 @@ export function App() {
   }, []);
 
   return (
-    <ThemeProvider>
-      <LanguageProvider>
-        <AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <ThemeProvider>
           <AiChatProvider>
             <RouterProvider router={router} />
           </AiChatProvider>
-        </AuthProvider>
-      </LanguageProvider>
-    </ThemeProvider>
+        </ThemeProvider>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }

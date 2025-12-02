@@ -112,6 +112,14 @@ export function ProfilePage() {
             role: string;
             updated_at: string;
           };
+          
+          // Si cambió el rol, refrescar el contexto completo para actualizar permisos
+          if (updatedProfile.role !== authContext.profile.role) {
+            // eslint-disable-next-line no-console
+            console.log("[ProfilePage] Rol cambiado, refrescando contexto completo");
+            void refreshContext();
+            return;
+          }
 
           // Actualizar contexto optimista
           updateProfileOptimistic({

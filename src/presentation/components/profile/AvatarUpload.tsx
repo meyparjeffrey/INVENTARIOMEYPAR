@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
 import { useTranslation } from "../../hooks/useTranslation";
+import { useAuth } from "../../context/AuthContext";
 
 interface AvatarUploadProps {
   avatarUrl: string | null;
@@ -29,7 +30,11 @@ export function AvatarUpload({
   disabled = false
 }: AvatarUploadProps) {
   const { t } = useTranslation();
+  const { authContext } = useAuth();
   const [isHovered, setIsHovered] = React.useState(false);
+
+  // Obtener configuración de avatar desde user_settings
+  const avatarSettings = authContext?.settings;
 
   const onDrop = React.useCallback(
     (acceptedFiles: File[]) => {
@@ -74,7 +79,15 @@ export function AvatarUpload({
             name={name}
             initials={initials}
             imageUrl={displayUrl}
-            size="lg"
+            size={avatarSettings?.avatarSize || "lg"}
+            customSize={avatarSettings?.avatarCustomSize ?? undefined}
+            borderEnabled={avatarSettings?.avatarBorderEnabled}
+            borderWidth={avatarSettings?.avatarBorderWidth}
+            borderColor={avatarSettings?.avatarBorderColor}
+            shadowEnabled={avatarSettings?.avatarShadowEnabled}
+            shadowIntensity={avatarSettings?.avatarShadowIntensity}
+            shape={avatarSettings?.avatarShape}
+            animationEnabled={avatarSettings?.avatarAnimationEnabled}
             className="h-24 w-24 text-lg transition-all duration-200"
           />
 

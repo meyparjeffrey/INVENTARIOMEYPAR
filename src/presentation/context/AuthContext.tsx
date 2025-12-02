@@ -1,6 +1,7 @@
 import * as React from "react";
 import type { AuthContext as AuthContextType } from "@application/services/AuthService";
 import { AuthService } from "@application/services/AuthService";
+import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
 
 interface AuthContextValue {
   authContext: AuthContextType | null;
@@ -8,6 +9,7 @@ interface AuthContextValue {
   login: (email: string, password: string, rememberSession?: boolean) => Promise<void>;
   logout: () => Promise<void>;
   refreshContext: () => Promise<void>;
+  updateProfileOptimistic: (profileUpdate: Partial<AuthContextType["profile"]>) => void;
 }
 
 const AuthContext = React.createContext<AuthContextValue | undefined>(undefined);
@@ -37,6 +39,40 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     initAuth();
   }, [authService]);
+
+  // Suscripción Realtime para cambios en el perfil (incluyendo rol)
+  React.useEffect(() => {
+    if (!authContext) return;
+
+    const channel = supabaseClient
+      .channel(`auth-profile-${authContext.profile.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "profiles",
+          filter: `id=eq.${authContext.profile.id}`
+        },
+        async (payload) => {
+          // Cuando hay cambios en el perfil (incluyendo rol), refrescar el contexto completo
+          // eslint-disable-next-line no-console
+          console.log("[AuthContext] Cambio detectado en perfil:", payload.new);
+          try {
+            const newContext = await authService.getCurrentContext();
+            setAuthContext(newContext);
+          } catch (error) {
+            // eslint-disable-next-line no-console
+            console.error("[AuthContext] Error al refrescar contexto después de cambio:", error);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabaseClient.removeChannel(channel);
+    };
+  }, [authContext, authService]);
 
   const login = React.useCallback(
     async (email: string, password: string, rememberSession = true) => {

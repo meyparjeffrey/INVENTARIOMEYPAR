@@ -3,6 +3,7 @@ import * as React from "react";
 import { Avatar } from "./Avatar";
 import { Button } from "./Button";
 import { useLanguage } from "../../context/LanguageContext";
+import { useAuth } from "../../context/AuthContext";
 import { cn } from "../../lib/cn";
 
 interface UserMenuProps {
@@ -28,7 +29,11 @@ export function UserMenu({
   onSettings
 }: UserMenuProps) {
   const { t } = useLanguage();
+  const { authContext } = useAuth();
   const [isOpen, setIsOpen] = React.useState(false);
+
+  // Obtener configuración de avatar desde user_settings
+  const avatarSettings = authContext?.settings;
 
   return (
     <div className="relative">
@@ -39,7 +44,20 @@ export function UserMenu({
         className="h-9 gap-2 px-2 transition-all hover:bg-gray-100 dark:hover:bg-gray-800"
         title={`${name} (${role || "Usuario"})`}
       >
-        <Avatar name={name} initials={initials} imageUrl={avatarUrl} size="sm" />
+        <Avatar
+          name={name}
+          initials={initials}
+          imageUrl={avatarUrl}
+          size={avatarSettings?.avatarSize || "sm"}
+          customSize={avatarSettings?.avatarCustomSize ?? undefined}
+          borderEnabled={avatarSettings?.avatarBorderEnabled}
+          borderWidth={avatarSettings?.avatarBorderWidth}
+          borderColor={avatarSettings?.avatarBorderColor}
+          shadowEnabled={avatarSettings?.avatarShadowEnabled}
+          shadowIntensity={avatarSettings?.avatarShadowIntensity}
+          shape={avatarSettings?.avatarShape}
+          animationEnabled={avatarSettings?.avatarAnimationEnabled}
+        />
         <span className="hidden text-sm font-medium md:inline-block">{name}</span>
       </Button>
 
