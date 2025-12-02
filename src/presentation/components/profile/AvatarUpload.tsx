@@ -4,6 +4,7 @@ import { Upload, Camera, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
+import { useTranslation } from "../../hooks/useTranslation";
 
 interface AvatarUploadProps {
   avatarUrl: string | null;
@@ -27,6 +28,7 @@ export function AvatarUpload({
   uploading = false,
   disabled = false
 }: AvatarUploadProps) {
+  const { t } = useTranslation();
   const [isHovered, setIsHovered] = React.useState(false);
 
   const onDrop = React.useCallback(
@@ -128,7 +130,7 @@ export function AvatarUpload({
             className="gap-2"
           >
             <Upload className="h-4 w-4" />
-            {uploading ? "Subiendo..." : "Cambiar foto"}
+            {uploading ? t("profile.uploading") : t("profile.changePhoto")}
           </Button>
           {displayUrl && (
             <Button
@@ -142,14 +144,12 @@ export function AvatarUpload({
               className="gap-2 text-red-600 hover:text-red-700 dark:text-red-400"
             >
               <X className="h-4 w-4" />
-              Eliminar
+              {t("profile.removePhoto")}
             </Button>
           )}
         </div>
         <p className="text-xs text-gray-500 dark:text-gray-400">
-          {isDragActive
-            ? "Suelta la imagen aquí"
-            : "Arrastra una imagen o haz clic para seleccionar. Máximo 500KB. Formatos: JPG, PNG"}
+          {isDragActive ? t("profile.dragActive") : t("profile.photoHelp")}
         </p>
       </div>
     </div>

@@ -3,6 +3,7 @@ import Cropper, { type Area } from "react-easy-crop";
 import { X, Check, RotateCw } from "lucide-react";
 import { Button } from "../ui/Button";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTranslation } from "../../hooks/useTranslation";
 
 interface AvatarEditorProps {
   imageSrc: string;
@@ -14,6 +15,7 @@ interface AvatarEditorProps {
  * Editor de avatar con funcionalidad de recorte (crop).
  */
 export function AvatarEditor({ imageSrc, onSave, onCancel }: AvatarEditorProps) {
+  const { t } = useTranslation();
   const [crop, setCrop] = React.useState({ x: 0, y: 0 });
   const [zoom, setZoom] = React.useState(1);
   const [rotation, setRotation] = React.useState(0);
@@ -124,7 +126,7 @@ export function AvatarEditor({ imageSrc, onSave, onCancel }: AvatarEditorProps) 
           {/* Header */}
           <div className="flex items-center justify-between border-b border-gray-200 p-4 dark:border-gray-700">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
-              Recortar imagen
+              {t("avatar.crop.title")}
             </h2>
             <Button
               variant="ghost"
@@ -159,7 +161,7 @@ export function AvatarEditor({ imageSrc, onSave, onCancel }: AvatarEditorProps) 
               {/* Zoom */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Zoom: {Math.round(zoom * 100)}%
+                  {t("avatar.crop.zoom")}: {Math.round(zoom * 100)}%
                 </label>
                 <input
                   type="range"
@@ -175,7 +177,7 @@ export function AvatarEditor({ imageSrc, onSave, onCancel }: AvatarEditorProps) 
               {/* Rotación */}
               <div>
                 <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Rotación: {rotation}°
+                  {t("avatar.crop.rotation")}: {rotation}°
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -194,7 +196,7 @@ export function AvatarEditor({ imageSrc, onSave, onCancel }: AvatarEditorProps) 
                     className="gap-2"
                   >
                     <RotateCw className="h-4 w-4" />
-                    90°
+                    {t("avatar.crop.rotate90")}
                   </Button>
                 </div>
               </div>
@@ -203,18 +205,18 @@ export function AvatarEditor({ imageSrc, onSave, onCancel }: AvatarEditorProps) 
             {/* Actions */}
             <div className="mt-6 flex items-center justify-end gap-3">
               <Button variant="secondary" onClick={onCancel} disabled={loading}>
-                Cancelar
+                {t("avatar.crop.cancel")}
               </Button>
               <Button onClick={handleSave} disabled={loading || !croppedAreaPixels}>
                 {loading ? (
                   <>
                     <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    Procesando...
+                    {t("avatar.crop.processing")}
                   </>
                 ) : (
                   <>
                     <Check className="mr-2 h-4 w-4" />
-                    Aplicar
+                    {t("avatar.crop.apply")}
                   </>
                 )}
               </Button>

@@ -14,7 +14,7 @@ import {
   DialogTitle
 } from "../components/ui/Dialog";
 import { useAuth } from "../context/AuthContext";
-import { useLanguage } from "../context/LanguageContext";
+import { useTranslation } from "../hooks/useTranslation";
 import { SupabaseUserRepository } from "@infrastructure/repositories/SupabaseUserRepository";
 import { uploadAvatar, deleteAvatar } from "@infrastructure/storage/avatarStorage";
 import { AvatarUpload } from "../components/profile/AvatarUpload";
@@ -25,7 +25,7 @@ import { ProfileFormField } from "../components/profile/ProfileFormField";
  * Página de perfil de usuario con formulario editable y mejoras profesionales.
  */
 export function ProfilePage() {
-  const { t } = useLanguage();
+  const { t } = useTranslation();
   const { authContext, refreshContext } = useAuth();
   const navigate = useNavigate();
   const userRepository = React.useMemo(() => new SupabaseUserRepository(), []);
@@ -49,29 +49,29 @@ export function ProfilePage() {
   const [avatarPreview, setAvatarPreview] = React.useState<string | null>(null);
 
   // Validación en tiempo real
-  const validateName = (name: string): { isValid: boolean; message?: string } => {
+  const validateName = (name: string, field: "firstName" | "lastName"): { isValid: boolean; message?: string } => {
     if (name.length === 0) {
-      return { isValid: false, message: "Este campo es obligatorio" };
+      return { isValid: false, message: t(`validation.${field}.required`) };
     }
     if (name.length < 2) {
-      return { isValid: false, message: "Debe tener al menos 2 caracteres" };
+      return { isValid: false, message: t(`validation.${field}.minLength`) };
     }
     if (name.length > 50) {
-      return { isValid: false, message: "No puede exceder 50 caracteres" };
+      return { isValid: false, message: t(`validation.${field}.maxLength`) };
     }
     if (!/^[a-zA-ZÀ-ÿ\s'-]+$/.test(name)) {
-      return { isValid: false, message: "Solo se permiten letras, espacios, guiones y apostrofes" };
+      return { isValid: false, message: t(`validation.${field}.invalid`) };
     }
-    return { isValid: true, message: "Nombre válido" };
+    return { isValid: true, message: t(`validation.${field}.valid`) };
   };
 
   const firstNameValidation = React.useMemo(
-    () => validateName(firstName),
-    [firstName]
+    () => validateName(firstName, "firstName"),
+    [firstName, t]
   );
   const lastNameValidation = React.useMemo(
-    () => validateName(lastName),
-    [lastName]
+    () => validateName(lastName, "lastName"),
+    [lastName, t]
   );
 
   // Sincronizar estados cuando cambia authContext
@@ -99,12 +99,12 @@ export function ProfilePage() {
     // Validar archivo
     const validTypes = ["image/jpeg", "image/jpg", "image/png"];
     if (!validTypes.includes(file.type)) {
-      setError("Formato no válido. Solo se permiten JPG y PNG.");
+      setError(t("profile.error.upload") + ": " + t("profile.photoHelp"));
       return;
     }
 
     if (file.size > 500 * 1024 * 2) {
-      setError("El archivo es demasiado grande. Máximo 1MB.");
+      setError(t("profile.error.upload") + ": " + t("profile.photoHelp"));
       return;
     }
 
@@ -149,7 +149,7 @@ export function ProfilePage() {
       await refreshContext();
       setSuccess(true);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error al subir avatar";
+      const errorMessage = err instanceof Error ? err.message : t("profile.error.upload");
       setError(errorMessage);
       setAvatarPreview(null);
     } finally {
@@ -178,7 +178,7 @@ export function ProfilePage() {
       await refreshContext();
       setSuccess(true);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error al eliminar avatar";
+      const errorMessage = err instanceof Error ? err.message : t("profile.error.remove");
       setError(errorMessage);
     } finally {
       setUploadingAvatar(false);
@@ -190,7 +190,7 @@ export function ProfilePage() {
 
     // Validar antes de guardar
     if (!firstNameValidation.isValid || !lastNameValidation.isValid) {
-      setError("Por favor, corrige los errores en el formulario antes de guardar.");
+      setError(t("profile.error.validation"));
       return;
     }
 
@@ -213,7 +213,7 @@ export function ProfilePage() {
         setAvatarPreview(null);
       }
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Error al guardar perfil";
+      const errorMessage = err instanceof Error ? err.message : t("profile.error");
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -280,10 +280,10 @@ export function ProfilePage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-50">
-              {t("user.profile")}
+              {t("profile.title")}
             </h1>
             <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-              Gestiona tu información personal
+              {t("profile.subtitle")}
             </p>
           </div>
         </div>
@@ -298,7 +298,7 @@ export function ProfilePage() {
               className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-800 dark:bg-green-900/20"
             >
               <p className="text-sm text-green-800 dark:text-green-200">
-                ✅ Cambios guardados correctamente
+                ✅ {t("profile.success")}
               </p>
             </motion.div>
           )}
@@ -336,7 +336,7 @@ export function ProfilePage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <ProfileFormField
                 id="firstName"
-                label="Nombre"
+                label={t("profile.firstName")}
                 value={firstName}
                 onChange={setFirstName}
                 disabled={loading}
@@ -346,7 +346,7 @@ export function ProfilePage() {
               />
               <ProfileFormField
                 id="lastName"
-                label="Apellidos"
+                label={t("profile.lastName")}
                 value={lastName}
                 onChange={setLastName}
                 disabled={loading}
@@ -357,7 +357,7 @@ export function ProfilePage() {
             </div>
 
             <div>
-              <Label htmlFor="username">Nombre de usuario</Label>
+              <Label htmlFor="username">{t("profile.username")}</Label>
               <Input
                 id="username"
                 type="email"
@@ -366,12 +366,12 @@ export function ProfilePage() {
                 className="bg-gray-50 dark:bg-gray-900"
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                El nombre de usuario no se puede modificar
+                {t("profile.usernameHelp")}
               </p>
             </div>
 
             <div>
-              <Label htmlFor="role">Rol</Label>
+              <Label htmlFor="role">{t("profile.role")}</Label>
               <Input
                 id="role"
                 value={authContext.profile.role}
@@ -383,29 +383,29 @@ export function ProfilePage() {
 
           {/* Botones */}
           <div className="mt-6 flex items-center justify-end gap-4 border-t border-gray-200 pt-6 dark:border-gray-700">
-            <Button
-              variant="secondary"
-              onClick={handleCancelClick}
-              disabled={loading || uploadingAvatar}
-            >
-              Cancelar
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={loading || uploadingAvatar || !hasChanges || !isFormValid}
-            >
-              {loading ? (
-                <>
-                  <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Guardando...
-                </>
-              ) : (
-                <>
-                  <Save className="mr-2 h-4 w-4" />
-                  Guardar cambios
-                </>
-              )}
-            </Button>
+          <Button
+            variant="secondary"
+            onClick={handleCancelClick}
+            disabled={loading || uploadingAvatar}
+          >
+            {t("profile.cancel")}
+          </Button>
+          <Button
+            onClick={handleSave}
+            disabled={loading || uploadingAvatar || !hasChanges || !isFormValid}
+          >
+            {loading ? (
+              <>
+                <div className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                {t("profile.saving")}
+              </>
+            ) : (
+              <>
+                <Save className="mr-2 h-4 w-4" />
+                {t("profile.save")}
+              </>
+            )}
+          </Button>
           </div>
         </div>
       </motion.div>
@@ -414,17 +414,17 @@ export function ProfilePage() {
       <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
         <DialogContent size="sm">
           <DialogHeader>
-            <DialogTitle>¿Descartar cambios?</DialogTitle>
+            <DialogTitle>{t("profile.cancelDialog.title")}</DialogTitle>
             <DialogDescription>
-              Tienes cambios sin guardar. ¿Estás seguro de que quieres descartarlos y salir?
+              {t("profile.cancelDialog.description")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setShowCancelDialog(false)}>
-              Continuar editando
+              {t("profile.cancelDialog.continue")}
             </Button>
             <Button variant="destructive" onClick={handleCancelConfirm}>
-              Descartar cambios
+              {t("profile.cancelDialog.discard")}
             </Button>
           </DialogFooter>
         </DialogContent>
