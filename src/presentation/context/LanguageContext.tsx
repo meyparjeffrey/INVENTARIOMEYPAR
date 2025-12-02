@@ -134,7 +134,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "validation.lastName.minLength": "Debe tener al menos 2 caracteres",
     "validation.lastName.maxLength": "No puede exceder 50 caracteres",
     "validation.lastName.invalid": "Solo se permiten letras, espacios, guiones y apostrofes",
-    "validation.lastName.valid": "Nombre válido",
+    "validation.lastName.valid": "Apellido válido",
     // Chat IA
     "ai.chat.title": "MEYPAR IA",
     "ai.chat.subtitle": "Pregúntame sobre la aplicación",
@@ -529,7 +529,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "validation.lastName.minLength": "Ha de tenir almenys 2 caràcters",
     "validation.lastName.maxLength": "No pot excedir 50 caràcters",
     "validation.lastName.invalid": "Només es permeten lletres, espais, guions i apostrofes",
-    "validation.lastName.valid": "Nom vàlid",
+    "validation.lastName.valid": "Cognom vàlid",
     // Xat IA
     "ai.chat.title": "MEYPAR IA",
     "ai.chat.subtitle": "Pregunta'm sobre l'aplicació",

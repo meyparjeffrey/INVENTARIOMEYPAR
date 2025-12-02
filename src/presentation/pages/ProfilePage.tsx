@@ -204,8 +204,25 @@ export function ProfilePage() {
         lastName
       });
 
-      // Refrescar contexto
+      // Esperar un momento para que la BD procese la actualización y recalcule initials
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Refrescar contexto para obtener datos actualizados (incluyendo initials recalculados)
       await refreshContext();
+      
+      // Esperar un momento adicional y volver a refrescar para asegurar sincronización
+      await new Promise(resolve => setTimeout(resolve, 200));
+      await refreshContext();
+      
+      // Sincronizar estados locales con los datos actualizados del contexto
+      // Usar un pequeño delay para asegurar que el contexto se haya actualizado
+      setTimeout(() => {
+        if (authContext) {
+          setFirstName(authContext.profile.firstName);
+          setLastName(authContext.profile.lastName);
+        }
+      }, 100);
+      
       setSuccess(true);
 
       // Si hay preview de avatar, ya se guardó arriba, solo limpiar preview
