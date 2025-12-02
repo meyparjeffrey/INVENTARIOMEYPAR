@@ -132,14 +132,9 @@ export class SupabaseUserRepository
       updateData.avatar_url = input.avatarUrl;
     }
 
-    // Si se actualiza nombre/apellido, recalcular initials
-    if (input.firstName !== undefined || input.lastName !== undefined) {
-      const current = await this.getProfileById(id);
-      const firstName = input.firstName ?? current?.firstName ?? "";
-      const lastName = input.lastName ?? current?.lastName ?? "";
-      const initials = `${firstName[0] || ""}${lastName[0] || ""}`.toUpperCase().slice(0, 2);
-      updateData.initials = initials;
-    }
+    // NOTA: initials es una columna GENERATED ALWAYS AS STORED en la base de datos
+    // Se calcula automáticamente cuando se actualizan first_name o last_name
+    // NO intentar actualizarla manualmente
 
     const { data, error } = await this.client
       .from("profiles")
