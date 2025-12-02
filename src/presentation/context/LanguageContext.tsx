@@ -116,6 +116,10 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "profile.cancelDialog.description": "Tienes cambios sin guardar. ¿Estás seguro de que quieres descartarlos y salir?",
     "profile.cancelDialog.continue": "Continuar editando",
     "profile.cancelDialog.discard": "Descartar cambios",
+    "profile.deleteAvatar.title": "¿Eliminar foto de perfil?",
+    "profile.deleteAvatar.description": "¿Estás seguro de que quieres eliminar tu foto de perfil? Esta acción no se puede deshacer.",
+    "profile.deleteAvatar.confirm": "Sí, eliminar",
+    "profile.deleteAvatar.cancel": "Cancelar",
     // Editor de avatar
     "avatar.crop.title": "Recortar imagen",
     "avatar.crop.zoom": "Zoom",
@@ -511,6 +515,10 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "profile.cancelDialog.description": "Tens canvis sense desar. Estàs segur que vols descartar-los i sortir?",
     "profile.cancelDialog.continue": "Continuar editant",
     "profile.cancelDialog.discard": "Descartar canvis",
+    "profile.deleteAvatar.title": "Eliminar foto de perfil?",
+    "profile.deleteAvatar.description": "Estàs segur que vols eliminar la teva foto de perfil? Aquesta acció no es pot desfer.",
+    "profile.deleteAvatar.confirm": "Sí, eliminar",
+    "profile.deleteAvatar.cancel": "Cancel·lar",
     // Editor d'avatar
     "avatar.crop.title": "Retallar imatge",
     "avatar.crop.zoom": "Zoom",

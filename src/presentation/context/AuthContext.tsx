@@ -107,8 +107,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [authService]);
 
+  const updateProfileOptimistic = React.useCallback((profileUpdate: Partial<AuthContextType["profile"]>) => {
+    if (authContext) {
+      setAuthContext({
+        ...authContext,
+        profile: {
+          ...authContext.profile,
+          ...profileUpdate
+        }
+      });
+    }
+  }, [authContext]);
+
   return (
-    <AuthContext.Provider value={{ authContext, loading, login, logout, refreshContext }}>
+    <AuthContext.Provider value={{ authContext, loading, login, logout, refreshContext, updateProfileOptimistic }}>
       {children}
     </AuthContext.Provider>
   );

@@ -26,7 +26,7 @@ import { ProfileFormField } from "../components/profile/ProfileFormField";
  */
 export function ProfilePage() {
   const { t } = useTranslation();
-  const { authContext, refreshContext } = useAuth();
+  const { authContext, refreshContext, updateProfileOptimistic } = useAuth();
   const navigate = useNavigate();
   const userRepository = React.useMemo(() => new SupabaseUserRepository(), []);
 
@@ -35,6 +35,7 @@ export function ProfilePage() {
   const [error, setError] = React.useState<string | null>(null);
   const [success, setSuccess] = React.useState(false);
   const [showCancelDialog, setShowCancelDialog] = React.useState(false);
+  const [showDeleteAvatarDialog, setShowDeleteAvatarDialog] = React.useState(false);
   const [showCropEditor, setShowCropEditor] = React.useState(false);
   const [imageToCrop, setImageToCrop] = React.useState<string | null>(null);
 
@@ -158,11 +159,18 @@ export function ProfilePage() {
     }
   };
 
-  const handleRemoveAvatar = async () => {
+  const handleRemoveAvatarClick = () => {
+    if (!avatarUrl) return;
+    setShowDeleteAvatarDialog(true);
+  };
+
+  const handleRemoveAvatarConfirm = async () => {
     if (!authContext || !avatarUrl) return;
 
+    setShowDeleteAvatarDialog(false);
     setUploadingAvatar(true);
     setError(null);
+    setSuccess(false);
 
     try {
       // Eliminar de Storage
@@ -173,8 +181,11 @@ export function ProfilePage() {
         avatarUrl: null
       });
 
+      // Actualizar estados locales inmediatamente
       setAvatarUrl(null);
       setAvatarPreview(null);
+      
+      // Refrescar contexto en segundo plano
       await refreshContext();
       setSuccess(true);
     } catch (err) {
@@ -199,29 +210,30 @@ export function ProfilePage() {
     setSuccess(false);
 
     try {
-      await userRepository.updateProfile(authContext.profile.id, {
+      // Actualizar estados locales INMEDIATAMENTE para feedback instantáneo
+      // Los estados ya tienen los valores correctos (firstName, lastName)
+      // Solo necesitamos guardarlos en la BD
+      
+      const updatedProfile = await userRepository.updateProfile(authContext.profile.id, {
         firstName,
         lastName
       });
 
-      // Esperar un momento para que la BD procese la actualización y recalcule initials
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Refrescar contexto para obtener datos actualizados (incluyendo initials recalculados)
-      await refreshContext();
-      
-      // Esperar un momento adicional y volver a refrescar para asegurar sincronización
-      await new Promise(resolve => setTimeout(resolve, 200));
-      await refreshContext();
-      
-      // Sincronizar estados locales con los datos actualizados del contexto
-      // Usar un pequeño delay para asegurar que el contexto se haya actualizado
-      setTimeout(() => {
-        if (authContext) {
-          setFirstName(authContext.profile.firstName);
-          setLastName(authContext.profile.lastName);
-        }
-      }, 100);
+      // Actualizar el contexto de forma optimista INMEDIATAMENTE
+      // Esto hace que el Header y otros componentes se actualicen al instante
+      updateProfileOptimistic({
+        firstName: updatedProfile.firstName,
+        lastName: updatedProfile.lastName,
+        initials: updatedProfile.initials, // Ya viene recalculado de la BD
+        updatedAt: updatedProfile.updatedAt
+      });
+
+      // Refrescar contexto completo en segundo plano para sincronizar todos los datos
+      // No esperamos a que termine para dar feedback inmediato
+      refreshContext().catch(err => {
+        // eslint-disable-next-line no-console
+        console.warn("[ProfilePage] Error al refrescar contexto:", err);
+      });
       
       setSuccess(true);
 
@@ -344,7 +356,7 @@ export function ProfilePage() {
               initials={authContext.profile.initials}
               name={`${firstName} ${lastName}`}
               onFileSelect={handleFileSelect}
-              onRemove={handleRemoveAvatar}
+              onRemove={handleRemoveAvatarClick}
               uploading={uploadingAvatar}
               disabled={loading}
             />
@@ -442,6 +454,26 @@ export function ProfilePage() {
             </Button>
             <Button variant="destructive" onClick={handleCancelConfirm}>
               {t("profile.cancelDialog.discard")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog de confirmación para eliminar avatar */}
+      <Dialog open={showDeleteAvatarDialog} onOpenChange={setShowDeleteAvatarDialog}>
+        <DialogContent size="sm">
+          <DialogHeader>
+            <DialogTitle>{t("profile.deleteAvatar.title")}</DialogTitle>
+            <DialogDescription>
+              {t("profile.deleteAvatar.description")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setShowDeleteAvatarDialog(false)}>
+              {t("profile.deleteAvatar.cancel")}
+            </Button>
+            <Button variant="destructive" onClick={handleRemoveAvatarConfirm}>
+              {t("profile.deleteAvatar.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
