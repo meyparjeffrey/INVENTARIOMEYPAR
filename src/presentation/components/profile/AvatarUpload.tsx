@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useDropzone } from "react-dropzone";
-import { Upload, Camera, X } from "lucide-react";
+import { Upload, X } from "lucide-react";
 import { motion } from "framer-motion";
 import { Avatar } from "../ui/Avatar";
 import { Button } from "../ui/Button";
@@ -31,7 +31,6 @@ export function AvatarUpload({
 }: AvatarUploadProps) {
   const { t } = useTranslation();
   const { authContext } = useAuth();
-  const [isHovered, setIsHovered] = React.useState(false);
 
   // Obtener configuración de avatar desde user_settings
   const avatarSettings = authContext?.settings;
@@ -66,8 +65,6 @@ export function AvatarUpload({
       <div
         {...getRootProps()}
         className="group relative cursor-pointer"
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
       >
         <input {...getInputProps()} ref={fileInputRef} />
         <motion.div
@@ -90,18 +87,6 @@ export function AvatarUpload({
             animationEnabled={avatarSettings?.avatarAnimationEnabled}
             className="h-24 w-24 text-lg transition-all duration-200"
           />
-
-          {/* Overlay con efecto hover */}
-          <motion.div
-            initial={false}
-            animate={{
-              opacity: isHovered && !uploading && !disabled ? 1 : 0
-            }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60"
-          >
-            <Camera className="h-8 w-8 text-white" />
-          </motion.div>
 
           {/* Indicador de carga */}
           {uploading && (

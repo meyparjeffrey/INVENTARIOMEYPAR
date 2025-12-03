@@ -18,6 +18,7 @@ import { useLanguage } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
 import { cn } from "../../lib/cn";
 import { Logo } from "../ui/Logo";
+import { SupabaseUserRepository } from "@infrastructure/repositories/SupabaseUserRepository";
 
 interface NavItem {
   path: string;
@@ -46,10 +47,11 @@ const navItems: NavItem[] = [
 export function Sidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { authContext } = useAuth();
+  const { authContext, refreshContext } = useAuth();
   const { t } = useLanguage();
   const { effectiveTheme } = useTheme();
   const [collapsed, setCollapsed] = React.useState(false);
+  const userRepository = React.useMemo(() => new SupabaseUserRepository(), []);
 
   // Obtener estado de colapso desde settings si existe
   React.useEffect(() => {
@@ -57,6 +59,25 @@ export function Sidebar() {
       setCollapsed(authContext.settings.sidebarCollapsed);
     }
   }, [authContext?.settings?.sidebarCollapsed]);
+
+  // Guardar estado de colapso cuando cambia
+  const handleToggleCollapse = React.useCallback(async () => {
+    const newCollapsed = !collapsed;
+    setCollapsed(newCollapsed);
+    
+    // Guardar en settings si hay usuario autenticado
+    if (authContext?.profile.id) {
+      try {
+        await userRepository.updateSettings(authContext.profile.id, {
+          sidebarCollapsed: newCollapsed
+        });
+        await refreshContext();
+      } catch (error) {
+        // Silenciar errores, no es crítico
+        console.warn("No se pudo guardar el estado del sidebar:", error);
+      }
+    }
+  }, [collapsed, authContext?.profile.id, userRepository, refreshContext]);
 
   const canAccess = (item: NavItem): boolean => {
     if (item.adminOnly && authContext?.profile.role !== "ADMIN") {
@@ -122,14 +143,14 @@ export function Sidebar() {
       {/* Toggle colapso */}
       <div className="border-t border-gray-700 p-2">
         <button
-          onClick={() => setCollapsed(!collapsed)}
-          className="flex w-full items-center justify-center rounded-lg px-3 py-2 text-gray-300 transition hover:bg-gray-700"
-          title={collapsed ? "Expandir" : "Colapsar"}
+          onClick={handleToggleCollapse}
+          className="flex w-full items-center justify-center rounded-lg px-3 py-2 text-gray-300 transition-all duration-200 hover:bg-gray-700 hover:scale-105 active:scale-95"
+          title={collapsed ? t("sidebar.expand") || "Expandir" : t("sidebar.collapse") || "Colapsar"}
         >
           {collapsed ? (
-            <ArrowLeftRight className="h-5 w-5 rotate-90" />
+            <ArrowLeftRight className="h-5 w-5 rotate-90 transition-transform duration-200" />
           ) : (
-            <ArrowLeftRight className="h-5 w-5 -rotate-90" />
+            <ArrowLeftRight className="h-5 w-5 -rotate-90 transition-transform duration-200" />
           )}
         </button>
       </div>

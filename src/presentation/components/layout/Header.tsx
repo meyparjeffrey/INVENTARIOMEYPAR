@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { useLanguage } from "../../context/LanguageContext";
 import { LanguageSelector, ThemeToggle, UserMenu, ConnectionStatus } from "../ui";
 import { GlobalSearch } from "../ui/GlobalSearch";
 import { NotificationPanel } from "../ui/NotificationPanel";
@@ -10,6 +11,7 @@ import { NotificationPanel } from "../ui/NotificationPanel";
  */
 export function Header() {
   const { authContext, logout } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
 
   if (!authContext) {
@@ -28,7 +30,7 @@ export function Header() {
     <header className="sticky top-0 z-10 flex h-16 items-center gap-3 border-b border-gray-200 bg-white/95 backdrop-blur-sm px-4 shadow-sm transition-all duration-200 dark:border-gray-700 dark:bg-gray-800/95">
       {/* Búsqueda global - Ocupa más espacio en desktop, responsive */}
       <div className="flex-1 max-w-2xl min-w-0">
-        <GlobalSearch placeholder="Buscar productos, lotes..." />
+        <GlobalSearch placeholder={t("search.placeholder")} />
       </div>
 
       {/* Separador visual - Solo en desktop */}

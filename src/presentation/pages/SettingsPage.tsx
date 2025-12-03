@@ -1,4 +1,4 @@
-import { ArrowLeft, Save, AlertCircle } from "lucide-react";
+import { ArrowLeft, Save, AlertCircle, Bell, ScanLine, Settings as SettingsIcon } from "lucide-react";
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -11,6 +11,7 @@ import { LanguageSelector } from "../components/ui/LanguageSelector";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { AvatarSettings } from "../components/settings/AvatarSettings";
 import { SupabaseUserRepository } from "@infrastructure/repositories/SupabaseUserRepository";
+import { cn } from "../lib/cn";
 
 /**
  * Página de configuración de usuario.
@@ -199,16 +200,104 @@ export function SettingsPage() {
           </div>
         </motion.div>
 
-        {/* Otras configuraciones */}
+        {/* Notificaciones */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
         >
-          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
-            {t("settings.preferences.title")}
-          </h2>
+          <div className="mb-4 flex items-center gap-2">
+            <Bell className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
+              {t("settings.notifications.title") || "Notificaciones"}
+            </h2>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+              <div className="flex-1">
+                <Label htmlFor="notificationsEnabled" className="text-base font-medium">
+                  {t("settings.notifications.enabled") || "Activar notificaciones"}
+                </Label>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {t("settings.notifications.enabledHelp") || "Recibe notificaciones sobre alertas y eventos importantes"}
+                </p>
+              </div>
+              <input
+                id="notificationsEnabled"
+                type="checkbox"
+                checked={localSettings.notificationsEnabled}
+                onChange={(e) => handleSettingsChange({ notificationsEnabled: e.target.checked })}
+                className="h-5 w-5 rounded border-gray-300 text-primary-600 transition-all duration-200 hover:scale-110 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              />
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Escáner */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+        >
+          <div className="mb-4 flex items-center gap-2">
+            <ScanLine className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
+              {t("settings.scanner.title") || "Escáner"}
+            </h2>
+          </div>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+              <div className="flex-1">
+                <Label htmlFor="scannerSoundEnabled" className="text-base font-medium">
+                  {t("settings.scanner.sound") || "Sonido al escanear"}
+                </Label>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {t("settings.scanner.soundHelp") || "Reproduce un sonido cuando se escanea un código"}
+                </p>
+              </div>
+              <input
+                id="scannerSoundEnabled"
+                type="checkbox"
+                checked={localSettings.scannerSoundEnabled}
+                onChange={(e) => handleSettingsChange({ scannerSoundEnabled: e.target.checked })}
+                className="h-5 w-5 rounded border-gray-300 text-primary-600 transition-all duration-200 hover:scale-110 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              />
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+              <div className="flex-1">
+                <Label htmlFor="scannerVibrationEnabled" className="text-base font-medium">
+                  {t("settings.scanner.vibration") || "Vibración al escanear"}
+                </Label>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  {t("settings.scanner.vibrationHelp") || "Vibra el dispositivo cuando se escanea un código (solo móvil)"}
+                </p>
+              </div>
+              <input
+                id="scannerVibrationEnabled"
+                type="checkbox"
+                checked={localSettings.scannerVibrationEnabled}
+                onChange={(e) => handleSettingsChange({ scannerVibrationEnabled: e.target.checked })}
+                className="h-5 w-5 rounded border-gray-300 text-primary-600 transition-all duration-200 hover:scale-110 focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              />
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Preferencias generales */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-700 dark:bg-gray-800"
+        >
+          <div className="mb-4 flex items-center gap-2">
+            <SettingsIcon className="h-5 w-5 text-primary-600 dark:text-primary-400" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
+              {t("settings.preferences.title") || "Preferencias"}
+            </h2>
+          </div>
           <div className="space-y-4">
             <div>
               <Label htmlFor="itemsPerPage">{t("settings.preferences.itemsPerPage")}</Label>
@@ -219,6 +308,7 @@ export function SettingsPage() {
                 max="100"
                 value={localSettings.itemsPerPage}
                 onChange={(e) => handleSettingsChange({ itemsPerPage: parseInt(e.target.value, 10) || 25 })}
+                className="mt-1"
               />
               <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                 {t("settings.preferences.itemsPerPageHelp")}
