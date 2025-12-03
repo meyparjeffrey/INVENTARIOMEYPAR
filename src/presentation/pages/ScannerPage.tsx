@@ -17,6 +17,7 @@ import { Input } from "../components/ui/Input";
 import { useLanguage } from "../context/LanguageContext";
 import { useProducts } from "../hooks/useProducts";
 import { cn } from "../lib/cn";
+import { highlightText } from "../utils/highlightText";
 
 type ScanMode = "search" | "movement";
 
@@ -223,10 +224,10 @@ export function ScannerPage() {
                     {t("scanner.found")}
                   </p>
                   <p className="text-lg font-semibold text-gray-900 dark:text-gray-50">
-                    {lastScan.product.name}
+                    {highlightText(lastScan.product.name, scanValue)}
                   </p>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {lastScan.product.code} · Stock: {lastScan.product.stockCurrent}
+                    {highlightText(lastScan.product.code, scanValue)} · Stock: {lastScan.product.stockCurrent}
                     {lastScan.product.stockCurrent <= lastScan.product.stockMin && (
                       <span className="ml-2 inline-flex items-center gap-1 text-amber-600 dark:text-amber-400">
                         <AlertTriangle className="h-3 w-3" />
@@ -274,10 +275,10 @@ export function ScannerPage() {
                     <Package className="h-5 w-5 text-green-500" />
                     <div className="flex-1">
                       <span className="font-medium text-gray-900 dark:text-gray-50">
-                        {scan.product.name}
+                        {highlightText(scan.product.name, scanValue)}
                       </span>
                       <span className="ml-2 text-sm text-gray-500 dark:text-gray-400">
-                        {scan.product.code}
+                        {highlightText(scan.product.code, scanValue)}
                       </span>
                     </div>
                     <Button

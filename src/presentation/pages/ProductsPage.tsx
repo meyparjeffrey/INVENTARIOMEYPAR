@@ -356,6 +356,7 @@ export function ProductsPage() {
       <ProductTable
         products={products ?? []}
         loading={loading}
+        searchTerm={searchTerm}
         onView={canView ? handleView : undefined}
         onEdit={canEdit ? handleEdit : undefined}
         onMovement={canCreateMovement ? handleMovement : undefined}

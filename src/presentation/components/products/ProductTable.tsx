@@ -4,10 +4,12 @@ import type { Product } from "@domain/entities";
 import { Button } from "../ui/Button";
 import { useLanguage } from "../../context/LanguageContext";
 import { cn } from "../../lib/cn";
+import { highlightText } from "../../utils/highlightText";
 
 interface ProductTableProps {
   products: Product[];
   loading?: boolean;
+  searchTerm?: string;
   onView?: (product: Product) => void;
   onEdit?: (product: Product) => void;
   onMovement?: (product: Product) => void;
@@ -24,6 +26,7 @@ interface ProductTableProps {
 export function ProductTable({
   products,
   loading = false,
+  searchTerm = "",
   onView,
   onEdit,
   onMovement,
@@ -140,11 +143,11 @@ export function ProductTable({
                 onMouseLeave={() => setHoveredRow(null)}
               >
                 <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-50">
-                  {product.code}
+                  {highlightText(product.code, searchTerm)}
                 </td>
                 <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-50">
                   <div className="flex items-center gap-2">
-                    <span>{product.name}</span>
+                    <span>{highlightText(product.name, searchTerm)}</span>
                     {product.isBatchTracked && (
                       <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
                         {t("products.batches")}

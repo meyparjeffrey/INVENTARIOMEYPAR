@@ -8,6 +8,7 @@ import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { motion, AnimatePresence } from "framer-motion";
 import type { UserProfile } from "@domain/entities";
+import { highlightText } from "../utils/highlightText";
 
 type Tab = "users" | "permissions" | "settings" | "audit";
 
@@ -305,13 +306,13 @@ function UsersTab({
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-50">
-                          {user.firstName} {user.lastName}
+                          {highlightText(`${user.firstName} ${user.lastName}`, searchQuery)}
                         </div>
                       </div>
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                    {user.email || "-"}
+                    {user.email ? highlightText(user.email, searchQuery) : "-"}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4">
                     <span
@@ -326,7 +327,7 @@ function UsersTab({
                         }
                       `}
                     >
-                      {user.role}
+                      {highlightText(user.role, searchQuery)}
                     </span>
                   </td>
                   <td className="whitespace-nowrap px-6 py-4">
