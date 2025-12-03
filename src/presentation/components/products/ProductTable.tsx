@@ -1,10 +1,13 @@
-import { AlertTriangle, Edit, Eye, MoreVertical, Package, Trash2, Copy, History, Download as DownloadIcon } from "lucide-react";
+import { AlertTriangle, Edit, Eye, MoreVertical, Package, Trash2, Copy, History, Download as DownloadIcon, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import * as React from "react";
 import type { Product } from "@domain/entities";
 import { Button } from "../ui/Button";
 import { useLanguage } from "../../context/LanguageContext";
 import { cn } from "../../lib/cn";
 import { highlightText } from "../../utils/highlightText";
+
+type SortField = "code" | "name" | "category" | "stockCurrent" | "stockMin" | "aisle" | "supplierCode";
+type SortDirection = "asc" | "desc";
 
 interface ProductTableProps {
   products: Product[];
@@ -39,6 +42,75 @@ export function ProductTable({
   const { t } = useLanguage();
   const [hoveredRow, setHoveredRow] = React.useState<string | null>(null);
   const [actionMenuOpen, setActionMenuOpen] = React.useState<string | null>(null);
+  const [sortField, setSortField] = React.useState<SortField | null>(null);
+  const [sortDirection, setSortDirection] = React.useState<SortDirection>("asc");
+
+  // Función para ordenar productos
+  const sortedProducts = React.useMemo(() => {
+    if (!sortField) return products;
+    
+    const sorted = [...products].sort((a, b) => {
+      let aValue: any;
+      let bValue: any;
+      
+      switch (sortField) {
+        case "code":
+          aValue = a.code.toLowerCase();
+          bValue = b.code.toLowerCase();
+          break;
+        case "name":
+          aValue = a.name.toLowerCase();
+          bValue = b.name.toLowerCase();
+          break;
+        case "category":
+          aValue = (a.category || "").toLowerCase();
+          bValue = (b.category || "").toLowerCase();
+          break;
+        case "stockCurrent":
+          aValue = a.stockCurrent;
+          bValue = b.stockCurrent;
+          break;
+        case "stockMin":
+          aValue = a.stockMin;
+          bValue = b.stockMin;
+          break;
+        case "aisle":
+          aValue = a.aisle.toLowerCase();
+          bValue = b.aisle.toLowerCase();
+          break;
+        case "supplierCode":
+          aValue = (a.supplierCode || "").toLowerCase();
+          bValue = (b.supplierCode || "").toLowerCase();
+          break;
+        default:
+          return 0;
+      }
+      
+      if (aValue < bValue) return sortDirection === "asc" ? -1 : 1;
+      if (aValue > bValue) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+    
+    return sorted;
+  }, [products, sortField, sortDirection]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const SortIcon = ({ field }: { field: SortField }) => {
+    if (sortField !== field) {
+      return <ArrowUpDown className="ml-1 h-3 w-3 text-gray-400" />;
+    }
+    return sortDirection === "asc" 
+      ? <ArrowUp className="ml-1 h-3 w-3 text-primary-600 dark:text-primary-400" />
+      : <ArrowDown className="ml-1 h-3 w-3 text-primary-600 dark:text-primary-400" />;
+  };
 
   if (loading) {
     return (
@@ -48,7 +120,7 @@ export function ProductTable({
     );
   }
 
-  const productsList = products ?? [];
+  const productsList = sortedProducts ?? [];
 
   if (productsList.length === 0) {
     return (
@@ -98,26 +170,68 @@ export function ProductTable({
         <table className="w-full min-w-[800px]">
         <thead className="bg-gray-50 dark:bg-gray-800">
           <tr>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              {t("table.code")}
+            <th 
+              className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={() => handleSort("code")}
+            >
+              <div className="flex items-center">
+                {t("table.code")}
+                <SortIcon field="code" />
+              </div>
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              {t("table.name")}
+            <th 
+              className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={() => handleSort("name")}
+            >
+              <div className="flex items-center">
+                {t("table.name")}
+                <SortIcon field="name" />
+              </div>
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              {t("table.category")}
+            <th 
+              className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={() => handleSort("category")}
+            >
+              <div className="flex items-center">
+                {t("table.category")}
+                <SortIcon field="category" />
+              </div>
             </th>
-            <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              {t("table.stock")}
+            <th 
+              className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={() => handleSort("stockCurrent")}
+            >
+              <div className="flex items-center justify-end">
+                {t("table.stock")}
+                <SortIcon field="stockCurrent" />
+              </div>
             </th>
-            <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              {t("table.min")}
+            <th 
+              className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={() => handleSort("stockMin")}
+            >
+              <div className="flex items-center justify-end">
+                {t("table.min")}
+                <SortIcon field="stockMin" />
+              </div>
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              {t("table.location")}
+            <th 
+              className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={() => handleSort("aisle")}
+            >
+              <div className="flex items-center">
+                {t("table.location")}
+                <SortIcon field="aisle" />
+              </div>
             </th>
-            <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              {t("table.supplierCode")}
+            <th 
+              className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+              onClick={() => handleSort("supplierCode")}
+            >
+              <div className="flex items-center">
+                {t("table.supplierCode")}
+                <SortIcon field="supplierCode" />
+              </div>
             </th>
             <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
               {t("table.status")}

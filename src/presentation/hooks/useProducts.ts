@@ -1,5 +1,6 @@
 import * as React from "react";
 import { ProductService } from "@application/services/ProductService";
+import { MovementService } from "@application/services/MovementService";
 import type { Product, UUID } from "@domain/entities";
 import type {
   CreateProductInput,
@@ -9,6 +10,7 @@ import type {
 } from "@domain/repositories/ProductRepository";
 import type { PaginationParams, PaginatedResult } from "@domain/repositories/types";
 import { SupabaseProductRepository } from "@infrastructure/repositories/SupabaseProductRepository";
+import { SupabaseInventoryMovementRepository } from "@infrastructure/repositories/SupabaseInventoryMovementRepository";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
 import { useRealtime } from "./useRealtime";
 
@@ -32,8 +34,14 @@ export function useProducts() {
   const repositoryRef = React.useRef<ProductRepository>(
     new SupabaseProductRepository(supabaseClient)
   );
+  const movementRepositoryRef = React.useRef(
+    new SupabaseInventoryMovementRepository(supabaseClient)
+  );
+  const movementServiceRef = React.useRef(
+    new MovementService(movementRepositoryRef.current, repositoryRef.current)
+  );
   const serviceRef = React.useRef<ProductService>(
-    new ProductService(repositoryRef.current)
+    new ProductService(repositoryRef.current, movementServiceRef.current)
   );
 
   // Función para mapear un producto desde la fila de Supabase (igual que en el repositorio)
@@ -205,7 +213,16 @@ export function useProducts() {
       setError(null);
 
       try {
-        const product = await serviceRef.current.update(id, input);
+        // Obtener userId de la sesión actual
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        const userId = session?.user?.id;
+
+        // eslint-disable-next-line no-console
+        console.log("🔄 useProducts.update - userId obtenido:", userId);
+        // eslint-disable-next-line no-console
+        console.log("   Input recibido:", JSON.stringify(input, null, 2));
+
+        const product = await serviceRef.current.update(id, input, userId);
         // Actualizar en la lista local
         setProducts((prev) =>
           prev.map((p) => (p.id === id ? product : p))

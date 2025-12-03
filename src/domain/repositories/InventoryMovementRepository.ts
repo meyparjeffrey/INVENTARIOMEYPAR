@@ -13,6 +13,10 @@ export interface MovementFilters {
   movementType?: MovementType;
   dateFrom?: string;
   dateTo?: string;
+  search?: string; // Búsqueda por texto (código antiguo, nombre producto, comentarios, etc.)
+  adjustmentType?: "CODE" | "NAME" | "DESCRIPTION"; // Tipo de ajuste específico
+  orderBy?: "date" | "product"; // Ordenar por fecha o producto
+  orderDirection?: "asc" | "desc"; // Dirección de ordenación
 }
 
 export interface CreateInventoryMovementInput {

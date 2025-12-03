@@ -3,6 +3,7 @@ import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "../ui/Button";
 import { useLanguage } from "../../context/LanguageContext";
+import { useToast } from "../ui/Toast";
 import { cn } from "../../lib/cn";
 
 export interface ColumnOption {
@@ -11,7 +12,7 @@ export interface ColumnOption {
   defaultSelected?: boolean;
 }
 
-export type ExportFormat = "xlsx" | "csv" | "pdf";
+export type ExportFormat = "xlsx" | "csv";
 
 interface ExportDialogProps {
   isOpen: boolean;
@@ -28,7 +29,7 @@ interface ExportDialogProps {
 }
 
 /**
- * Modal profesional de exportación con soporte Excel/CSV/PDF y filtros.
+ * Modal profesional de exportación con soporte Excel/CSV y filtros.
  */
 export function ExportDialog({
   isOpen,
@@ -41,6 +42,7 @@ export function ExportDialog({
   showIncludeFilters = true
 }: ExportDialogProps) {
   const { t } = useLanguage();
+  const { error: showError } = useToast();
   const [selectedColumns, setSelectedColumns] = React.useState<Set<string>>(
     new Set(columns.filter((c) => c.defaultSelected !== false).map((c) => c.key))
   );
@@ -72,12 +74,27 @@ export function ExportDialog({
 
   const handleExport = async () => {
     if (selectedColumns.size === 0) {
+      showError("Error de exportación", "Por favor, selecciona al menos una columna para exportar.");
       return;
     }
     setExporting(true);
     try {
+      // eslint-disable-next-line no-console
+      console.log("Iniciando exportación:", {
+        selectedColumns: Array.from(selectedColumns),
+        format,
+        includeFilters
+      });
       await onExport(Array.from(selectedColumns), format, includeFilters);
+      // eslint-disable-next-line no-console
+      console.log("Exportación completada exitosamente");
       onClose();
+    } catch (error: any) {
+      // eslint-disable-next-line no-console
+      console.error("Error durante la exportación:", error);
+      const errorMessage = error?.message || "Error desconocido al exportar los datos";
+      showError("Error al exportar", errorMessage);
+      // No cerramos el modal si hay error para que el usuario pueda intentar de nuevo
     } finally {
       setExporting(false);
     }
@@ -95,12 +112,6 @@ export function ExportDialog({
       label: "CSV (.csv)",
       icon: <FileText className="h-5 w-5 text-blue-600" />,
       description: t("export.formatCsvDesc") || "Texto plano separado por comas"
-    },
-    {
-      value: "pdf",
-      label: "PDF (.pdf)",
-      icon: <FileText className="h-5 w-5 text-red-600" />,
-      description: t("export.formatPdfDesc") || "Documento portable para imprimir"
     }
   ];
 
@@ -108,22 +119,26 @@ export function ExportDialog({
     <AnimatePresence>
       {isOpen && (
         <>
+          {/* Backdrop que cubre toda la pantalla desde arriba */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            className="fixed inset-0 z-[9998] bg-black/50 backdrop-blur-sm"
             onClick={onClose}
+            style={{ top: 0, left: 0, right: 0, bottom: 0 }}
           />
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {/* Header */}
-            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+          {/* Modal centrado */}
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-lg max-h-[90vh] flex flex-col rounded-xl border border-gray-200 bg-white shadow-2xl dark:border-gray-700 dark:bg-gray-800"
+              onClick={(e) => e.stopPropagation()}
+            >
+            {/* Header - Siempre visible en la parte superior */}
+            <div className="flex-shrink-0 flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
                   {t("export.title") || "Exportar Datos"}
@@ -140,15 +155,15 @@ export function ExportDialog({
               </button>
             </div>
 
-            {/* Content */}
-            <div className="max-h-[60vh] overflow-y-auto px-6 py-4">
+            {/* Content - Scrollable pero con altura controlada */}
+            <div className="flex-1 overflow-y-auto px-6 py-4 min-h-0">
               {/* Selector de formato */}
               {showFormatSelector && (
                 <div className="mb-6">
                   <label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
                     {t("export.format") || "Formato de exportación"}
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-2 gap-2">
                     {formatOptions.map((option) => (
                       <button
                         key={option.value}
@@ -276,13 +291,10 @@ export function ExportDialog({
               </div>
             </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-between border-t border-gray-200 px-6 py-4 dark:border-gray-700">
+            {/* Footer - Siempre visible en la parte inferior */}
+            <div className="flex-shrink-0 flex items-center justify-between border-t border-gray-200 px-6 py-4 dark:border-gray-700 bg-white dark:bg-gray-800 rounded-b-xl">
               <p className="text-xs text-gray-500 dark:text-gray-400">
-                {format === "pdf" 
-                  ? t("export.pdfNote") || "El PDF puede tardar unos segundos"
-                  : t("export.fileNote") || "El archivo se descargará automáticamente"
-                }
+                {t("export.fileNote") || "El archivo se descargará automáticamente"}
               </p>
               <div className="flex gap-3">
                 <Button variant="secondary" onClick={onClose}>
@@ -307,7 +319,8 @@ export function ExportDialog({
                 </Button>
               </div>
             </div>
-          </motion.div>
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

@@ -121,6 +121,41 @@ export class MovementService {
   }
 
   /**
+   * Registra un movimiento SIN actualizar el stock del producto.
+   * Útil cuando el stock ya fue actualizado previamente (ej: edición de producto).
+   */
+  async recordMovementOnly(input: {
+    productId: UUID;
+    batchId?: UUID;
+    userId?: UUID;
+    movementType: MovementType;
+    quantity: number;
+    quantityBefore: number;
+    quantityAfter: number;
+    requestReason: string;
+    reasonCategory?: MovementReasonCategory;
+    referenceDocument?: string;
+    comments?: string;
+  }): Promise<InventoryMovement> {
+    const movementPayload: CreateInventoryMovementInput = {
+      productId: input.productId,
+      batchId: input.batchId,
+      userId: input.userId,
+      movementType: input.movementType,
+      quantity: input.quantity,
+      quantityBefore: input.quantityBefore,
+      quantityAfter: input.quantityAfter,
+      requestReason: input.requestReason,
+      reasonCategory: input.reasonCategory,
+      referenceDocument: input.referenceDocument,
+      comments: input.comments
+    };
+
+    // Solo registrar movimiento, sin actualizar stock
+    return await this.movementRepository.recordMovement(movementPayload);
+  }
+
+  /**
    * Obtiene estadísticas de movimientos para un período.
    */
   async getStats(dateFrom: string, dateTo: string) {

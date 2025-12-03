@@ -14,12 +14,17 @@ import { cn } from "../../lib/cn";
 
 interface MovementWithProduct extends InventoryMovement {
   product?: Product;
+  userFirstName?: string | null;
+  userLastName?: string | null;
+  productCode?: string | null;
+  productName?: string | null;
 }
 
 interface MovementTableProps {
   movements: MovementWithProduct[];
   loading?: boolean;
   onViewProduct?: (productId: string) => void;
+  onViewDetail?: (movement: MovementWithProduct) => void;
 }
 
 const movementTypeConfig: Record<
@@ -54,7 +59,8 @@ const movementTypeConfig: Record<
 export function MovementTable({
   movements,
   loading = false,
-  onViewProduct
+  onViewProduct,
+  onViewDetail
 }: MovementTableProps) {
   const { t } = useLanguage();
 
@@ -106,6 +112,12 @@ export function MovementTable({
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                 {t("movements.category")}
               </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                {t("movements.user")}
+              </th>
+              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                {t("common.actions")}
+              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
@@ -113,11 +125,15 @@ export function MovementTable({
               const config = movementTypeConfig[movement.movementType];
               const Icon = config.icon;
               const date = new Date(movement.movementDate);
+              const userName = movement.userFirstName || movement.userLastName
+                ? `${movement.userFirstName || ""} ${movement.userLastName || ""}`.trim()
+                : null;
 
               return (
                 <tr
                   key={movement.id}
-                  className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
+                  onClick={() => onViewDetail?.(movement)}
                 >
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-gray-50">
                     <div className="flex items-center gap-2">
@@ -148,16 +164,19 @@ export function MovementTable({
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm">
-                    {movement.product ? (
+                    {movement.product || movement.productName ? (
                       <button
-                        onClick={() => onViewProduct?.(movement.productId)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewProduct?.(movement.productId);
+                        }}
                         className="text-left hover:underline"
                       >
                         <div className="font-medium text-gray-900 dark:text-gray-50">
-                          {movement.product.name}
+                          {movement.product?.name || movement.productName || "N/A"}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {movement.product.code}
+                          {movement.product?.code || movement.productCode || movement.productId.slice(0, 8)}
                         </div>
                       </button>
                     ) : (
@@ -206,6 +225,27 @@ export function MovementTable({
                         {t(`movements.category.${movement.reasonCategory}`)}
                       </span>
                     )}
+                  </td>
+                  <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-50">
+                    {userName ? (
+                      <div className="flex items-center gap-2">
+                        <User className="h-4 w-4 text-gray-400" />
+                        <span>{userName}</span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400">-</span>
+                    )}
+                  </td>
+                  <td className="whitespace-nowrap px-4 py-3 text-sm">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onViewDetail?.(movement);
+                      }}
+                      className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                    >
+                      {t("common.view")}
+                    </button>
                   </td>
                 </tr>
               );

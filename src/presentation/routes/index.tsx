@@ -23,6 +23,10 @@ const ProductEditPage = React.lazy(() =>
   import("../pages/ProductEditPage").then((module) => ({ default: module.ProductEditPage }))
 );
 
+const ProductHistoryPage = React.lazy(() =>
+  import("../pages/ProductHistoryPage").then((module) => ({ default: module.ProductHistoryPage }))
+);
+
 const ProfilePage = React.lazy(() =>
   import("../pages/ProfilePage").then((module) => ({ default: module.ProfilePage }))
 );
@@ -149,6 +153,20 @@ const routes: RouteObject[] = [
             }
           >
             <ProductEditPage />
+          </React.Suspense>
+        )
+      },
+      {
+        path: "/products/:id/history",
+        element: (
+          <React.Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+              </div>
+            }
+          >
+            <ProductHistoryPage />
           </React.Suspense>
         )
       },

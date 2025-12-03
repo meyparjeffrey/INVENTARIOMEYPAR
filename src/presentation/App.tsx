@@ -4,6 +4,7 @@ import { AuthProvider } from "./context/AuthContext";
 import { LanguageProvider } from "./context/LanguageContext";
 import { ThemeProvider } from "./context/ThemeContext";
 import { AiChatProvider } from "./context/AiChatContext";
+import { ToastProvider } from "./components/ui/Toast";
 import { router } from "./routes";
 import "./styles.css";
 
@@ -34,7 +35,9 @@ export function App() {
       <AuthProvider>
         <ThemeProvider>
           <AiChatProvider>
-            <RouterProvider router={router} />
+            <ToastProvider>
+              <RouterProvider router={router} />
+            </ToastProvider>
           </AiChatProvider>
         </ThemeProvider>
       </AuthProvider>

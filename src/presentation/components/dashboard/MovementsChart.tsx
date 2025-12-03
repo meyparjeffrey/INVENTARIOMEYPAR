@@ -19,6 +19,7 @@ interface MovementDataLegacy {
   date: string;
   entradas: number;
   salidas: number;
+  ajustes: number;
 }
 
 interface MovementsChartProps {
@@ -38,7 +39,7 @@ export function MovementsChart({ data: externalData }: MovementsChartProps) {
   // Convertir datos externos al formato interno
   React.useEffect(() => {
     if (externalData) {
-      const convertedData = externalData.map((d) => ({
+      const convertedData: MovementDataLegacy[] = externalData.map((d) => ({
         date: d.date,
         entradas: d.entries,
         salidas: d.exits,
@@ -89,12 +90,17 @@ export function MovementsChart({ data: externalData }: MovementsChartProps) {
         }
       });
 
-      const chartData: MovementDataLegacy[] = Array.from(dateMap.entries())
-        .map(([date, values]) => ({
-          date: new Date(date).toLocaleDateString("es-ES", { weekday: "short", day: "numeric" }),
+      const chartData: MovementDataLegacy[] = Array.from(dateMap.entries()).map(
+        ([date, values]) => ({
+          date: new Date(date).toLocaleDateString("es-ES", {
+            weekday: "short",
+            day: "numeric"
+          }),
           entradas: values.entradas,
-          salidas: values.salidas
-        }));
+          salidas: values.salidas,
+          ajustes: values.ajustes
+        })
+      );
 
       setData(chartData);
     } catch (error) {
@@ -126,7 +132,11 @@ export function MovementsChart({ data: externalData }: MovementsChartProps) {
     );
   }
 
-  if (data.length === 0 || data.every((d) => d.entradas === 0 && d.salidas === 0)) {
+  // Mostrar mensaje solo si realmente no hay puntos de datos (ni entradas, ni salidas, ni ajustes)
+  if (
+    data.length === 0 ||
+    data.every((d) => d.entradas === 0 && d.salidas === 0 && d.ajustes === 0)
+  ) {
     return (
       <div className="flex h-64 items-center justify-center text-gray-400 dark:text-gray-500">
         <p>{t("dashboard.noData")}</p>
@@ -191,6 +201,10 @@ export function MovementsChart({ data: externalData }: MovementsChartProps) {
                 <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
                 <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
               </linearGradient>
+              <linearGradient id="colorAjustes" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+              </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-700" />
             <XAxis
@@ -225,6 +239,15 @@ export function MovementsChart({ data: externalData }: MovementsChartProps) {
               fill="url(#colorSalidas)"
               name={t("dashboard.exits")}
             />
+            <Area
+              type="monotone"
+              dataKey="ajustes"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              fillOpacity={1}
+              fill="url(#colorAjustes)"
+              name={t("dashboard.adjustments")}
+            />
           </AreaChart>
         ) : (
           <BarChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
@@ -253,6 +276,12 @@ export function MovementsChart({ data: externalData }: MovementsChartProps) {
               dataKey="salidas" 
               fill="#ef4444" 
               name={t("dashboard.exits")}
+              radius={[4, 4, 0, 0]}
+            />
+            <Bar 
+              dataKey="ajustes" 
+              fill="#3b82f6" 
+              name={t("dashboard.adjustments")}
               radius={[4, 4, 0, 0]}
             />
           </BarChart>

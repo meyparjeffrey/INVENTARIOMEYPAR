@@ -6,6 +6,7 @@ import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
 import { useProducts } from "../hooks/useProducts";
 import { ProductForm } from "../components/products/ProductForm";
 import type { CreateProductInput } from "@domain/repositories/ProductRepository";
+import { useToast } from "../components/ui/Toast";
 
 /**
  * Página moderna e interactiva para crear un nuevo producto.
@@ -13,28 +14,50 @@ import type { CreateProductInput } from "@domain/repositories/ProductRepository"
 export function ProductNewPage() {
   const navigate = useNavigate();
   const { create, loading } = useProducts();
+  const { success, error: showError } = useToast();
 
   const handleSubmit = React.useCallback(
     async (data: CreateProductInput) => {
-      // Obtener el usuario actual desde Supabase
-      const {
-        data: { user },
-        error: authError
-      } = await supabaseClient.auth.getUser();
+      try {
+        // Obtener el usuario actual desde Supabase
+        const {
+          data: { user },
+          error: authError
+        } = await supabaseClient.auth.getUser();
 
-      if (authError || !user?.id) {
-        throw new Error("No hay usuario autenticado");
+        if (authError || !user?.id) {
+          showError("Error de autenticación", "No hay usuario autenticado. Por favor, inicia sesión nuevamente.");
+          return;
+        }
+
+        const createData: CreateProductInput = {
+          ...data,
+          createdBy: user.id
+        };
+
+        await create(createData);
+        success("Producto creado", `El producto "${data.name}" se ha creado correctamente.`);
+        navigate("/products");
+      } catch (err: any) {
+        const errorMessage = err?.message || "Error desconocido al crear el producto";
+        const errorDetails = err?.details || "";
+        
+        // Mensajes de error más específicos
+        if (errorMessage.includes("duplicate") || errorMessage.includes("unique") || errorMessage.includes("ya existe")) {
+          showError("Código duplicado", "Ya existe un producto con este código. Por favor, usa un código diferente.");
+        } else if (errorMessage.includes("required") || errorMessage.includes("obligatorio")) {
+          showError("Campos requeridos", "Por favor, completa todos los campos obligatorios marcados con *.");
+        } else if (errorMessage.includes("validación") || errorMessage.includes("validation")) {
+          showError("Error de validación", errorDetails || "Por favor, revisa los datos ingresados.");
+        } else {
+          showError("Error al crear producto", errorMessage);
+        }
+        
+        // eslint-disable-next-line no-console
+        console.error("Error creando producto:", err);
       }
-
-      const createData: CreateProductInput = {
-        ...data,
-        createdBy: user.id
-      };
-
-      await create(createData);
-      navigate("/products");
     },
-    [create, navigate]
+    [create, navigate, success, showError]
   );
 
   const handleCancel = React.useCallback(() => {

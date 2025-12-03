@@ -10,6 +10,70 @@ import { useLanguage } from "../../context/LanguageContext";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { cn } from "../../lib/cn";
 
+// Componentes memoizados fuera del componente principal para evitar re-renders
+const FieldWrapper = React.memo(({ 
+  children, 
+  error, 
+  touched,
+  className 
+}: { 
+  children: React.ReactNode; 
+  error?: string; 
+  touched?: boolean;
+  className?: string;
+}) => (
+  <div className={cn("space-y-1.5", className)}>
+    {children}
+    <AnimatePresence>
+      {error && touched && (
+        <motion.p
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400"
+        >
+          <AlertCircle className="h-3.5 w-3.5" />
+          {error}
+        </motion.p>
+      )}
+    </AnimatePresence>
+  </div>
+));
+FieldWrapper.displayName = "FieldWrapper";
+
+const SectionCard = React.memo(({ 
+  icon: Icon, 
+  title, 
+  children, 
+  delay = 0 
+}: { 
+  icon: React.ElementType; 
+  title: string; 
+  children: React.ReactNode;
+  delay?: number;
+}) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.4, delay }}
+    className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 hover:border-blue-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-600"
+  >
+    {/* Efecto de brillo en hover */}
+    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-blue-500/0 to-blue-500/0 opacity-0 transition-opacity duration-500 group-hover:from-blue-500/5 group-hover:via-transparent group-hover:to-blue-500/5 group-hover:opacity-100" />
+    
+    <div className="relative">
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600 transition-colors duration-300 group-hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:group-hover:bg-blue-900/50">
+          <Icon className="h-5 w-5" />
+        </div>
+        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">{title}</h3>
+      </div>
+      {children}
+    </div>
+  </motion.div>
+));
+SectionCard.displayName = "SectionCard";
+
 interface ProductFormProps {
   product?: Product;
   onSubmit: (data: CreateProductInput | UpdateProductInput) => Promise<void>;
@@ -138,7 +202,102 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validate()) {
+    // Validar y obtener errores
+    const newErrors: Record<string, string> = {};
+    
+    if (!formData.code.trim()) {
+      newErrors.code = t("validation.code.required");
+    } else if (formData.code.trim().length < 3) {
+      newErrors.code = t("validation.code.minLength");
+    } else if (/\s/.test(formData.code)) {
+      newErrors.code = t("validation.code.noSpaces");
+    }
+
+    if (!formData.name.trim()) {
+      newErrors.name = t("validation.name.required");
+    } else if (formData.name.trim().length < 2) {
+      newErrors.name = t("validation.name.minLength");
+    }
+
+    const stockMin = Number(formData.stockMin);
+    if (isNaN(stockMin) || stockMin < 0) {
+      newErrors.stockMin = t("validation.stockMin.invalid");
+    }
+
+    const stockCurrent = Number(formData.stockCurrent);
+    if (isNaN(stockCurrent) || stockCurrent < 0) {
+      newErrors.stockCurrent = t("validation.stockCurrent.invalid");
+    }
+
+    if (formData.stockMax !== "" && formData.stockMax !== null) {
+      const stockMax = Number(formData.stockMax);
+      if (isNaN(stockMax) || stockMax <= stockMin) {
+        newErrors.stockMax = `${t("validation.stockMax.invalid")} (${stockMin})`;
+      }
+    }
+
+    if (!formData.aisle.trim()) {
+      newErrors.aisle = t("validation.aisle.required");
+    }
+    if (!formData.shelf.trim()) {
+      newErrors.shelf = t("validation.shelf.required");
+    }
+
+    const costPrice = Number(formData.costPrice);
+    if (isNaN(costPrice) || costPrice < 0) {
+      newErrors.costPrice = t("validation.costPrice.invalid");
+    }
+
+    if (formData.salePrice !== "" && formData.salePrice !== null) {
+      const salePrice = Number(formData.salePrice);
+      if (isNaN(salePrice) || salePrice < costPrice) {
+        newErrors.salePrice = `${t("validation.salePrice.invalid")} (${formatCurrency(costPrice)})`;
+      }
+    }
+
+    if (formData.dimensionsLength !== "" || formData.dimensionsWidth !== "" || formData.dimensionsHeight !== "") {
+      const length = formData.dimensionsLength ? Number(formData.dimensionsLength) : 0;
+      const width = formData.dimensionsWidth ? Number(formData.dimensionsWidth) : 0;
+      const height = formData.dimensionsHeight ? Number(formData.dimensionsHeight) : 0;
+
+      if (length < 0 || width < 0 || height < 0) {
+        newErrors.dimensions = t("validation.dimensions.invalid");
+      }
+    }
+
+    // Validar URLs si están presentes
+    if (formData.purchaseUrl && formData.purchaseUrl.trim()) {
+      try {
+        new URL(formData.purchaseUrl);
+      } catch {
+        newErrors.purchaseUrl = t("validation.url.invalid");
+      }
+    }
+    if (formData.imageUrl && formData.imageUrl.trim()) {
+      try {
+        new URL(formData.imageUrl);
+      } catch {
+        newErrors.imageUrl = t("validation.url.invalid");
+      }
+    }
+
+    setErrors(newErrors);
+    
+    if (Object.keys(newErrors).length > 0) {
+      // Hacer scroll al primer campo con error
+      const firstErrorField = Object.keys(newErrors)[0];
+      if (firstErrorField) {
+        // Usar setTimeout para asegurar que el DOM se haya actualizado
+        setTimeout(() => {
+          const errorElement = document.querySelector(`[name="${firstErrorField}"]`) || 
+                              document.querySelector(`#${firstErrorField}`) ||
+                              document.querySelector(`[data-field="${firstErrorField}"]`);
+          if (errorElement) {
+            errorElement.scrollIntoView({ behavior: "smooth", block: "center" });
+            (errorElement as HTMLElement).focus();
+          }
+        }, 100);
+      }
       return;
     }
 
@@ -179,84 +338,26 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
     await onSubmit(submitData);
   };
 
-  const handleChange = (field: string, value: string | number | boolean) => {
+  const handleChange = React.useCallback((field: string, value: string | number | boolean) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
-    setTouchedFields((prev) => new Set(prev).add(field));
-    
-    if (errors[field]) {
-      setErrors((prev) => {
+    // Solo limpiar error si existe, sin validar
+    setErrors((prev) => {
+      if (prev[field]) {
         const newErrors = { ...prev };
         delete newErrors[field];
         return newErrors;
-      });
-    }
-  };
+      }
+      return prev;
+    });
+  }, []);
 
-  const handleBlur = (field: string) => {
-    setTouchedFields((prev) => new Set(prev).add(field));
-    validate();
-  };
-
-  const FieldWrapper = ({ 
-    children, 
-    error, 
-    touched,
-    className 
-  }: { 
-    children: React.ReactNode; 
-    error?: string; 
-    touched?: boolean;
-    className?: string;
-  }) => (
-    <div className={cn("space-y-1.5", className)}>
-      {children}
-      <AnimatePresence>
-        {error && touched && (
-          <motion.p
-            initial={{ opacity: 0, y: -4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400"
-          >
-            <AlertCircle className="h-3.5 w-3.5" />
-            {error}
-          </motion.p>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-
-  const SectionCard = ({ 
-    icon: Icon, 
-    title, 
-    children, 
-    delay = 0 
-  }: { 
-    icon: React.ElementType; 
-    title: string; 
-    children: React.ReactNode;
-    delay?: number;
-  }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay }}
-      className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 hover:border-blue-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-600"
-    >
-      {/* Efecto de brillo en hover */}
-      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-blue-500/0 to-blue-500/0 opacity-0 transition-opacity duration-500 group-hover:from-blue-500/5 group-hover:via-transparent group-hover:to-blue-500/5 group-hover:opacity-100" />
-      
-      <div className="relative">
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600 transition-colors duration-300 group-hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:group-hover:bg-blue-900/50">
-            <Icon className="h-5 w-5" />
-          </div>
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">{title}</h3>
-        </div>
-        {children}
-      </div>
-    </motion.div>
-  );
+  const handleBlur = React.useCallback((field: string) => {
+    // Solo marcar como tocado, sin validar hasta el submit
+    setTouchedFields((prev) => {
+      if (prev.has(field)) return prev;
+      return new Set(prev).add(field);
+    });
+  }, []);
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -294,6 +395,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
                 onChange={(e) => handleChange("code", e.target.value)}
                 onBlur={() => handleBlur("code")}
                 disabled={isEditing}
+                autoComplete="off"
                 className={cn(
                   "transition-all duration-200",
                   errors.code && touchedFields.has("code")
@@ -373,7 +475,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
               type="number"
               min="0"
               value={formData.stockCurrent}
-              onChange={(e) => handleChange("stockCurrent", e.target.value)}
+              onChange={(e) => handleChange("stockCurrent", Number(e.target.value) || 0)}
               onBlur={() => handleBlur("stockCurrent")}
               className={cn(
                 "transition-all duration-200",
@@ -393,7 +495,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
               type="number"
               min="0"
               value={formData.stockMin}
-              onChange={(e) => handleChange("stockMin", e.target.value)}
+              onChange={(e) => handleChange("stockMin", Number(e.target.value) || 0)}
               onBlur={() => handleBlur("stockMin")}
               className={cn(
                 "transition-all duration-200",
@@ -410,8 +512,8 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
               id="stockMax"
               type="number"
               min="0"
-              value={formData.stockMax}
-              onChange={(e) => handleChange("stockMax", e.target.value)}
+              value={formData.stockMax || ""}
+              onChange={(e) => handleChange("stockMax", e.target.value === "" ? "" : Number(e.target.value))}
               onBlur={() => handleBlur("stockMax")}
               className={cn(
                 "transition-all duration-200",

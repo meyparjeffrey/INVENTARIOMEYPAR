@@ -55,10 +55,15 @@ export class SupabaseInventoryMovementRepository
     pagination?: PaginationParams
   ) {
     const { page, pageSize, from, to } = buildPagination(pagination);
+    
+    // Incluir datos del usuario y producto en la consulta
     let query = this.client
       .from("inventory_movements")
-      .select("*", { count: "exact" })
-      .order("movement_date", { ascending: false });
+      .select(`
+        *,
+        profiles!inventory_movements_user_id_fkey(first_name, last_name),
+        products!inventory_movements_product_id_fkey(code, name)
+      `, { count: "exact" });
 
     if (filters?.productId) {
       query = query.eq("product_id", filters.productId);
@@ -76,6 +81,23 @@ export class SupabaseInventoryMovementRepository
       query = query.eq("movement_type", filters.movementType);
     }
 
+    // Filtro por tipo de ajuste específico (busca en comentarios)
+    if (filters?.adjustmentType) {
+      const adjustmentPatterns: Record<string, string> = {
+        CODE: "Código:",
+        NAME: "Nombre:",
+        DESCRIPTION: "Descripción:"
+      };
+      const pattern = adjustmentPatterns[filters.adjustmentType];
+      if (pattern) {
+        query = query.ilike("comments", `%${pattern}%`);
+        // Asegurar que también sea tipo ADJUSTMENT
+        if (!filters.movementType) {
+          query = query.eq("movement_type", "ADJUSTMENT");
+        }
+      }
+    }
+
     if (filters?.dateFrom) {
       query = query.gte("movement_date", filters.dateFrom);
     }
@@ -84,11 +106,46 @@ export class SupabaseInventoryMovementRepository
       query = query.lte("movement_date", filters.dateTo);
     }
 
+    // Búsqueda por texto (en comments, request_reason, código antiguo, nombre producto)
+    if (filters?.search && filters.search.trim()) {
+      const searchTerm = filters.search.trim().toLowerCase();
+      query = query.or(`comments.ilike.%${searchTerm}%,request_reason.ilike.%${searchTerm}%`);
+    }
+
+    // Ordenación
+    const orderBy = filters?.orderBy || "date";
+    const orderDirection = filters?.orderDirection || "desc";
+    
+    if (orderBy === "date") {
+      query = query.order("movement_date", { ascending: orderDirection === "asc" });
+    } else if (orderBy === "product") {
+      // Ordenar por nombre de producto requiere join, así que ordenamos por product_id
+      query = query.order("product_id", { ascending: orderDirection === "asc" });
+      // Luego ordenar por fecha como secundario para mantener consistencia
+      query = query.order("movement_date", { ascending: false });
+    }
+
     const { data, error, count } = await query.range(from, to);
     this.handleError("listar movimientos", error);
 
+    // Mapear resultados incluyendo datos del usuario
+    const movements = (data ?? []).map((row: any) => {
+      const movement = mapMovement(row as MovementRow);
+      // Acceder a los datos relacionados (pueden venir como array o objeto)
+      const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+      const product = Array.isArray(row.products) ? row.products[0] : row.products;
+      
+      return {
+        ...movement,
+        userFirstName: profile?.first_name || null,
+        userLastName: profile?.last_name || null,
+        productCode: product?.code || null,
+        productName: product?.name || null
+      };
+    });
+
     return toPaginatedResult(
-      (data ?? []).map((row) => mapMovement(row as MovementRow)),
+      movements as InventoryMovement[],
       count ?? null,
       page,
       pageSize
@@ -96,6 +153,16 @@ export class SupabaseInventoryMovementRepository
   }
 
   async recordMovement(payload: CreateInventoryMovementInput) {
+    // eslint-disable-next-line no-console
+    console.log("📝 Intentando registrar movimiento en Supabase:", {
+      productId: payload.productId,
+      userId: payload.userId,
+      movementType: payload.movementType,
+      quantity: payload.quantity,
+      quantityBefore: payload.quantityBefore,
+      quantityAfter: payload.quantityAfter
+    });
+
     const { data, error } = await this.client
       .from("inventory_movements")
       .insert({
@@ -116,6 +183,26 @@ export class SupabaseInventoryMovementRepository
       })
       .select("*")
       .single();
+
+    if (error) {
+      // eslint-disable-next-line no-console
+      console.error("❌ Error al insertar movimiento en Supabase:", error);
+      // eslint-disable-next-line no-console
+      console.error("   Código:", error.code);
+      // eslint-disable-next-line no-console
+      console.error("   Mensaje:", error.message);
+      // eslint-disable-next-line no-console
+      console.error("   Detalles:", error.details);
+      // eslint-disable-next-line no-console
+      console.error("   Hint:", error.hint);
+      // eslint-disable-next-line no-console
+      console.error("   Payload completo:", JSON.stringify(payload, null, 2));
+    } else {
+      // eslint-disable-next-line no-console
+      console.log("✅ Movimiento insertado exitosamente en Supabase:", data?.id);
+      // eslint-disable-next-line no-console
+      console.log("   Datos insertados:", JSON.stringify(data, null, 2));
+    }
 
     this.handleError("registrar movimiento", error);
     return mapMovement(data as MovementRow);

@@ -24,7 +24,7 @@ export function ActivityFeed({ activities = [] }: ActivityFeedProps) {
 
   const loadActivities = React.useCallback(async () => {
     try {
-      // Obtener logs de auditoría recientes
+      // 1) Intentar obtener logs de auditoría recientes
       const { data: auditLogs, error } = await supabaseClient
         .from("audit_logs")
         .select(`
@@ -76,7 +76,70 @@ export function ActivityFeed({ activities = [] }: ActivityFeedProps) {
         };
       });
 
-      setRealActivities(mappedActivities);
+      if (mappedActivities.length > 0) {
+        setRealActivities(mappedActivities);
+        return;
+      }
+
+      // 2) Si no hay logs de auditoría, usar movimientos recientes como actividad
+      const { data: movements, error: movementsError } = await supabaseClient
+        .from("inventory_movements")
+        .select(`
+          id,
+          movement_type,
+          quantity,
+          movement_date,
+          request_reason,
+          comments,
+          profiles:user_id (
+            first_name,
+            last_name
+          )
+        `)
+        .order("movement_date", { ascending: false })
+        .limit(5);
+
+      if (movementsError) throw movementsError;
+
+      const movementActivities: Activity[] = (movements ?? []).map((movement) => {
+        const profile = movement.profiles as { first_name: string; last_name: string } | null;
+        const userName = profile ? `${profile.first_name} ${profile.last_name}` : "Usuario";
+
+        let action = "";
+        switch (movement.movement_type) {
+          case "IN":
+            action = "registró un movimiento de entrada";
+            break;
+          case "OUT":
+            action = "registró un movimiento de salida";
+            break;
+          case "ADJUSTMENT":
+            action = "realizó un ajuste de inventario";
+            break;
+          case "TRANSFER":
+            action = "realizó una transferencia de ubicación";
+            break;
+          default:
+            action = `registró un movimiento (${movement.movement_type})`;
+        }
+
+        const details =
+          movement.comments ||
+          movement.request_reason ||
+          `Cantidad: ${movement.quantity}`;
+
+        const timeAgo = getTimeAgo(new Date(movement.movement_date));
+
+        return {
+          id: movement.id,
+          user: userName,
+          action,
+          details,
+          timestamp: timeAgo
+        };
+      });
+
+      setRealActivities(movementActivities);
     } catch (error) {
       // eslint-disable-next-line no-console
       console.error("Error cargando actividad:", error);

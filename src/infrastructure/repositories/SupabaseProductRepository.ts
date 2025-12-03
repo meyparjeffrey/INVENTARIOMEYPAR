@@ -193,22 +193,40 @@ export class SupabaseProductRepository
       );
     }
 
-    const { data, error, count } = await query.range(from, to);
-    this.handleError("listar productos", error);
-
-    // Filtrar por stock bajo después de obtener los datos (ya que Supabase no soporta comparación entre columnas directamente)
-    let products = (data ?? []).map(mapProduct);
+    // Para el filtro de stock bajo, necesitamos comparar dos columnas (stock_current <= stock_min)
+    // Supabase PostgREST no soporta comparaciones directas entre columnas, así que:
+    // 1. Obtenemos todos los productos que cumplan los otros filtros
+    // 2. Filtramos por stock bajo en el cliente
+    // 3. Aplicamos paginación después del filtro
+    
+    // Si el filtro lowStock está activo, necesitamos obtener todos los productos primero
+    // para poder filtrar correctamente antes de paginar
     if (filters?.lowStock) {
-      products = products.filter((p) => p.stockCurrent <= p.stockMin);
-      // Ajustar el count para reflejar el filtro aplicado
-      const filteredCount = products.length;
+      // Obtener todos los productos que cumplan los filtros (sin paginación)
+      const { data: allData, error: allError } = await query;
+      this.handleError("listar productos", allError);
+      
+      // Filtrar por stock bajo
+      let allProducts = (allData ?? []).map(mapProduct);
+      allProducts = allProducts.filter((p) => p.stockCurrent <= p.stockMin);
+      
+      // Aplicar paginación después del filtro
+      const totalCount = allProducts.length;
+      const paginatedProducts = allProducts.slice(from, to + 1);
+      
       return toPaginatedResult(
-        products,
-        filteredCount,
+        paginatedProducts,
+        totalCount,
         page,
         pageSize
       );
     }
+
+    // Si no hay filtro de stock bajo, usar paginación normal
+    const { data, error, count } = await query.range(from, to);
+    this.handleError("listar productos", error);
+
+    const products = (data ?? []).map(mapProduct);
 
     return toPaginatedResult(
       products,

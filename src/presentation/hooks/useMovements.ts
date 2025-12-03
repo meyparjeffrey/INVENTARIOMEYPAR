@@ -18,6 +18,10 @@ const movementService = new MovementService(movementRepository, productRepositor
 
 interface MovementWithProduct extends InventoryMovement {
   product?: Product;
+  userFirstName?: string | null;
+  userLastName?: string | null;
+  productCode?: string | null;
+  productName?: string | null;
 }
 
 interface UseMovementsReturn {
@@ -86,10 +90,14 @@ export function useMovements(): UseMovementsReturn {
       const productIds = result.data.map((m) => m.productId);
       const productsMap = await loadProductsMap(productIds);
 
-      // Enriquecer movimientos con datos de producto
-      const enrichedMovements = result.data.map((m) => ({
+      // Enriquecer movimientos con datos de producto y usuario
+      const enrichedMovements = result.data.map((m: any) => ({
         ...m,
-        product: productsMap[m.productId]
+        product: productsMap[m.productId],
+        userFirstName: m.userFirstName,
+        userLastName: m.userLastName,
+        productCode: m.productCode,
+        productName: m.productName
       }));
 
       setMovements(enrichedMovements);

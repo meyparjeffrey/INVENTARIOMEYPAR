@@ -26,13 +26,21 @@ export function AlertList({ alerts = [], onViewAll }: AlertListProps) {
 
   const loadAlerts = React.useCallback(async () => {
     try {
-      const productRepo = new SupabaseProductRepository(supabaseClient);
       const allAlerts: Alert[] = [];
 
-      // Obtener productos con stock bajo
-      const products = await productRepo.list({ includeInactive: false }, { page: 1, pageSize: 10 });
-      const lowStockProducts = products.data
-        .filter((p) => p.stockCurrent <= p.stockMin)
+      // Obtener productos con stock bajo (alarma) de toda la tabla
+      // Para mantener un rendimiento razonable en dashboard, limitamos a 500 filas y luego filtramos en cliente
+      const { data: products, error: productsError } = await supabaseClient
+        .from("products")
+        .select("id, name, unit_of_measure, stock_current, stock_min")
+        .eq("is_active", true)
+        .order("name", { ascending: true })
+        .limit(500);
+
+      if (productsError) throw productsError;
+
+      const lowStockProducts = (products ?? [])
+        .filter((p) => p.stock_current <= p.stock_min)
         .slice(0, 3);
 
       lowStockProducts.forEach((product) => {
@@ -40,7 +48,7 @@ export function AlertList({ alerts = [], onViewAll }: AlertListProps) {
           id: `stock-${product.id}`,
           type: "stock",
           title: `Stock bajo: ${product.name}`,
-          description: `Quedan ${product.stockCurrent} ${product.unitOfMeasure ?? "uds"} - Stock mínimo: ${product.stockMin}`,
+          description: `Quedan ${product.stock_current} ${product.unit_of_measure ?? "uds"} - Stock mínimo: ${product.stock_min}`,
           timestamp: "Ahora"
         });
       });
