@@ -32,6 +32,19 @@ export function AiChatPanel() {
     }
   }, [isOpen]);
 
+  // Mostrar menú principal cuando se abre el chat por primera vez
+  const hasShownWelcome = React.useRef(false);
+  React.useEffect(() => {
+    if (isOpen && messages.length === 0 && !hasShownWelcome.current) {
+      hasShownWelcome.current = true;
+      // Enviar mensaje vacío para mostrar menú principal
+      sendMessage("");
+    }
+    if (!isOpen) {
+      hasShownWelcome.current = false;
+    }
+  }, [isOpen, messages.length, sendMessage]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputValue.trim() || isLoading) return;
@@ -113,28 +126,9 @@ export function AiChatPanel() {
                   <h3 className="mb-2 text-lg font-semibold text-gray-900 dark:text-gray-100">
                     {t("ai.chat.welcome")}
                   </h3>
-                  <p className="max-w-sm text-sm text-gray-600 dark:text-gray-400">
+                  <p className="max-w-sm text-sm text-gray-600 dark:text-gray-400 mb-4">
                     {t("ai.chat.welcome.description")}
                   </p>
-                  {/* Preguntas sugeridas */}
-                  <div className="mt-6 flex flex-col gap-2">
-                    {[
-                      t("ai.chat.suggestions.how-create-product"),
-                      t("ai.chat.suggestions.low-stock"),
-                      t("ai.chat.suggestions.scanner")
-                    ].map((suggestion) => (
-                      <button
-                        key={suggestion}
-                        onClick={() => {
-                          setInputValue(suggestion);
-                          inputRef.current?.focus();
-                        }}
-                        className="rounded-lg border border-gray-200 bg-white px-4 py-2 text-left text-sm text-gray-700 transition-colors hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700"
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
                 </div>
               ) : (
                 <>

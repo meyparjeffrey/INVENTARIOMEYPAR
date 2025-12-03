@@ -62,5 +62,15 @@ export interface AiResponse {
     path?: string;
     permission?: string;
   }>;
+  menuOptions?: Array<{
+    id: string;
+    label: string;
+    emoji?: string;
+    action?: string;
+    path?: string;
+    query?: string;
+    hasSubOptions?: boolean;
+  }>;
+  menuId?: string; // ID del menú actual para navegación
 }
 
