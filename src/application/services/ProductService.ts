@@ -17,6 +17,13 @@ export class ProductService {
   ) {}
 
   /**
+   * Obtiene todos los productos aplicando filtros (sin paginación).
+   */
+  async getAll(filters?: ProductFilters): Promise<Product[]> {
+    return this.repository.getAll(filters);
+  }
+
+  /**
    * Valida que el código no esté duplicado.
    */
   async validateCodeUnique(

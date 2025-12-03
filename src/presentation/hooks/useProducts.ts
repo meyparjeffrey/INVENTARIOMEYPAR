@@ -162,6 +162,28 @@ export function useProducts() {
   );
 
   /**
+   * Obtiene todos los productos aplicando filtros (sin paginación).
+   */
+  const getAll = React.useCallback(
+    async (filters?: ProductFilters): Promise<Product[]> => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const products = await serviceRef.current.getAll(filters);
+        return products;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Error al cargar productos";
+        setError(message);
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  /**
    * Obtiene un producto por ID.
    */
   const getById = React.useCallback(async (id: UUID): Promise<Product | null> => {
@@ -290,6 +312,7 @@ export function useProducts() {
     error,
     pagination,
     list,
+    getAll,
     getById,
     create,
     update,

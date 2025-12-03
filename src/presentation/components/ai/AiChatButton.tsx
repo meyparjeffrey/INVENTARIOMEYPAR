@@ -4,6 +4,7 @@ import * as React from "react";
 import { useAiChat } from "../../context/AiChatContext";
 import { useLanguage } from "../../context/LanguageContext";
 import { cn } from "../../lib/cn";
+import chatLogo from "../../../assets/logochat.svg";
 
 /**
  * Botón flotante de chat de IA en la parte inferior izquierda.
@@ -33,7 +34,7 @@ export function AiChatButton() {
     >
       {/* Logo */}
       <img
-        src="/logochat.svg"
+        src={chatLogo}
         alt="MEYPAR IA"
         className="h-8 w-8 object-contain filter brightness-0 invert"
         onError={(e) => {

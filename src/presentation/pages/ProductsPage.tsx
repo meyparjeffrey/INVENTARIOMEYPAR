@@ -21,7 +21,7 @@ export function ProductsPage() {
   const navigate = useNavigate();
   const { authContext } = useAuth();
   const { t } = useLanguage();
-  const { products, loading, error, pagination, list, remove, update } = useProducts();
+  const { products, loading, error, pagination, list, remove, update, getAll } = useProducts();
   const [searchTerm, setSearchTerm] = React.useState("");
   const [showInactive, setShowInactive] = React.useState(false);
   const [showLowStock, setShowLowStock] = React.useState(false);
@@ -170,10 +170,31 @@ export function ProductsPage() {
     includeFilters: boolean = false
   ) => {
     try {
-      if (!products || products.length === 0 || selectedColumns.length === 0) {
+      // Construir filtros actuales
+      const currentFilters: ProductFiltersState = {
+        search: searchTerm || undefined,
+        includeInactive: showInactive,
+        lowStock: showLowStock || advancedFilters.lowStock || undefined,
+        category: advancedFilters.category,
+        isBatchTracked: advancedFilters.isBatchTracked,
+        stockMin: advancedFilters.stockMin,
+        stockMax: advancedFilters.stockMax,
+        priceMin: advancedFilters.priceMin,
+        priceMax: advancedFilters.priceMax,
+        supplierCode: advancedFilters.supplierCode
+      };
+
+      // Obtener TODOS los productos (sin paginación)
+      const allProducts = await getAll(currentFilters);
+
+      if (!allProducts || allProducts.length === 0) {
         // eslint-disable-next-line no-console
-        console.warn("No hay productos o columnas seleccionadas para exportar");
-        throw new Error("No hay productos o columnas seleccionadas para exportar");
+        console.warn("No hay productos para exportar");
+        throw new Error("No hay productos para exportar");
+      }
+
+      if (selectedColumns.length === 0) {
+        throw new Error("No hay columnas seleccionadas para exportar");
       }
 
     // Mapeo de columnas
@@ -197,7 +218,7 @@ export function ProductsPage() {
     };
 
     // Preparar datos para Excel solo con columnas seleccionadas
-    const excelData = products.map((product) => {
+    const excelData = allProducts.map((product) => {
       const row: Record<string, any> = {};
       selectedColumns.forEach((colKey) => {
         const column = exportColumns.find((c) => c.key === colKey);
@@ -332,7 +353,7 @@ export function ProductsPage() {
       console.error("Error al exportar productos:", error);
       throw error; // Re-lanzar el error para que el modal pueda manejarlo
     }
-  }, [products, exportColumns]);
+  }, [products, exportColumns, getAll, searchTerm, showInactive, showLowStock, advancedFilters]);
 
   const canCreate = authContext?.permissions?.includes("products.create") ?? false;
   const canView = authContext?.permissions?.includes("products.view") ?? false;

@@ -1,9 +1,11 @@
 import type { PermissionKey, UserProfile } from "@domain/entities";
 import type { ProductRepository } from "@domain/repositories/ProductRepository";
+import type { InventoryMovementRepository } from "@domain/repositories/InventoryMovementRepository";
 import type { AiResponse } from "@infrastructure/ai/types";
 import { ResponseEngine } from "@infrastructure/ai/ResponseEngine";
 import { CodeAnalyzer } from "@infrastructure/ai/CodeAnalyzer";
 import { SupabaseProductRepository } from "@infrastructure/repositories/SupabaseProductRepository";
+import { SupabaseInventoryMovementRepository } from "@infrastructure/repositories/SupabaseInventoryMovementRepository";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
 
 /**
@@ -13,11 +15,16 @@ export class AiChatService {
   private responseEngine: ResponseEngine;
   private codeAnalyzer: CodeAnalyzer;
   private productRepository: ProductRepository;
+  private movementRepository: InventoryMovementRepository;
 
-  constructor(productRepository?: ProductRepository) {
+  constructor(
+    productRepository?: ProductRepository,
+    movementRepository?: InventoryMovementRepository
+  ) {
     this.responseEngine = new ResponseEngine();
     this.codeAnalyzer = CodeAnalyzer.getInstance();
     this.productRepository = productRepository || new SupabaseProductRepository(supabaseClient);
+    this.movementRepository = movementRepository || new SupabaseInventoryMovementRepository(supabaseClient);
   }
 
   /**
@@ -167,6 +174,20 @@ export class AiChatService {
           };
         }
       }
+    }
+
+    // Consultar movimientos o historial
+    if (lowerQuestion.includes("movimiento") || lowerQuestion.includes("historial") || lowerQuestion.includes("quien movio")) {
+      return {
+        content: "Para ver los movimientos, puedes ir a la página de Movimientos. Pronto podré buscar movimientos específicos por aquí.",
+        sources: ["/movements"],
+        suggestedActions: [
+          {
+            label: "Ir a Movimientos",
+            path: "/movements"
+          }
+        ]
+      };
     }
 
       // Respuesta genérica para consultas de datos

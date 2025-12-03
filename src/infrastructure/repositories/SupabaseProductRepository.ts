@@ -236,6 +236,44 @@ export class SupabaseProductRepository
     );
   }
 
+  async getAll(filters?: ProductFilters): Promise<Product[]> {
+    let query = this.client
+      .from("products")
+      .select("*")
+      .order("name", { ascending: true });
+
+    if (!filters?.includeInactive) {
+      query = query.eq("is_active", true);
+    }
+
+    if (filters?.category) {
+      query = query.eq("category", filters.category);
+    }
+
+    if (typeof filters?.isBatchTracked === "boolean") {
+      query = query.eq("is_batch_tracked", filters.isBatchTracked);
+    }
+
+    if (filters?.search) {
+      const term = `%${filters.search}%`;
+      query = query.or(
+        `code.ilike.${term},name.ilike.${term},barcode.ilike.${term}`
+      );
+    }
+
+    const { data, error } = await query;
+    this.handleError("obtener todos los productos", error);
+
+    let products = (data ?? []).map(mapProduct);
+
+    // Filtrar por stock bajo en el cliente
+    if (filters?.lowStock) {
+      products = products.filter((p) => p.stockCurrent <= p.stockMin);
+    }
+
+    return products;
+  }
+
   async findById(id: string) {
     const { data, error } = await this.client
       .from("products")

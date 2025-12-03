@@ -6,6 +6,7 @@ import { useLanguage } from "../../context/LanguageContext";
 import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
 import { cn } from "../../lib/cn";
+import chatLogo from "../../../assets/logochat.svg";
 
 /**
  * Panel de chat de IA que se desliza desde abajo
@@ -73,7 +74,7 @@ export function AiChatPanel() {
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm overflow-hidden">
                   <img
-                    src="/logochat.svg"
+                    src={chatLogo}
                     alt="MEYPAR IA Logo"
                     className="h-full w-full object-contain p-1.5"
                     onError={(e) => {

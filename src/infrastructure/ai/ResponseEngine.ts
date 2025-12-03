@@ -37,7 +37,10 @@ export class ResponseEngine {
       "como hacer", "cómo hacer", "como crear", "cómo crear", "como editar", "cómo editar",
       "como usar", "cómo usar", "como escanear", "cómo escanear", "com escanejar",
       "como modificar", "cómo modificar", "com modificar",
-      "pasos", "passos", "explicar", "explicar-me", "ayuda con", "ajuda amb"
+      "como filtrar", "cómo filtrar", "como buscar", "cómo buscar",
+      "como exportar", "cómo exportar",
+      "pasos", "passos", "explicar", "explicar-me", "ayuda con", "ajuda amb",
+      "manual", "guía", "guia", "instrucciones"
     ];
 
     const dataQueryKeywords = [
@@ -133,7 +136,10 @@ export class ResponseEngine {
       buscar: "search",
       escanear: "scan",
       exportar: "export",
-      imprimir: "print"
+      imprimir: "print",
+      filtrar: "filter",
+      usuario: "user",
+      dashboard: "view"
     };
 
     for (const [spanish, english] of Object.entries(actions)) {
@@ -331,24 +337,51 @@ Una vez creado, serás redirigido a la lista de productos.`;
 **Nota**: El stock se actualiza automáticamente después de registrar el movimiento.`;
 
       sources.push("/movements", "/scanner");
+    } else if (lowerQuestion.includes("usuario") || lowerQuestion.includes("cuenta") || lowerQuestion.includes("perfil")) {
+      if (!userPermissions.includes("admin.users")) {
+        response = `La gestión de usuarios está reservada para administradores.
+
+Como usuario normal, puedes ver tu perfil haciendo clic en tu avatar o nombre en la esquina superior derecha.
+
+Para cerrar sesión, abre el menú de usuario y selecciona "Cerrar Sesión".`;
+      } else {
+        response = `Gestión de Usuarios (Solo Administradores):
+
+1. **Crear usuarios**: Actualmente los usuarios se crean desde el panel de Supabase Authentication. Una vez creados, deben iniciar sesión en la aplicación para que se genere su perfil automáticamente.
+
+2. **Roles y Permisos**:
+   - Al iniciar sesión por primera vez, el usuario puede tener un rol por defecto (VIEWER).
+   - Un administrador puede cambiar el rol de un usuario editando la tabla \`user_profiles\` o mediante futuras funcionalidades de administración en la app.
+
+3. **Perfiles**: Puedes ver la información de los usuarios en la sección de configuración o auditoría (si está disponible).`;
+      }
+      sources.push("/settings");
+    } else if (lowerQuestion.includes("dashboard") || lowerQuestion.includes("inicio") || lowerQuestion.includes("resumen")) {
+      response = `El Dashboard (Inicio) te ofrece una visión general del estado del inventario:
+
+- **KPIs**: Tarjetas superiores con métricas clave (Stock Total, Valor, Productos Críticos, Movimientos hoy).
+- **Alertas**: Lista de productos con stock bajo o lotes caducados/por caducar.
+- **Movimientos recientes**: Gráfico de entradas, salidas y ajustes de los últimos 7 días.
+- **Actividad reciente**: Historial de las últimas acciones realizadas en el sistema.
+- **Sugerencias IA**: Recomendaciones inteligentes para optimizar el inventario (reabastecimiento, movimiento de lotes).
+
+Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
+      sources.push("/");
     } else {
-      response = `Puedo ayudarte con varias tareas en la aplicación:
+      response = `Puedo ayudarte con varias tareas en la aplicación. Actúo como un manual interactivo:
 
 **Gestión de Productos**:
-- Crear, editar y ver productos
-- Buscar productos por código o nombre
+- Crear, editar, buscar y filtrar productos
+- Exportar a Excel/CSV
 
-**Escáner**:
-- Usar escáner USB o cámara
-- Escanear códigos de barras y QR
+**Operaciones**:
+- Registrar movimientos (Entradas/Salidas/Ajustes)
+- Usar el Escáner (USB o Cámara)
+- Gestionar lotes y caducidades
 
-**Movimientos**:
-- Registrar entradas y salidas
-- Ver historial de movimientos
-
-**Reportes**:
-- Exportar datos a Excel
-- Ver alarmas de stock
+**Sistema**:
+- Explicar permisos y roles
+- Entender el Dashboard y Alertas
 
 ¿Sobre qué funcionalidad específica te gustaría saber más?`;
     }
@@ -459,15 +492,37 @@ Una vez creado, serás redirigido a la lista de productos.`;
    */
   private generateGeneralResponse(question: string): AiResponse {
     return {
-      content: `Hola, soy tu asistente de IA. Puedo ayudarte con:\n\n- **Cómo usar la aplicación**: Explicarte paso a paso cómo realizar acciones\n- **Consultar datos**: Buscar información sobre productos, lotes, movimientos\n- **Permisos**: Explicarte qué puedes hacer según tu rol\n- **Funcionalidades**: Mostrarte qué características están disponibles\n\n¿En qué puedo ayudarte específicamente?`,
+      content: `👋 **¡Hola! Soy MEYPAR IA**, tu asistente inteligente.
+
+Estoy aquí para ayudarte a utilizar la aplicación y resolver tus dudas. Puedes preguntarme cosas como:
+
+🔹 **Operaciones**:
+- "¿Cómo creo un producto?"
+- "¿Cómo registro una entrada de stock?"
+- "¿Cómo uso el escáner?"
+
+🔹 **Consultas**:
+- "¿Qué productos están en alarma?"
+- "Busca el producto con código CABLE-001"
+- "¿Cómo filtro por categoría?"
+
+🔹 **Administración**:
+- "¿Cómo exportar a Excel?"
+- "¿Qué permisos tengo?"
+
+¡Escribe tu pregunta y te guiaré paso a paso!`,
       suggestedActions: [
         {
           label: "¿Cómo creo un producto?",
           path: "/products/new"
         },
         {
-          label: "¿Cómo uso el escáner?",
-          path: "/scanner"
+          label: "¿Qué productos están en alarma?",
+          path: "/alerts"
+        },
+        {
+          label: "¿Cómo exportar a Excel?",
+          path: "/products"
         }
       ]
     };

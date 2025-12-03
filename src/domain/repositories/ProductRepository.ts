@@ -83,6 +83,11 @@ export interface ProductRepository {
   ): Promise<PaginatedResult<Product>>;
 
   /**
+   * Lista todos los productos sin paginación (para exportar).
+   */
+  getAll(filters?: ProductFilters): Promise<Product[]>;
+
+  /**
    * Recupera un producto por ID.
    */
   findById(id: UUID): Promise<Product | null>;
