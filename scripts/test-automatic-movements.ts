@@ -199,8 +199,6 @@ async function testAutomaticMovements() {
   } else {
     console.log("   ✅ Producto 4 actualizado");
     console.log(`      Código: "${product4Before.code}" → "${updated4.code}"`);
-    console.log(`      Pasillo: "${product4Before.aisle}" → "${updated4.aisle}"`);
-    console.log(`      Estante: "${product4Before.shelf}" → "${updated4.shelf}"`);
   }
 
   await new Promise(resolve => setTimeout(resolve, 1000));

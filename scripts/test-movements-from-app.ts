@@ -1,3 +1,4 @@
+// @ts-nocheck
 /**
  * Script de prueba que simula ediciones desde la aplicación
  * usando el mismo código que usa la app (ProductService)

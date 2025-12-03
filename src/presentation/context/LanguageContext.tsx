@@ -465,10 +465,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "batches.status.DEFECTIVE": "Defectuoso",
     "batches.status.BLOCKED": "Bloqueado",
     "batches.status.CONSUMED": "Consumido",
-    "batches.status.EXPIRED": "Caducado",
-    // Común adicional
-    "common.refresh": "Actualizar",
-    "common.saving": "Guardando...",
+      "batches.status.EXPIRED": "Caducado",
     // Settings
     "settings.subtitle": "Personaliza tu experiencia",
     "settings.avatar.title": "Configuración de Avatar",
