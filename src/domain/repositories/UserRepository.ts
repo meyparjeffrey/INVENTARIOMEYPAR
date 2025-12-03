@@ -16,8 +16,6 @@ export interface UpdateProfileInput {
 export interface UpdateSettingsInput {
   language?: UserSettings["language"];
   themeMode?: UserSettings["themeMode"];
-  primaryColor?: string;
-  secondaryColor?: string;
   sidebarCollapsed?: boolean;
   notificationsEnabled?: boolean;
   scannerSoundEnabled?: boolean;

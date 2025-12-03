@@ -1,0 +1,36 @@
+[33mcommit 953383235c99062d672710d992405d4fafc40cbc[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mCONFIGURACION[m[33m, [m[1;31morigin/CONFIGURACION[m[33m)[m
+Author: meyparjeffrey <jbolanos@meypar.com>
+Date:   Tue Dec 2 17:00:59 2025 +0100
+
+    feat: Personalización de colores del tema claro y eliminación de opciones de accesibilidad del avatar
+    
+    - Eliminada sección de accesibilidad del avatar (alto contraste y texto alternativo)
+    - Añadida sección de personalización de colores del tema claro
+    - Los usuarios pueden elegir colores primario y secundario personalizados
+    - El modo oscuro mantiene colores fijos para todos los usuarios
+    - Colores se aplican automáticamente en toda la aplicación usando CSS variables
+    - Añadido componente ThemeColors con 8 colores predefinidos y selector personalizado
+    - Actualizado ThemeContext para aplicar colores personalizados solo en modo claro
+    - Actualizadas traducciones en español y catalán
+    - Añadida documentación en Docs/COMO_CAMBIAR_COLORES.md
+
+ Docs/ADMIN_PASSWORD_RESET.md                       | 324 [32m++++++++++++++++++[m
+ Docs/CAMBIAR_ROL_USUARIO.md                        |  68 [32m++++[m
+ Docs/COMO_CAMBIAR_COLORES.md                       | 122 [32m+++++++[m
+ Docs/DROPDOWN_ROL_SUPABASE.md                      |  74 [32m++++[m
+ Docs/GESTION_USUARIOS_SUPABASE.md                  | 203 [32m+++++++++++[m
+ src/domain/entities/User.ts                        |  14 [32m+[m
+ src/domain/repositories/UserRepository.ts          |  31 [32m++[m
+ .../repositories/SupabaseUserRepository.ts         |  79 [32m++++[m[31m-[m
+ src/presentation/App.tsx                           |  12 [32m+[m[31m-[m
+ .../components/profile/AvatarUpload.tsx            |  15 [32m+[m[31m-[m
+ .../components/settings/AvatarSettings.tsx         | 381 [32m+++++++++++++++++++++[m
+ .../components/settings/ThemeColors.tsx            | 189 [32m++++++++++[m
+ src/presentation/components/ui/Avatar.tsx          | 108 [32m+++++[m[31m-[m
+ src/presentation/components/ui/UserMenu.tsx        |  20 [32m+[m[31m-[m
+ src/presentation/context/AuthContext.tsx           |  36 [32m++[m
+ src/presentation/context/LanguageContext.tsx       | 138 [32m++++++++[m
+ src/presentation/context/ThemeContext.tsx          |  66 [32m++++[m
+ src/presentation/pages/ProfilePage.tsx             |   8 [32m+[m
+ src/presentation/pages/SettingsPage.tsx            | 206 [32m+++++++++[m[31m--[m
+ 19 files changed, 2034 insertions(+), 60 deletions(-)

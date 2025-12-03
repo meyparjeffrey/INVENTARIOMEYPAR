@@ -27,8 +27,6 @@ export interface UserSettings {
   userId: UUID;
   language: LanguageCode;
   themeMode: ThemeMode;
-  primaryColor: string;
-  secondaryColor: string;
   sidebarCollapsed: boolean;
   notificationsEnabled: boolean;
   scannerSoundEnabled: boolean;

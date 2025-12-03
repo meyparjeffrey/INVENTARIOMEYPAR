@@ -52,8 +52,6 @@ const createUserRepositoryMock = () => {
     userId: "user-1",
     language: "es-ES",
     themeMode: "system",
-    primaryColor: "#DC2626",
-    secondaryColor: "#059669",
     sidebarCollapsed: false,
     notificationsEnabled: true,
     scannerSoundEnabled: true,

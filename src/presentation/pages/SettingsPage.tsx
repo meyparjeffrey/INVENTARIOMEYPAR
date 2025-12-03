@@ -10,8 +10,6 @@ import { useTranslation } from "../hooks/useTranslation";
 import { LanguageSelector } from "../components/ui/LanguageSelector";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { AvatarSettings } from "../components/settings/AvatarSettings";
-import { ThemeColors } from "../components/settings/ThemeColors";
-import { useTheme } from "../context/ThemeContext";
 import { SupabaseUserRepository } from "@infrastructure/repositories/SupabaseUserRepository";
 
 /**
@@ -20,7 +18,6 @@ import { SupabaseUserRepository } from "@infrastructure/repositories/SupabaseUse
 export function SettingsPage() {
   const { t } = useTranslation();
   const { authContext, refreshContext } = useAuth();
-  const { theme: currentTheme } = useTheme();
   const navigate = useNavigate();
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
@@ -35,13 +32,6 @@ export function SettingsPage() {
       setLocalSettings(authContext.settings);
     }
   }, [authContext]);
-
-  // Sincronizar themeMode con el tema actual de ThemeContext
-  React.useEffect(() => {
-    if (localSettings && currentTheme !== localSettings.themeMode) {
-      setLocalSettings({ ...localSettings, themeMode: currentTheme });
-    }
-  }, [currentTheme, localSettings]);
 
   const handleSettingsChange = React.useCallback((updates: Partial<typeof localSettings>) => {
     if (localSettings) {
@@ -60,8 +50,6 @@ export function SettingsPage() {
       await userRepository.updateSettings(authContext.profile.id, {
         language: localSettings.language,
         themeMode: localSettings.themeMode,
-        primaryColor: localSettings.primaryColor,
-        secondaryColor: localSettings.secondaryColor,
         sidebarCollapsed: localSettings.sidebarCollapsed,
         notificationsEnabled: localSettings.notificationsEnabled,
         scannerSoundEnabled: localSettings.scannerSoundEnabled,
@@ -210,14 +198,6 @@ export function SettingsPage() {
             </div>
           </div>
         </motion.div>
-
-        {/* Colores del tema (solo visible en modo claro) */}
-        {(localSettings.themeMode === "light" || currentTheme === "light") && (
-          <ThemeColors
-            settings={localSettings}
-            onChange={handleSettingsChange}
-          />
-        )}
 
         {/* Otras configuraciones */}
         <motion.div

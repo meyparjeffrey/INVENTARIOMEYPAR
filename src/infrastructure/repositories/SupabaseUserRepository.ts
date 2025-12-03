@@ -23,8 +23,6 @@ type SettingsRow = {
   user_id: string;
   language: UserSettings["language"];
   theme_mode: UserSettings["themeMode"];
-  primary_color: string;
-  secondary_color: string;
   sidebar_collapsed: boolean;
   notifications_enabled: boolean;
   scanner_sound_enabled: boolean;
@@ -81,8 +79,6 @@ const mapSettings = (row: SettingsRow): UserSettings => ({
   userId: row.user_id,
   language: row.language,
   themeMode: row.theme_mode,
-  primaryColor: row.primary_color,
-  secondaryColor: row.secondary_color,
   sidebarCollapsed: row.sidebar_collapsed ?? false,
   notificationsEnabled: row.notifications_enabled ?? true,
   scannerSoundEnabled: row.scanner_sound_enabled ?? true,
@@ -184,8 +180,6 @@ export class SupabaseUserRepository
 
     if (input.language !== undefined) updateData.language = input.language;
     if (input.themeMode !== undefined) updateData.theme_mode = input.themeMode;
-    if (input.primaryColor !== undefined) updateData.primary_color = input.primaryColor;
-    if (input.secondaryColor !== undefined) updateData.secondary_color = input.secondaryColor;
     if (input.sidebarCollapsed !== undefined) updateData.sidebar_collapsed = input.sidebarCollapsed;
     if (input.notificationsEnabled !== undefined) updateData.notifications_enabled = input.notificationsEnabled;
     if (input.scannerSoundEnabled !== undefined) updateData.scanner_sound_enabled = input.scannerSoundEnabled;
