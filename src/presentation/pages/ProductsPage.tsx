@@ -1,4 +1,4 @@
-import { Package, Plus, Download, X } from "lucide-react";
+import { Package, Plus, Download, X, LayoutGrid, Table2, Settings } from "lucide-react";
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
@@ -6,13 +6,19 @@ import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useProducts } from "../hooks/useProducts";
 import { ProductTable } from "../components/products/ProductTable";
+import { ProductGridView } from "../components/products/ProductGridView";
+import { BulkActionsBar } from "../components/products/BulkActionsBar";
 import { ProductFilters, type ProductFiltersState } from "../components/products/ProductFilters";
 import { ExportDialog, type ColumnOption } from "../components/products/ExportDialog";
+import { ColumnConfigDialog } from "../components/products/ColumnConfigDialog";
+import { FilterPresetsManager } from "../components/products/FilterPresetsManager";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { SearchInput } from "../components/ui/SearchInput";
 import { formatCurrency } from "../utils/formatCurrency";
 import { calculateColumnWidth, formatCurrencyCell, createTotalsRow } from "../utils/excelUtils";
+import { useTableColumns, type TableColumn } from "../hooks/useTableColumns";
+import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 
 /**
  * Página principal de gestión de productos.
@@ -29,6 +35,38 @@ export function ProductsPage() {
   const [pageSize, setPageSize] = React.useState(25);
   const [advancedFilters, setAdvancedFilters] = React.useState<ProductFiltersState>({});
   const [showExportDialog, setShowExportDialog] = React.useState(false);
+  const [viewMode, setViewMode] = React.useState<"table" | "grid">("table");
+  const [showColumnConfig, setShowColumnConfig] = React.useState(false);
+  const [selectedProductIds, setSelectedProductIds] = React.useState<string[]>([]);
+
+  // Configuración de columnas personalizables
+  const defaultColumns: TableColumn[] = React.useMemo(() => [
+    { id: "code", label: t("table.code"), visible: true, order: 0 },
+    { id: "name", label: t("table.name"), visible: true, order: 1 },
+    { id: "category", label: t("table.category"), visible: true, order: 2 },
+    { id: "stockCurrent", label: t("table.stock"), visible: true, order: 3 },
+    { id: "stockMin", label: t("table.min"), visible: true, order: 4 },
+    { id: "alarm", label: t("table.alarm"), visible: true, order: 5 },
+    { id: "aisle", label: t("table.location"), visible: true, order: 6 },
+    { id: "supplierCode", label: t("table.supplierCode"), visible: true, order: 7 },
+    { id: "costPrice", label: t("products.price.cost"), visible: false, order: 8 },
+    { id: "salePrice", label: t("products.price.sale"), visible: false, order: 9 },
+    { id: "updatedAt", label: t("products.lastUpdate"), visible: false, order: 10 },
+    { id: "status", label: t("table.status"), visible: true, order: 11 },
+    { id: "actions", label: t("table.actions"), visible: true, order: 12 }
+  ], [t]);
+
+  const {
+    columns: tableColumns,
+    visibleColumns,
+    toggleColumnVisibility,
+    reorderColumns,
+    resetColumns,
+    saveColumns
+  } = useTableColumns({
+    tableId: "products",
+    defaultColumns
+  });
 
   // Cargar productos cuando cambian los filtros (con debounce para búsqueda)
   React.useEffect(() => {
@@ -137,6 +175,120 @@ export function ProductsPage() {
           isBatchTracked: advancedFilters.isBatchTracked
         },
         { page: currentPage, pageSize: 25 }
+      );
+    } catch (err) {
+      // Error ya está manejado en el hook
+    }
+  };
+
+  // Acciones masivas
+  const handleBulkActivate = async () => {
+    try {
+      await Promise.all(
+        selectedProductIds.map((id) =>
+          update(id, {
+            isActive: true,
+            updatedBy: authContext?.profile.id || ""
+          })
+        )
+      );
+      setSelectedProductIds([]);
+      await list(
+        {
+          search: searchTerm || undefined,
+          includeInactive: showInactive,
+          lowStock: showLowStock || advancedFilters.lowStock || undefined,
+          category: advancedFilters.category,
+          isBatchTracked: advancedFilters.isBatchTracked
+        },
+        { page: currentPage, pageSize }
+      );
+    } catch (err) {
+      // Error ya está manejado en el hook
+    }
+  };
+
+  const handleBulkDeactivate = async () => {
+    try {
+      await Promise.all(
+        selectedProductIds.map((id) =>
+          update(id, {
+            isActive: false,
+            updatedBy: authContext?.profile.id || ""
+          })
+        )
+      );
+      setSelectedProductIds([]);
+      await list(
+        {
+          search: searchTerm || undefined,
+          includeInactive: showInactive,
+          lowStock: showLowStock || advancedFilters.lowStock || undefined,
+          category: advancedFilters.category,
+          isBatchTracked: advancedFilters.isBatchTracked
+        },
+        { page: currentPage, pageSize }
+      );
+    } catch (err) {
+      // Error ya está manejado en el hook
+    }
+  };
+
+  const handleBulkExport = async () => {
+    const selectedProducts = (products || []).filter((p) => selectedProductIds.includes(p.id));
+    if (selectedProducts.length === 0) return;
+
+    try {
+      const excelData = selectedProducts.map((product) => ({
+        Código: product.code,
+        Nombre: product.name,
+        Categoría: product.category || "",
+        "Stock Actual": product.stockCurrent,
+        "Stock Mínimo": product.stockMin,
+        "Precio Coste (€)": typeof product.costPrice === "number" ? product.costPrice : parseFloat(product.costPrice?.toString() || "0"),
+        "Precio Venta (€)": product.salePrice ? (typeof product.salePrice === "number" ? product.salePrice : parseFloat(product.salePrice.toString())) : "",
+        "Código Proveedor": product.supplierCode || ""
+      }));
+
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Productos");
+      const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `productos_seleccionados_${new Date().toISOString().split("T")[0]}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      setSelectedProductIds([]);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Error al exportar productos seleccionados:", error);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!window.confirm(t("actions.confirmDelete") || `¿Estás seguro de eliminar ${selectedProductIds.length} productos?`)) {
+      return;
+    }
+
+    try {
+      await Promise.all(selectedProductIds.map((id) => remove(id)));
+      setSelectedProductIds([]);
+      await list(
+        {
+          search: searchTerm || undefined,
+          includeInactive: showInactive,
+          lowStock: showLowStock || advancedFilters.lowStock || undefined,
+          category: advancedFilters.category,
+          isBatchTracked: advancedFilters.isBatchTracked
+        },
+        { page: currentPage, pageSize }
       );
     } catch (err) {
       // Error ya está manejado en el hook
@@ -360,6 +512,47 @@ export function ProductsPage() {
   const canEdit = authContext?.permissions?.includes("products.edit") ?? false;
   const canCreateMovement = authContext?.permissions?.includes("movements.create") ?? false;
 
+  // Atajos de teclado
+  useKeyboardShortcuts([
+    {
+      key: "f",
+      ctrl: true,
+      action: () => {
+        const searchInput = document.querySelector('input[placeholder*="Buscar"]') as HTMLInputElement;
+        searchInput?.focus();
+      },
+      description: t("shortcuts.search")
+    },
+    {
+      key: "n",
+      ctrl: true,
+      action: () => {
+        if (canCreate) {
+          navigate("/products/new");
+        }
+      },
+      description: t("shortcuts.new")
+    },
+    {
+      key: "e",
+      ctrl: true,
+      action: () => {
+        if (products && products.length > 0) {
+          setShowExportDialog(true);
+        }
+      },
+      description: t("shortcuts.export")
+    },
+    {
+      key: "v",
+      ctrl: true,
+      action: () => {
+        setViewMode(viewMode === "table" ? "grid" : "table");
+      },
+      description: t("shortcuts.toggleView")
+    }
+  ]);
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -371,6 +564,41 @@ export function ProductsPage() {
           </p>
         </div>
         <div className="flex items-center gap-4">
+          {/* Toggle de vista */}
+          <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-800">
+            <Button
+              variant={viewMode === "table" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("table")}
+              title={t("products.view.table")}
+              className="h-8"
+            >
+              <Table2 className="h-4 w-4" />
+            </Button>
+            <Button
+              variant={viewMode === "grid" ? "default" : "ghost"}
+              size="sm"
+              onClick={() => setViewMode("grid")}
+              title={t("products.view.grid")}
+              className="h-8"
+            >
+              <LayoutGrid className="h-4 w-4" />
+            </Button>
+          </div>
+          
+          {/* Configurar columnas (solo en vista tabla) */}
+          {viewMode === "table" && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowColumnConfig(true)}
+              title={t("products.columns.configure")}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              {t("products.columns.title")}
+            </Button>
+          )}
+          
           <Button
             variant="outline"
             onClick={() => setShowExportDialog(true)}
@@ -400,14 +628,39 @@ export function ProductsPage() {
                 onChange={setSearchTerm}
               />
             </div>
-            <ProductFilters
-              filters={advancedFilters}
-              onFiltersChange={setAdvancedFilters}
-              onClear={() => {
-                setAdvancedFilters({});
-                setShowLowStock(false);
-              }}
-            />
+            <div className="flex items-center gap-2">
+              <ProductFilters
+                filters={advancedFilters}
+                onFiltersChange={setAdvancedFilters}
+                onClear={() => {
+                  setAdvancedFilters({});
+                  setShowLowStock(false);
+                }}
+              />
+              <FilterPresetsManager
+                currentFilters={{
+                  ...advancedFilters,
+                  search: searchTerm || undefined,
+                  includeInactive: showInactive,
+                  lowStock: showLowStock || advancedFilters.lowStock || undefined
+                }}
+                onLoadPreset={(filters) => {
+                  setAdvancedFilters({
+                    category: filters.category,
+                    stockMin: filters.stockMin,
+                    stockMax: filters.stockMax,
+                    priceMin: filters.priceMin,
+                    priceMax: filters.priceMax,
+                    supplierCode: filters.supplierCode,
+                    isBatchTracked: filters.isBatchTracked,
+                    lowStock: filters.lowStock
+                  });
+                  if (filters.search) setSearchTerm(filters.search);
+                  if (filters.includeInactive !== undefined) setShowInactive(filters.includeInactive);
+                  if (filters.lowStock) setShowLowStock(true);
+                }}
+              />
+            </div>
             <label className="flex items-center gap-2 text-sm whitespace-nowrap">
               <input
                 type="checkbox"
@@ -524,6 +777,24 @@ export function ProductsPage() {
         )}
       </div>
 
+      {/* Barra de acciones masivas */}
+      {selectedProductIds.length > 0 && (
+        <BulkActionsBar
+          selectedCount={selectedProductIds.length}
+          totalCount={pagination.total}
+          onSelectAll={() => {
+            const allIds = (products || []).map((p) => p.id);
+            setSelectedProductIds(allIds);
+          }}
+          onDeselectAll={() => setSelectedProductIds([])}
+          onActivate={canEdit ? handleBulkActivate : undefined}
+          onDeactivate={canEdit ? handleBulkDeactivate : undefined}
+          onExport={canView ? handleBulkExport : undefined}
+          onDelete={canEdit ? handleBulkDelete : undefined}
+          isAllSelected={selectedProductIds.length === (products || []).length}
+        />
+      )}
+
       {/* Error */}
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800 dark:border-red-800 dark:bg-red-900/20 dark:text-red-200">
@@ -531,20 +802,45 @@ export function ProductsPage() {
         </div>
       )}
 
-      {/* Tabla */}
-      <ProductTable
-        products={products ?? []}
-        loading={loading}
-        searchTerm={searchTerm}
-        onView={canView ? handleView : undefined}
-        onEdit={canEdit ? handleEdit : undefined}
-        onMovement={canCreateMovement ? handleMovement : undefined}
-        onDelete={canEdit ? handleDelete : undefined}
-        onDuplicate={canCreate ? handleDuplicate : undefined}
-        onHistory={canView ? handleHistory : undefined}
-        onExport={canView ? handleExportProduct : undefined}
-        onToggleActive={canEdit ? handleToggleActive : undefined}
-      />
+      {/* Tabla o Vista de Tarjetas */}
+      {viewMode === "table" ? (
+        <ProductTable
+          products={products ?? []}
+          loading={loading}
+          searchTerm={searchTerm}
+          selectedIds={selectedProductIds}
+          onSelectionChange={setSelectedProductIds}
+          visibleColumns={tableColumns}
+          onColumnResize={(columnId, width) => {
+            const updated = tableColumns.map((col) =>
+              col.id === columnId ? { ...col, width } : col
+            );
+            saveColumns(updated);
+          }}
+          onView={canView ? handleView : undefined}
+          onEdit={canEdit ? handleEdit : undefined}
+          onMovement={canCreateMovement ? handleMovement : undefined}
+          onDelete={canEdit ? handleDelete : undefined}
+          onDuplicate={canCreate ? handleDuplicate : undefined}
+          onHistory={canView ? handleHistory : undefined}
+          onExport={canView ? handleExportProduct : undefined}
+          onToggleActive={canEdit ? handleToggleActive : undefined}
+        />
+      ) : (
+        <ProductGridView
+          products={products ?? []}
+          loading={loading}
+          searchTerm={searchTerm}
+          onView={canView ? handleView : undefined}
+          onEdit={canEdit ? handleEdit : undefined}
+          onMovement={canCreateMovement ? handleMovement : undefined}
+          onDelete={canEdit ? handleDelete : undefined}
+          onDuplicate={canCreate ? handleDuplicate : undefined}
+          onHistory={canView ? handleHistory : undefined}
+          onExport={canView ? handleExportProduct : undefined}
+          onToggleActive={canEdit ? handleToggleActive : undefined}
+        />
+      )}
 
       {/* Paginación mejorada */}
       {pagination.total > pagination.pageSize && (
@@ -640,6 +936,24 @@ export function ProductsPage() {
         columns={exportColumns}
         onExport={handleExportExcel}
         fileName={`productos_${new Date().toISOString().split("T")[0]}`}
+      />
+
+      {/* Modal de configuración de columnas */}
+      <ColumnConfigDialog
+        isOpen={showColumnConfig}
+        onClose={() => setShowColumnConfig(false)}
+        columns={tableColumns}
+        onSave={async (newColumns) => {
+          // Guardar las nuevas columnas con orden actualizado
+          const reordered = newColumns.map((col, index) => ({
+            ...col,
+            order: index
+          }));
+          await saveColumns(reordered);
+          // Forzar actualización del estado
+          setShowColumnConfig(false);
+        }}
+        onReset={resetColumns}
       />
     </div>
   );

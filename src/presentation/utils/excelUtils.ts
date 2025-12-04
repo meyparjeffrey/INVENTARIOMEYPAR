@@ -2,25 +2,49 @@ import * as XLSX from "xlsx";
 
 /**
  * Calcula el ancho óptimo de una columna basado en su contenido.
+ * Mejora: Considera caracteres especiales, números y fechas.
  */
 export function calculateColumnWidth(data: any[], header: string): number {
   // Ancho mínimo y máximo
-  const minWidth = 8;
-  const maxWidth = 50;
+  const minWidth = 10;
+  const maxWidth = 60;
   
-  // Calcular ancho del header
+  // Calcular ancho del header (considerando caracteres especiales)
   let maxLength = header.length;
   
   // Calcular ancho máximo del contenido
   data.forEach((value) => {
+    if (value === null || value === undefined || value === "") {
+      return;
+    }
+    
     const str = value?.toString() || "";
-    if (str.length > maxLength) {
-      maxLength = str.length;
+    
+    // Para números, considerar formato con separadores de miles
+    if (typeof value === "number") {
+      const formatted = value.toLocaleString("es-ES", { 
+        minimumFractionDigits: 0, 
+        maximumFractionDigits: 2 
+      });
+      maxLength = Math.max(maxLength, formatted.length);
+    } else {
+      // Para strings, considerar caracteres especiales (algunos ocupan más espacio)
+      const charWidth = str.split("").reduce((acc, char) => {
+        // Caracteres anchos (chinos, japoneses, etc.) cuentan como 2
+        if (/[\u4e00-\u9fa5\u3040-\u309f\u30a0-\u30ff]/.test(char)) {
+          return acc + 2;
+        }
+        return acc + 1;
+      }, 0);
+      maxLength = Math.max(maxLength, charWidth);
     }
   });
   
-  // Añadir padding
-  const width = Math.min(Math.max(maxLength + 2, minWidth), maxWidth);
+  // Añadir padding (más espacio para números y fechas)
+  const isNumeric = data.some((v) => typeof v === "number");
+  const padding = isNumeric ? 4 : 3;
+  
+  const width = Math.min(Math.max(maxLength + padding, minWidth), maxWidth);
   return width;
 }
 

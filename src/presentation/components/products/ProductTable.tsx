@@ -1,18 +1,25 @@
-import { AlertTriangle, Edit, Eye, MoreVertical, Package, Trash2, Copy, History, Download as DownloadIcon, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
+import { AlertTriangle, Edit, Eye, MoreVertical, Package, Trash2, Copy, History, Download as DownloadIcon, ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Square } from "lucide-react";
 import * as React from "react";
 import type { Product } from "@domain/entities";
 import { Button } from "../ui/Button";
 import { useLanguage } from "../../context/LanguageContext";
 import { cn } from "../../lib/cn";
 import { highlightText } from "../../utils/highlightText";
+import { formatCurrency } from "../../utils/formatCurrency";
+import { ResizableColumnHeader } from "./ResizableColumnHeader";
+import { ProductPreviewTooltip } from "./ProductPreviewTooltip";
 
-type SortField = "code" | "name" | "category" | "stockCurrent" | "stockMin" | "aisle" | "supplierCode";
+type SortField = "code" | "name" | "category" | "stockCurrent" | "stockMin" | "aisle" | "supplierCode" | "costPrice" | "salePrice" | "updatedAt";
 type SortDirection = "asc" | "desc";
 
 interface ProductTableProps {
   products: Product[];
   loading?: boolean;
   searchTerm?: string;
+  selectedIds?: string[];
+  onSelectionChange?: (selectedIds: string[]) => void;
+  visibleColumns?: Array<{ id: string; label: string; visible: boolean; order: number; width?: number }>;
+  onColumnResize?: (columnId: string, width: number) => void;
   onView?: (product: Product) => void;
   onEdit?: (product: Product) => void;
   onMovement?: (product: Product) => void;
@@ -26,10 +33,14 @@ interface ProductTableProps {
 /**
  * Tabla de productos con columnas, badges y acciones.
  */
-export function ProductTable({
+export const ProductTable = React.memo(function ProductTable({
   products,
   loading = false,
   searchTerm = "",
+  selectedIds = [],
+  onSelectionChange,
+  visibleColumns,
+  onColumnResize,
   onView,
   onEdit,
   onMovement,
@@ -82,6 +93,18 @@ export function ProductTable({
           aValue = (a.supplierCode || "").toLowerCase();
           bValue = (b.supplierCode || "").toLowerCase();
           break;
+        case "costPrice":
+          aValue = a.costPrice;
+          bValue = b.costPrice;
+          break;
+        case "salePrice":
+          aValue = a.salePrice || 0;
+          bValue = b.salePrice || 0;
+          break;
+        case "updatedAt":
+          aValue = new Date(a.updatedAt).getTime();
+          bValue = new Date(b.updatedAt).getTime();
+          break;
         default:
           return 0;
       }
@@ -103,6 +126,66 @@ export function ProductTable({
     }
   };
 
+  const handleSelectAll = () => {
+    if (onSelectionChange) {
+      const allIds = sortedProducts.map((p) => p.id);
+      onSelectionChange(allIds);
+    }
+  };
+
+  const handleDeselectAll = () => {
+    if (onSelectionChange) {
+      onSelectionChange([]);
+    }
+  };
+
+  const handleToggleSelect = (productId: string) => {
+    if (!onSelectionChange) return;
+    
+    if (selectedIds.includes(productId)) {
+      onSelectionChange(selectedIds.filter((id) => id !== productId));
+    } else {
+      onSelectionChange([...selectedIds, productId]);
+    }
+  };
+
+  const isAllSelected = selectedIds.length > 0 && selectedIds.length === sortedProducts.length;
+  const isIndeterminate = selectedIds.length > 0 && selectedIds.length < sortedProducts.length;
+
+  // Función helper para verificar si una columna es visible
+  const isColumnVisible = (columnId: string): boolean => {
+    if (!visibleColumns || visibleColumns.length === 0) return true;
+    const column = visibleColumns.find((col) => col.id === columnId);
+    return column ? column.visible : true;
+  };
+
+  // Obtener columnas ordenadas y visibles
+  const getOrderedVisibleColumns = () => {
+    if (!visibleColumns || visibleColumns.length === 0) {
+      // Si no hay configuración, mostrar todas las columnas por defecto
+      return [
+        { id: "code", order: 0 },
+        { id: "name", order: 1 },
+        { id: "category", order: 2 },
+        { id: "stockCurrent", order: 3 },
+        { id: "stockMin", order: 4 },
+        { id: "alarm", order: 5 },
+        { id: "aisle", order: 6 },
+        { id: "supplierCode", order: 7 },
+        { id: "costPrice", order: 8 },
+        { id: "salePrice", order: 9 },
+        { id: "updatedAt", order: 10 },
+        { id: "status", order: 11 },
+        { id: "actions", order: 12 }
+      ];
+    }
+    return visibleColumns
+      .filter((col) => col.visible)
+      .sort((a, b) => a.order - b.order);
+  };
+
+  const orderedColumns = getOrderedVisibleColumns();
+
   const SortIcon = ({ field }: { field: SortField }) => {
     if (sortField !== field) {
       return <ArrowUpDown className="ml-1 h-3 w-3 text-gray-400" />;
@@ -114,8 +197,31 @@ export function ProductTable({
 
   if (loading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+      <div className="relative rounded-lg border border-gray-200 dark:border-gray-700">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[800px]">
+            <thead className="bg-gray-50 dark:bg-gray-800">
+              <tr>
+                {[...Array(9)].map((_, i) => (
+                  <th key={i} className="px-4 py-3">
+                    <div className="h-4 w-24 animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+              {[...Array(5)].map((_, i) => (
+                <tr key={i}>
+                  {[...Array(9)].map((_, j) => (
+                    <td key={j} className="px-4 py-3">
+                      <div className="h-4 w-full animate-pulse rounded bg-gray-200 dark:bg-gray-700" />
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
   }
@@ -170,75 +276,133 @@ export function ProductTable({
         <table className="w-full min-w-[800px]">
         <thead className="bg-gray-50 dark:bg-gray-800">
           <tr>
-            <th 
-              className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              onClick={() => handleSort("code")}
-            >
-              <div className="flex items-center">
-                {t("table.code")}
-                <SortIcon field="code" />
-              </div>
-            </th>
-            <th 
-              className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              onClick={() => handleSort("name")}
-            >
-              <div className="flex items-center">
-                {t("table.name")}
-                <SortIcon field="name" />
-              </div>
-            </th>
-            <th 
-              className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              onClick={() => handleSort("category")}
-            >
-              <div className="flex items-center">
-                {t("table.category")}
-                <SortIcon field="category" />
-              </div>
-            </th>
-            <th 
-              className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              onClick={() => handleSort("stockCurrent")}
-            >
-              <div className="flex items-center justify-end">
-                {t("table.stock")}
-                <SortIcon field="stockCurrent" />
-              </div>
-            </th>
-            <th 
-              className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              onClick={() => handleSort("stockMin")}
-            >
-              <div className="flex items-center justify-end">
-                {t("table.min")}
-                <SortIcon field="stockMin" />
-              </div>
-            </th>
-            <th 
-              className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              onClick={() => handleSort("aisle")}
-            >
-              <div className="flex items-center">
-                {t("table.location")}
-                <SortIcon field="aisle" />
-              </div>
-            </th>
-            <th 
-              className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
-              onClick={() => handleSort("supplierCode")}
-            >
-              <div className="flex items-center">
-                {t("table.supplierCode")}
-                <SortIcon field="supplierCode" />
-              </div>
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              {t("table.status")}
-            </th>
-            <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-              {t("table.actions")}
-            </th>
+            {onSelectionChange && (
+              <th className="px-4 py-3 text-center">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={isAllSelected ? handleDeselectAll : handleSelectAll}
+                  className="h-6 w-6 p-0"
+                  title={isAllSelected ? t("products.bulk.deselectAll") : t("products.bulk.selectAll")}
+                >
+                  {isAllSelected ? (
+                    <CheckSquare className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+                  ) : isIndeterminate ? (
+                    <div className="h-4 w-4 rounded border-2 border-primary-600 bg-primary-100 dark:border-primary-400 dark:bg-primary-900/30" />
+                  ) : (
+                    <Square className="h-4 w-4" />
+                  )}
+                </Button>
+              </th>
+            )}
+            {orderedColumns.map((col) => {
+              if (!isColumnVisible(col.id)) return null;
+              
+              const getHeaderConfig = () => {
+                switch (col.id) {
+                  case "code":
+                    return { label: t("table.code"), sortField: "code" as SortField, align: "left" };
+                  case "name":
+                    return { label: t("table.name"), sortField: "name" as SortField, align: "left" };
+                  case "category":
+                    return { label: t("table.category"), sortField: "category" as SortField, align: "left" };
+                  case "stockCurrent":
+                    return { label: t("table.stock"), sortField: "stockCurrent" as SortField, align: "right" };
+                  case "stockMin":
+                    return { label: t("table.min"), sortField: "stockMin" as SortField, align: "right" };
+                  case "aisle":
+                    return { label: t("table.location"), sortField: "aisle" as SortField, align: "left" };
+                  case "supplierCode":
+                    return { label: t("table.supplierCode"), sortField: "supplierCode" as SortField, align: "left" };
+                  case "costPrice":
+                    return { label: t("products.price.cost"), sortField: "costPrice" as SortField, align: "right" };
+                  case "salePrice":
+                    return { label: t("products.price.sale"), sortField: "salePrice" as SortField, align: "right" };
+                  case "updatedAt":
+                    return { label: t("products.lastUpdate"), sortField: "updatedAt" as SortField, align: "left" };
+                  case "status":
+                    return { label: t("table.status"), sortField: null, align: "center" };
+                  case "alarm":
+                    return { label: t("table.alarm"), sortField: null, align: "center" };
+                  case "actions":
+                    return { label: t("table.actions"), sortField: null, align: "center" };
+                  default:
+                    return null;
+                }
+              };
+
+              const config = getHeaderConfig();
+              if (!config) return null;
+
+              const columnConfig = visibleColumns?.find((c) => c.id === col.id);
+              const columnWidth = columnConfig?.width;
+
+              const headerContent = (
+                <div className={cn(
+                  "flex items-center px-4 py-3",
+                  config.align === "right" && "justify-end",
+                  config.align === "center" && "justify-center"
+                )}>
+                  <div
+                    className={cn(
+                      "flex items-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400",
+                      config.sortField && "cursor-pointer"
+                    )}
+                    onClick={config.sortField ? (e) => {
+                      e.stopPropagation();
+                      handleSort(config.sortField!);
+                    } : undefined}
+                  >
+                    {config.label}
+                    {config.sortField && <SortIcon field={config.sortField} />}
+                  </div>
+                </div>
+              );
+
+              if (onColumnResize) {
+                return (
+                  <ResizableColumnHeader
+                    key={col.id}
+                    initialWidth={columnWidth}
+                    minWidth={col.id === "name" ? 150 : col.id === "code" ? 100 : 80}
+                    onResize={(width) => onColumnResize(col.id, width)}
+                    className={cn(
+                      "group",
+                      config.align === "right" && "text-right",
+                      config.align === "center" && "text-center",
+                      config.align === "left" && "text-left",
+                      config.sortField && "hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                    )}
+                  >
+                    {headerContent}
+                  </ResizableColumnHeader>
+                );
+              }
+
+              return (
+                <th
+                  key={col.id}
+                  className={cn(
+                    "px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400",
+                    config.align === "right" && "text-right",
+                    config.align === "center" && "text-center",
+                    config.align === "left" && "text-left",
+                    config.sortField && "cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                  )}
+                  style={columnWidth ? { width: `${columnWidth}px` } : undefined}
+                  onClick={config.sortField ? () => handleSort(config.sortField!) : undefined}
+                >
+                  <div className={cn(
+                    "flex items-center",
+                    config.align === "right" && "justify-end",
+                    config.align === "center" && "justify-center"
+                  )}>
+                    {config.label}
+                    {config.sortField && <SortIcon field={config.sortField} />}
+                  </div>
+                </th>
+              );
+            })}
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
@@ -256,64 +420,194 @@ export function ProductTable({
                 onMouseEnter={() => setHoveredRow(product.id)}
                 onMouseLeave={() => setHoveredRow(null)}
               >
-                <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-50">
-                  {highlightText(product.code, searchTerm)}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-900 dark:text-gray-50">
-                  <div className="flex items-center gap-2">
-                    <span>{highlightText(product.name, searchTerm)}</span>
-                    {product.isBatchTracked && (
-                      <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
-                        {t("products.batches")}
-                      </span>
-                    )}
-                  </div>
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                  {product.category || (
-                    <span className="text-gray-400 dark:text-gray-500">-</span>
-                  )}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-50">
-                  <span
-                    className={cn(
-                      "font-medium",
-                      isLowStock && "text-amber-600 dark:text-amber-400"
-                    )}
-                  >
-                    {product.stockCurrent}
-                  </span>
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 dark:text-gray-400">
-                  {product.stockMin}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                  {product.aisle} / {product.shelf}
-                </td>
-                <td className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                  {product.supplierCode ? (
-                    <span className="max-w-xs truncate" title={product.supplierCode}>
-                      {product.supplierCode}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400 dark:text-gray-500">-</span>
-                  )}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-center text-sm">
-                  {isLowStock && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                      <AlertTriangle className="h-3 w-3" />
-                      {t("products.alarm")}
-                    </span>
-                  )}
-                  {!isLowStock && (
-                    <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
-                      {t("products.ok")}
-                    </span>
-                  )}
-                </td>
-                <td className="whitespace-nowrap px-4 py-3 text-center text-sm">
-                  <div className="relative flex items-center justify-center gap-1">
+                {onSelectionChange && (
+                  <td className="px-4 py-3 text-center">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleToggleSelect(product.id)}
+                      className="h-6 w-6 p-0"
+                    >
+                      {selectedIds.includes(product.id) ? (
+                        <CheckSquare className="h-4 w-4 text-primary-600 dark:text-primary-400" />
+                      ) : (
+                        <Square className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </td>
+                )}
+                {orderedColumns.map((col) => {
+                  if (!isColumnVisible(col.id)) return null;
+
+                  const columnConfig = visibleColumns?.find((c) => c.id === col.id);
+                  const columnWidth = columnConfig?.width;
+                  
+                  // Aplicar el ancho a todas las celdas de esta columna
+                  const cellStyle = columnWidth ? { 
+                    width: `${columnWidth}px`, 
+                    minWidth: `${columnWidth}px`,
+                    maxWidth: `${columnWidth}px`
+                  } : undefined;
+
+                  const renderCell = () => {
+                    switch (col.id) {
+                      case "code":
+                        return (
+                          <td key="code" className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-50" style={cellStyle}>
+                            <ProductPreviewTooltip product={product}>
+                              <span>{highlightText(product.code, searchTerm)}</span>
+                            </ProductPreviewTooltip>
+                          </td>
+                        );
+                      case "name":
+                        return (
+                          <td key="name" className="px-4 py-3 text-sm text-gray-900 dark:text-gray-50" style={cellStyle}>
+                            <ProductPreviewTooltip product={product}>
+                              <div className="flex items-center gap-2">
+                                <span>{highlightText(product.name, searchTerm)}</span>
+                                {product.isBatchTracked && (
+                                  <span className="rounded bg-blue-100 px-1.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                                    {t("products.batches")}
+                                  </span>
+                                )}
+                              </div>
+                            </ProductPreviewTooltip>
+                          </td>
+                        );
+                      case "category":
+                        return (
+                          <td key="category" className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400" style={cellStyle}>
+                            {product.category || <span className="text-gray-400 dark:text-gray-500">-</span>}
+                          </td>
+                        );
+                      case "stockCurrent":
+                        // Calcular porcentaje basado en mínimo como referencia
+                        // Si stock = mínimo, la barra está al 0% (en alarma)
+                        // Si stock = mínimo * 2, la barra está al 50%
+                        // Si stock >= mínimo * 2, la barra está al 100% o más
+                        const stockMinRef = product.stockMin || 1; // Evitar división por 0
+                        const stockProgress = product.stockCurrent <= stockMinRef
+                          ? 0 // En alarma
+                          : Math.min((product.stockCurrent / (stockMinRef * 2)) * 100, 100); // Progresivo hasta 2x el mínimo
+                        
+                        return (
+                          <td key="stockCurrent" className="whitespace-nowrap px-4 py-3 text-right text-sm" style={cellStyle}>
+                            <div className="flex flex-col items-end gap-1">
+                              <span className={cn("font-medium", isLowStock && "text-amber-600 dark:text-amber-400")}>
+                                {product.stockCurrent}
+                              </span>
+                              <div className="h-1.5 w-16 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                                <div
+                                  className={cn(
+                                    "h-full transition-all duration-300",
+                                    isLowStock
+                                      ? "bg-amber-500 dark:bg-amber-600"
+                                      : "bg-green-500 dark:bg-green-600"
+                                  )}
+                                  style={{
+                                    width: `${Math.max(stockProgress, 5)}%` // Mínimo 5% para que sea visible
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                        );
+                      case "stockMin":
+                        return (
+                          <td key="stockMin" className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 dark:text-gray-400" style={cellStyle}>
+                            {product.stockMin}
+                          </td>
+                        );
+                      case "aisle":
+                        return (
+                          <td key="aisle" className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400" style={cellStyle}>
+                            {product.aisle} <span className="mx-1">/</span> {product.shelf}
+                          </td>
+                        );
+                      case "supplierCode":
+                        return (
+                          <td key="supplierCode" className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400" style={cellStyle}>
+                            {product.supplierCode ? (
+                              <span className="max-w-xs truncate" title={product.supplierCode}>
+                                {product.supplierCode}
+                              </span>
+                            ) : (
+                              <span className="text-gray-400 dark:text-gray-500">-</span>
+                            )}
+                          </td>
+                        );
+                      case "costPrice":
+                        return (
+                          <td key="costPrice" className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-50" style={cellStyle}>
+                            {formatCurrency(product.costPrice)}
+                          </td>
+                        );
+                      case "salePrice":
+                        return (
+                          <td key="salePrice" className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-900 dark:text-gray-50" style={cellStyle}>
+                            {product.salePrice ? formatCurrency(product.salePrice) : (
+                              <span className="text-gray-400 dark:text-gray-500">-</span>
+                            )}
+                          </td>
+                        );
+                      case "updatedAt":
+                        return (
+                          <td key="updatedAt" className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400" style={cellStyle}>
+                            {new Date(product.updatedAt).toLocaleDateString("es-ES", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              year: "numeric"
+                            })}
+                          </td>
+                        );
+                      case "status":
+                        return (
+                          <td key="status" className="whitespace-nowrap px-4 py-3 text-center text-sm" style={cellStyle}>
+                            {isLowStock && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                                <AlertTriangle className="h-3 w-3" />
+                                {t("products.alarm")}
+                              </span>
+                            )}
+                            {!isLowStock && (
+                              <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
+                                {t("products.ok")}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      case "alarm":
+                        return (
+                          <td key="alarm" className="whitespace-nowrap px-4 py-3 text-center text-sm" style={cellStyle}>
+                            {isLowStock && (
+                              <div className="flex items-center justify-center">
+                                <div className="relative">
+                                  <AlertTriangle className="h-6 w-6 text-amber-500 dark:text-amber-400 animate-pulse" />
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="h-4 w-4 rounded-full bg-amber-500/30 animate-ping" />
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                            {!isLowStock && (
+                              <div className="flex items-center justify-center">
+                                <div className="h-2 w-2 rounded-full bg-green-500" />
+                              </div>
+                            )}
+                          </td>
+                        );
+                      case "actions":
+                        return null; // Las acciones se renderizan después
+                      default:
+                        return null;
+                    }
+                  };
+
+                  return renderCell();
+                })}
+                {isColumnVisible("actions") && (
+                  <td key="actions" className="whitespace-nowrap px-4 py-3 text-center text-sm">
+                    <div className="relative flex items-center justify-center gap-1">
                     {/* Botones principales siempre visibles */}
                     <div className={cn(
                       "flex items-center gap-1 transition-opacity duration-200",
@@ -442,7 +736,8 @@ export function ProductTable({
                                     <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
                                     <button
                                       onClick={() => {
-                                        if (window.confirm(t("actions.confirmDelete") || `¿Estás seguro de eliminar ${product.name}?`)) {
+                                        const confirmMessage = t("actions.confirmDelete") || "Estas seguro de eliminar " + product.name;
+                                        if (window.confirm(confirmMessage)) {
                                           onDelete(product);
                                         }
                                         setActionMenuOpen(null);
@@ -460,8 +755,9 @@ export function ProductTable({
                         )}
                       </div>
                     )}
-                  </div>
-                </td>
+                    </div>
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -470,5 +766,14 @@ export function ProductTable({
       </div>
     </div>
   );
-}
+}, (prevProps, nextProps) => {
+  // Comparación personalizada para React.memo
+  return (
+    prevProps.products === nextProps.products &&
+    prevProps.loading === nextProps.loading &&
+    prevProps.searchTerm === nextProps.searchTerm &&
+    JSON.stringify(prevProps.selectedIds) === JSON.stringify(nextProps.selectedIds) &&
+    JSON.stringify(prevProps.visibleColumns) === JSON.stringify(nextProps.visibleColumns)
+  );
+});
 

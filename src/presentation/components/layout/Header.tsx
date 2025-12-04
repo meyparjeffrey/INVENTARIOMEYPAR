@@ -28,7 +28,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-10 flex h-16 items-center gap-3 border-b border-gray-200 bg-white/95 backdrop-blur-sm px-4 shadow-sm transition-all duration-200 dark:border-gray-700 dark:bg-gray-800/95">
-      {/* Búsqueda global - Ocupa más espacio en desktop, responsive */}
+      {/* Búsqueda global - Ocupa espacio flexible, se ajusta en responsive */}
       <div className="flex-1 max-w-2xl min-w-0">
         <GlobalSearch placeholder={t("search.placeholder")} />
       </div>
@@ -36,8 +36,8 @@ export function Header() {
       {/* Separador visual - Solo en desktop */}
       <div className="hidden h-8 w-px bg-gray-200 dark:bg-gray-700 md:block" />
 
-      {/* Controles - Agrupados lógicamente con mejor espaciado */}
-      <div className="flex items-center gap-2">
+      {/* Controles - Siempre a la derecha, incluso en responsive */}
+      <div className="ml-auto flex shrink-0 items-center gap-2">
         {/* Estado de conexión - Menos prominente, solo desktop */}
         <div className="hidden lg:block">
           <ConnectionStatus />
@@ -56,7 +56,7 @@ export function Header() {
         {/* Separador antes del usuario */}
         <div className="hidden h-8 w-px bg-gray-200 dark:bg-gray-700 sm:block" />
 
-        {/* Usuario - Más prominente */}
+        {/* Usuario - Más prominente, siempre visible */}
         <UserMenu
           name={`${authContext.profile.firstName} ${authContext.profile.lastName}`}
           initials={authContext.profile.initials}
