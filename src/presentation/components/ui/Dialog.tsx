@@ -4,7 +4,7 @@ import * as React from "react";
 import { Button } from "./Button";
 import { cn } from "../../lib/cn";
 
-const Dialog = DialogPrimitive.Root;
+const DialogRoot = DialogPrimitive.Root;
 const DialogTrigger = DialogPrimitive.Trigger;
 const DialogPortal = DialogPrimitive.Portal;
 const DialogClose = DialogPrimitive.Close;
@@ -32,7 +32,7 @@ const DialogContent = React.forwardRef<
       <DialogPrimitive.Content
         ref={ref}
         className={cn(
-          "fixed left-[50%] top-[50%] z-50 grid w-full translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border border-gray-200 bg-white p-6 shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] dark:border-gray-700 dark:bg-gray-800",
+          "fixed left-[50%] top-[50%] z-50 grid w-full max-h-[90vh] translate-x-[-50%] translate-y-[-50%] gap-4 rounded-lg border border-gray-200 bg-white shadow-lg duration-200 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95 data-[state=closed]:slide-out-to-left-1/2 data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-left-1/2 data-[state=open]:slide-in-from-top-[48%] dark:border-gray-700 dark:bg-gray-800",
           sizeClasses[size],
           className
         )}
@@ -89,8 +89,39 @@ const DialogDescription = React.forwardRef<
 ));
 DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
+// Wrapper component para facilitar el uso
+interface DialogWrapperProps {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  size?: "sm" | "md" | "lg" | "xl" | "full";
+  children: React.ReactNode;
+}
+
+function Dialog({ isOpen, onClose, title, size = "md", children }: DialogWrapperProps) {
+  return (
+    <DialogRoot open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      {isOpen && (
+        <DialogContent size={size} className="p-0">
+          {title && (
+            <div className="flex-shrink-0 border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+              <DialogHeader className="mb-0">
+                <DialogTitle>{title}</DialogTitle>
+              </DialogHeader>
+            </div>
+          )}
+          <div className="overflow-y-auto max-h-[calc(90vh-8rem)] px-6 py-6">
+            {children}
+          </div>
+        </DialogContent>
+      )}
+    </DialogRoot>
+  );
+}
+
 export {
   Dialog,
+  DialogRoot,
   DialogPortal,
   DialogOverlay,
   DialogClose,

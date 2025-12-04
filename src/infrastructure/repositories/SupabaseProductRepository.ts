@@ -5,9 +5,11 @@ import type {
 } from "@domain/entities";
 import type {
   BatchFilters,
+  CreateBatchInput,
   CreateProductInput,
   ProductFilters,
   ProductRepository,
+  UpdateBatchInput,
   UpdateProductInput
 } from "@domain/repositories/ProductRepository";
 import type { PaginationParams } from "@domain/repositories/types";
@@ -193,22 +195,58 @@ export class SupabaseProductRepository
       );
     }
 
-    // Para el filtro de stock bajo, necesitamos comparar dos columnas (stock_current <= stock_min)
-    // Supabase PostgREST no soporta comparaciones directas entre columnas, así que:
-    // 1. Obtenemos todos los productos que cumplan los otros filtros
-    // 2. Filtramos por stock bajo en el cliente
-    // 3. Aplicamos paginación después del filtro
-    
-    // Si el filtro lowStock está activo, necesitamos obtener todos los productos primero
-    // para poder filtrar correctamente antes de paginar
-    if (filters?.lowStock) {
-      // Obtener todos los productos que cumplan los filtros (sin paginación)
+    // Filtros por fecha de modificación
+    if (filters?.lastModifiedFrom) {
+      query = query.gte("updated_at", filters.lastModifiedFrom);
+    }
+    if (filters?.lastModifiedTo) {
+      query = query.lte("updated_at", filters.lastModifiedTo + "T23:59:59.999Z");
+    }
+
+    // Para filtros que requieren comparación entre columnas o consultas complejas,
+    // necesitamos obtener todos los productos primero y filtrar en el cliente
+    const needsClientFiltering = filters?.lowStock || filters?.stockNearMinimum || 
+                                  (filters?.lastModifiedType && filters.lastModifiedType !== "both");
+
+    if (needsClientFiltering) {
+      // Obtener todos los productos que cumplan los filtros básicos (sin paginación)
       const { data: allData, error: allError } = await query;
       this.handleError("listar productos", allError);
       
-      // Filtrar por stock bajo
       let allProducts = (allData ?? []).map(mapProduct);
-      allProducts = allProducts.filter((p) => p.stockCurrent <= p.stockMin);
+      
+      // Filtrar por stock bajo
+      if (filters?.lowStock) {
+        allProducts = allProducts.filter((p) => p.stockCurrent <= p.stockMin);
+      }
+      
+      // Filtrar por stock cerca del mínimo (15%)
+      if (filters?.stockNearMinimum) {
+        allProducts = allProducts.filter((p) => p.stockCurrent <= p.stockMin * 1.15);
+      }
+      
+      // Filtrar por tipo de modificación (entradas/salidas)
+      if (filters?.lastModifiedType && filters.lastModifiedType !== "both") {
+        const movementType = filters.lastModifiedType === "entries" ? "IN" : "OUT";
+        const dateFrom = filters.lastModifiedFrom || new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+        const dateTo = filters.lastModifiedTo || new Date().toISOString().split("T")[0];
+        
+        // Obtener productos con movimientos del tipo especificado en el rango de fechas
+        const { data: movementsData } = await this.client
+          .from("inventory_movements")
+          .select("product_id")
+          .eq("movement_type", movementType)
+          .gte("movement_date", dateFrom + "T00:00:00.000Z")
+          .lte("movement_date", dateTo + "T23:59:59.999Z");
+        
+        if (movementsData && movementsData.length > 0) {
+          const productIdsWithMovements = new Set(movementsData.map((m: any) => m.product_id));
+          allProducts = allProducts.filter((p) => productIdsWithMovements.has(p.id));
+        } else {
+          // Si no hay movimientos, no hay productos que mostrar
+          allProducts = [];
+        }
+      }
       
       // Aplicar paginación después del filtro
       const totalCount = allProducts.length;
@@ -222,7 +260,7 @@ export class SupabaseProductRepository
       );
     }
 
-    // Si no hay filtro de stock bajo, usar paginación normal
+    // Si no hay filtros que requieran procesamiento en el cliente, usar paginación normal
     const { data, error, count } = await query.range(from, to);
     this.handleError("listar productos", error);
 
@@ -455,6 +493,10 @@ export class SupabaseProductRepository
       query = query.gt("quantity_available", 0);
     }
 
+    if (filters?.search) {
+      query = query.or(`batch_code.ilike.%${filters.search}%,batch_barcode.ilike.%${filters.search}%`);
+    }
+
     const { data, error, count } = await query.range(from, to);
     this.handleError("listar todos los lotes", error);
 
@@ -491,6 +533,110 @@ export class SupabaseProductRepository
       .single();
 
     this.handleError("actualizar estado de lote", error);
+    return mapBatch(data as BatchRow);
+  }
+
+  /**
+   * Busca un lote por su código o barcode.
+   */
+  async findByBatchCodeOrBarcode(term: string): Promise<ProductBatch | null> {
+    const { data, error } = await this.client
+      .from("product_batches")
+      .select("*")
+      .or(`batch_code.ilike.%${term}%,batch_barcode.eq.${term}`)
+      .limit(1)
+      .single();
+
+    this.handleError("buscar lote por código/barcode", error);
+    return data ? mapBatch(data as BatchRow) : null;
+  }
+
+  /**
+   * Verifica si un código de lote ya existe.
+   */
+  async batchCodeExists(batchCode: string): Promise<boolean> {
+    const { data, error } = await this.client
+      .from("product_batches")
+      .select("id")
+      .eq("batch_code", batchCode.toUpperCase())
+      .limit(1)
+      .maybeSingle();
+
+    if (error && error.code !== "PGRST116") {
+      // PGRST116 es "no rows returned", que es válido
+      this.handleError("verificar código de lote", error);
+    }
+
+    return !!data;
+  }
+
+  /**
+   * Crea un nuevo lote.
+   */
+  async createBatch(input: CreateBatchInput): Promise<ProductBatch> {
+    const row: Partial<BatchRow> = {
+      product_id: input.productId,
+      supplier_id: input.supplierId ?? null,
+      batch_code: input.batchCode,
+      batch_barcode: input.batchBarcode ?? null,
+      quantity_total: input.quantityTotal,
+      quantity_available: input.quantityAvailable,
+      quantity_reserved: input.quantityReserved ?? 0,
+      defective_qty: input.defectiveQty ?? 0,
+      status: input.status ?? "OK",
+      blocked_reason: input.blockedReason ?? null,
+      quality_score: input.qualityScore ?? 1.0,
+      received_at: input.receivedAt ?? new Date().toISOString(),
+      expiry_date: input.expiryDate ?? null,
+      manufacture_date: input.manufactureDate ?? null,
+      cost_per_unit: input.costPerUnit ?? null,
+      location_override: input.locationOverride ?? null,
+      notes: input.notes ?? null,
+      created_by: input.createdBy
+    };
+
+    const { data, error } = await this.client
+      .from("product_batches")
+      .insert(row)
+      .select("*")
+      .single();
+
+    this.handleError("crear lote", error);
+    return mapBatch(data as BatchRow);
+  }
+
+  /**
+   * Actualiza un lote existente.
+   */
+  async updateBatch(batchId: string, input: UpdateBatchInput): Promise<ProductBatch> {
+    const row: Partial<BatchRow> = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (input.batchCode !== undefined) row.batch_code = input.batchCode;
+    if (input.batchBarcode !== undefined) row.batch_barcode = input.batchBarcode;
+    if (input.quantityTotal !== undefined) row.quantity_total = input.quantityTotal;
+    if (input.quantityAvailable !== undefined) row.quantity_available = input.quantityAvailable;
+    if (input.quantityReserved !== undefined) row.quantity_reserved = input.quantityReserved;
+    if (input.defectiveQty !== undefined) row.defective_qty = input.defectiveQty;
+    if (input.status !== undefined) row.status = input.status;
+    if (input.blockedReason !== undefined) row.blocked_reason = input.blockedReason;
+    if (input.qualityScore !== undefined) row.quality_score = input.qualityScore;
+    if (input.receivedAt !== undefined) row.received_at = input.receivedAt;
+    if (input.expiryDate !== undefined) row.expiry_date = input.expiryDate;
+    if (input.manufactureDate !== undefined) row.manufacture_date = input.manufactureDate;
+    if (input.costPerUnit !== undefined) row.cost_per_unit = input.costPerUnit;
+    if (input.locationOverride !== undefined) row.location_override = input.locationOverride;
+    if (input.notes !== undefined) row.notes = input.notes;
+
+    const { data, error } = await this.client
+      .from("product_batches")
+      .update(row)
+      .eq("id", batchId)
+      .select("*")
+      .single();
+
+    this.handleError("actualizar lote", error);
     return mapBatch(data as BatchRow);
   }
 }

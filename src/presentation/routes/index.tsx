@@ -15,6 +15,10 @@ const ProductNewPage = React.lazy(() =>
   import("../pages/ProductNewPage").then((module) => ({ default: module.ProductNewPage }))
 );
 
+const ProductDuplicatePage = React.lazy(() =>
+  import("../pages/ProductDuplicatePage").then((module) => ({ default: module.ProductDuplicatePage }))
+);
+
 const ProductDetailPage = React.lazy(() =>
   import("../pages/ProductDetailPage").then((module) => ({ default: module.ProductDetailPage }))
 );
@@ -125,6 +129,20 @@ const routes: RouteObject[] = [
             }
           >
             <ProductNewPage />
+          </React.Suspense>
+        )
+      },
+      {
+        path: "/products/duplicate/:id",
+        element: (
+          <React.Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+              </div>
+            }
+          >
+            <ProductDuplicatePage />
           </React.Suspense>
         )
       },

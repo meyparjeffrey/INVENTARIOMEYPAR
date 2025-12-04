@@ -11,7 +11,6 @@ import { BulkActionsBar } from "../components/products/BulkActionsBar";
 import { ProductFilters, type ProductFiltersState } from "../components/products/ProductFilters";
 import { ExportDialog, type ColumnOption } from "../components/products/ExportDialog";
 import { ColumnConfigDialog } from "../components/products/ColumnConfigDialog";
-import { FilterPresetsManager } from "../components/products/FilterPresetsManager";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { SearchInput } from "../components/ui/SearchInput";
@@ -46,14 +45,13 @@ export function ProductsPage() {
     { id: "category", label: t("table.category"), visible: true, order: 2 },
     { id: "stockCurrent", label: t("table.stock"), visible: true, order: 3 },
     { id: "stockMin", label: t("table.min"), visible: true, order: 4 },
-    { id: "alarm", label: t("table.alarm"), visible: true, order: 5 },
-    { id: "aisle", label: t("table.location"), visible: true, order: 6 },
-    { id: "supplierCode", label: t("table.supplierCode"), visible: true, order: 7 },
-    { id: "costPrice", label: t("products.price.cost"), visible: false, order: 8 },
-    { id: "salePrice", label: t("products.price.sale"), visible: false, order: 9 },
-    { id: "updatedAt", label: t("products.lastUpdate"), visible: false, order: 10 },
-    { id: "status", label: t("table.status"), visible: true, order: 11 },
-    { id: "actions", label: t("table.actions"), visible: true, order: 12 }
+    { id: "aisle", label: t("table.location"), visible: true, order: 5 },
+    { id: "supplierCode", label: t("table.supplierCode"), visible: true, order: 6 },
+    { id: "costPrice", label: t("products.price.cost"), visible: false, order: 7 },
+    { id: "salePrice", label: t("products.price.sale"), visible: false, order: 8 },
+    { id: "updatedAt", label: t("products.lastUpdate"), visible: false, order: 9 },
+    { id: "status", label: t("table.status"), visible: true, order: 10 },
+    { id: "actions", label: t("table.actions"), visible: true, order: 11 }
   ], [t]);
 
   const {
@@ -77,8 +75,12 @@ export function ProductsPage() {
             search: searchTerm || undefined,
             includeInactive: showInactive,
             lowStock: showLowStock || advancedFilters.lowStock || undefined,
+            stockNearMinimum: advancedFilters.stockNearMinimum,
             category: advancedFilters.category,
-            isBatchTracked: advancedFilters.isBatchTracked
+            isBatchTracked: advancedFilters.isBatchTracked,
+            lastModifiedFrom: advancedFilters.dateFrom,
+            lastModifiedTo: advancedFilters.dateTo,
+            lastModifiedType: advancedFilters.lastModifiedType || "both"
           },
           { page: currentPage, pageSize }
         );
@@ -122,7 +124,7 @@ export function ProductsPage() {
   };
 
   const handleDuplicate = (product: Product) => {
-    navigate(`/products/new?duplicate=${product.id}`);
+    navigate(`/products/duplicate/${product.id}`);
   };
 
   const handleHistory = (product: Product) => {
@@ -385,19 +387,18 @@ export function ProductsPage() {
     let worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Productos");
-
-    // Nota: xlsx básico no soporta estilos directamente.
-    // Para estilos avanzados, se necesitaría xlsx-style o exceljs.
-    // Por ahora, aplicamos formato numérico donde sea posible.
     
     const headerRow = excelData.length > 0 ? Object.keys(excelData[0]) : [];
+    
+    // Nota: Los estilos de Excel requieren xlsx-style, que no es compatible con Vite
+    // Se usa XLSX estándar que funciona correctamente sin estilos
     
     // Formatear columnas de precio como moneda (formato numérico)
     headerRow.forEach((colName) => {
       if (colName.includes("(€)") || colName.includes("Precio")) {
         const colIndex = headerRow.indexOf(colName);
         if (colIndex >= 0) {
-          for (let row = 1; row <= excelData.length; row++) {
+          for (let row = 1; row < excelData.length; row++) {
             const cellAddress = XLSX.utils.encode_cell({ r: row, c: colIndex });
             if (worksheet[cellAddress] && worksheet[cellAddress].v !== "" && typeof worksheet[cellAddress].v === "number") {
               worksheet[cellAddress].z = "#,##0.00"; // Formato numérico con separadores de miles
@@ -422,7 +423,10 @@ export function ProductsPage() {
     // Añadir fila de totales si hay columnas numéricas
     const numericColumns: Record<string, "sum" | "avg"> = {};
     headerRow.forEach((colName) => {
-      if (colName.includes("Stock") || colName.includes("stock")) {
+      // Solo sumar Stock Actual (la columna con key "stockCurrent"), no Stock Máximo ni Stock Mínimo
+      // Buscar la columna que corresponde a stockCurrent por su label
+      const stockColumn = exportColumns.find((c) => c.key === "stockCurrent");
+      if (stockColumn && colName === stockColumn.label) {
         numericColumns[colName] = "sum";
       } else if (colName.includes("Precio") || colName.includes("precio")) {
         numericColumns[colName] = "sum";
@@ -446,7 +450,7 @@ export function ProductsPage() {
       // Recrear worksheet con totales
       const newWorksheet = XLSX.utils.json_to_sheet(excelData);
       
-      // Aplicar formato numérico a los totales
+      // Aplicar formato numérico y estilos a los totales
       const lastRow = excelData.length - 1;
       headerRow.forEach((colName, colIndex) => {
         if (numericColumns[colName]) {
@@ -635,29 +639,6 @@ export function ProductsPage() {
                 onClear={() => {
                   setAdvancedFilters({});
                   setShowLowStock(false);
-                }}
-              />
-              <FilterPresetsManager
-                currentFilters={{
-                  ...advancedFilters,
-                  search: searchTerm || undefined,
-                  includeInactive: showInactive,
-                  lowStock: showLowStock || advancedFilters.lowStock || undefined
-                }}
-                onLoadPreset={(filters) => {
-                  setAdvancedFilters({
-                    category: filters.category,
-                    stockMin: filters.stockMin,
-                    stockMax: filters.stockMax,
-                    priceMin: filters.priceMin,
-                    priceMax: filters.priceMax,
-                    supplierCode: filters.supplierCode,
-                    isBatchTracked: filters.isBatchTracked,
-                    lowStock: filters.lowStock
-                  });
-                  if (filters.search) setSearchTerm(filters.search);
-                  if (filters.includeInactive !== undefined) setShowInactive(filters.includeInactive);
-                  if (filters.lowStock) setShowLowStock(true);
                 }}
               />
             </div>

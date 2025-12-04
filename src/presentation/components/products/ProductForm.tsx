@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Package, Box, MapPin, DollarSign, Info, Settings, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Package, Box, MapPin, DollarSign, Info, Settings, CheckCircle2, AlertCircle, Wand2 } from "lucide-react";
 import * as React from "react";
 import type { CreateProductInput, UpdateProductInput } from "@domain/repositories/ProductRepository";
 import type { Product } from "@domain/entities";
@@ -9,6 +9,7 @@ import { Label } from "../ui/Label";
 import { useLanguage } from "../../context/LanguageContext";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { cn } from "../../lib/cn";
+import { useBatches } from "../../hooks/useBatches";
 
 // Componentes memoizados fuera del componente principal para evitar re-renders
 const FieldWrapper = React.memo(({ 
@@ -86,9 +87,11 @@ interface ProductFormProps {
  */
 export function ProductForm({ product, onSubmit, onCancel, loading = false }: ProductFormProps) {
   const { t } = useLanguage();
+  const { batchCodeExists } = useBatches();
   const isEditing = !!product;
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [touchedFields, setTouchedFields] = React.useState<Set<string>>(new Set());
+  const [checkingCode, setCheckingCode] = React.useState(false);
   const [formData, setFormData] = React.useState({
     code: product?.code ?? "",
     barcode: product?.barcode ?? "",
@@ -106,8 +109,8 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
     purchaseUrl: product?.purchaseUrl ?? "",
     imageUrl: product?.imageUrl ?? "",
     supplierCode: product?.supplierCode ?? "",
+    batchCode: "", // Campo para código de lote
     isActive: product?.isActive ?? true,
-    isBatchTracked: product?.isBatchTracked ?? false,
     unitOfMeasure: product?.unitOfMeasure ?? "unidad",
     weightKg: product?.weightKg ?? "",
     dimensionsLength: product?.dimensionsCm?.length ?? "",
@@ -328,7 +331,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
       imageUrl: formData.imageUrl.trim() || null,
       supplierCode: formData.supplierCode.trim() || null,
       isActive: formData.isActive,
-      isBatchTracked: formData.isBatchTracked,
+      isBatchTracked: false, // Siempre false, se eliminó la opción
       unitOfMeasure: formData.unitOfMeasure || null,
       weightKg: formData.weightKg !== "" && formData.weightKg !== null ? Number(formData.weightKg) : null,
       dimensionsCm,
@@ -339,6 +342,22 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
   };
 
   const handleChange = React.useCallback((field: string, value: string | number | boolean) => {
+    // Si es batchCode, convertir a mayúsculas y aplicar formato
+    if (field === "batchCode" && typeof value === "string") {
+      let formatted = value.toUpperCase().replace(/[^L0-9-]/g, "");
+      // Asegurar formato L-XXXXX
+      if (formatted.startsWith("L") && !formatted.includes("-")) {
+        if (formatted.length > 1) {
+          formatted = `L-${formatted.slice(1)}`;
+        }
+      }
+      // Limitar a 7 caracteres (L-XXXXX)
+      if (formatted.length > 7) {
+        formatted = formatted.slice(0, 7);
+      }
+      value = formatted;
+    }
+    
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Solo limpiar error si existe, sin validar
     setErrors((prev) => {
@@ -418,6 +437,84 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
               />
             </FieldWrapper>
           </div>
+
+          <FieldWrapper error={errors.batchCode} touched={touchedFields.has("batchCode")}>
+            <Label htmlFor="batchCode">{t("batches.form.batchCode") || "Código de Lote"}</Label>
+            <div className="flex gap-2">
+              <Input
+                id="batchCode"
+                value={formData.batchCode}
+                onChange={(e) => handleChange("batchCode", e.target.value)}
+                onBlur={async () => {
+                  handleBlur("batchCode");
+                  // Validar formato y duplicados
+                  if (formData.batchCode.trim()) {
+                    const batchCode = formData.batchCode.trim().toUpperCase();
+                    const formatRegex = /^L-\d{5}$/;
+                    if (!formatRegex.test(batchCode)) {
+                      setErrors((prev) => ({
+                        ...prev,
+                        batchCode: t("batches.form.batchCodeFormat") || "El código debe seguir el formato L-XXXXX (ej: L-00001)"
+                      }));
+                    } else {
+                      setCheckingCode(true);
+                      const exists = await batchCodeExists(batchCode);
+                      setCheckingCode(false);
+                      if (exists) {
+                        setErrors((prev) => ({
+                          ...prev,
+                          batchCode: t("batches.form.batchCodeExists") || "Este código de lote ya existe"
+                        }));
+                      }
+                    }
+                  }
+                }}
+                placeholder="L-00001"
+                disabled={checkingCode}
+                className={cn(
+                  "flex-1 transition-all duration-200",
+                  errors.batchCode && touchedFields.has("batchCode")
+                    ? "border-red-500 focus:border-red-500 focus:ring-red-500"
+                    : "focus:border-blue-500 focus:ring-blue-500"
+                )}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={async () => {
+                  // Generar código único L-XXXXX
+                  let attempt = 1;
+                  let newCode = `L-${String(attempt).padStart(5, "0")}`;
+                  
+                  while (await batchCodeExists(newCode)) {
+                    attempt++;
+                    newCode = `L-${String(attempt).padStart(5, "0")}`;
+                    if (attempt > 99999) {
+                      const timestamp = Date.now().toString().slice(-5);
+                      newCode = `L-${timestamp}`;
+                      break;
+                    }
+                  }
+                  
+                  handleChange("batchCode", newCode);
+                }}
+                className="gap-2"
+                title={t("batches.form.generateCode") || "Generar código automático"}
+                disabled={checkingCode}
+              >
+                <Wand2 className="h-4 w-4" />
+              </Button>
+            </div>
+            {errors.batchCode && touchedFields.has("batchCode") && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400">
+                <AlertCircle className="h-3.5 w-3.5" />
+                {errors.batchCode}
+              </p>
+            )}
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {t("batches.form.batchCodeHint") || "Formato: L-XXXXX (ej: L-00001)"}
+            </p>
+          </FieldWrapper>
 
           <FieldWrapper error={errors.name} touched={touchedFields.has("name")}>
             <Label htmlFor="name" className="flex items-center gap-1.5">
@@ -786,20 +883,6 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
               className="h-4 w-4 rounded border-gray-300 text-blue-600 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             />
             <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t("form.activeProduct")}</span>
-          </motion.label>
-
-          <motion.label
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="flex cursor-pointer items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 transition-all duration-200 hover:border-blue-300 hover:bg-blue-50/50 dark:border-gray-700 dark:bg-gray-900/50 dark:hover:border-blue-600 dark:hover:bg-blue-900/20"
-          >
-            <input
-              type="checkbox"
-              checked={formData.isBatchTracked}
-              onChange={(e) => handleChange("isBatchTracked", e.target.checked)}
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 transition-all duration-200 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            />
-            <span className="text-sm font-medium text-gray-700 dark:text-gray-300">{t("form.batchTracked")}</span>
           </motion.label>
         </div>
       </SectionCard>

@@ -12,6 +12,10 @@ export interface ProductFilters {
   includeInactive?: boolean;
   isBatchTracked?: boolean;
   lowStock?: boolean; // Filtro para productos con stock <= stock_min
+  stockNearMinimum?: boolean; // Filtro para productos con stock <= stock_min * 1.15 (15% sobre mínimo)
+  lastModifiedFrom?: string; // Fecha desde (ISO string)
+  lastModifiedTo?: string; // Fecha hasta (ISO string)
+  lastModifiedType?: "entries" | "exits" | "both"; // Tipo de modificación: entradas, salidas, ambas
 }
 
 export interface BatchFilters {
@@ -19,6 +23,46 @@ export interface BatchFilters {
   expiryBefore?: string;
   expiryAfter?: string;
   onlyAvailable?: boolean;
+  search?: string; // Búsqueda por código o barcode
+}
+
+export interface CreateBatchInput {
+  productId: UUID;
+  supplierId?: UUID | null;
+  batchCode: string;
+  batchBarcode?: string | null;
+  quantityTotal: number;
+  quantityAvailable: number;
+  quantityReserved?: number;
+  defectiveQty?: number;
+  status?: ProductBatch["status"];
+  blockedReason?: string | null;
+  qualityScore?: number;
+  receivedAt?: string;
+  expiryDate?: string | null;
+  manufactureDate?: string | null;
+  costPerUnit?: number | null;
+  locationOverride?: string | null;
+  notes?: string | null;
+  createdBy: UUID;
+}
+
+export interface UpdateBatchInput {
+  batchCode?: string;
+  batchBarcode?: string | null;
+  quantityTotal?: number;
+  quantityAvailable?: number;
+  quantityReserved?: number;
+  defectiveQty?: number;
+  status?: ProductBatch["status"];
+  blockedReason?: string | null;
+  qualityScore?: number;
+  receivedAt?: string;
+  expiryDate?: string | null;
+  manufactureDate?: string | null;
+  costPerUnit?: number | null;
+  locationOverride?: string | null;
+  notes?: string | null;
 }
 
 export interface CreateProductInput {
@@ -124,6 +168,26 @@ export interface ProductRepository {
     filters?: BatchFilters,
     pagination?: PaginationParams
   ): Promise<PaginatedResult<ProductBatch>>;
+
+  /**
+   * Busca un lote por su código o barcode.
+   */
+  findByBatchCodeOrBarcode(term: string): Promise<ProductBatch | null>;
+
+  /**
+   * Verifica si un código de lote ya existe.
+   */
+  batchCodeExists(batchCode: string): Promise<boolean>;
+
+  /**
+   * Crea un nuevo lote.
+   */
+  createBatch(input: CreateBatchInput): Promise<ProductBatch>;
+
+  /**
+   * Actualiza un lote existente.
+   */
+  updateBatch(batchId: UUID, input: UpdateBatchInput): Promise<ProductBatch>;
 
   /**
    * Actualiza el estado de un lote.

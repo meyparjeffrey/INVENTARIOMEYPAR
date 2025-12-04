@@ -17,8 +17,10 @@ export interface ProductFiltersState {
   supplierCode?: string;
   isBatchTracked?: boolean;
   lowStock?: boolean;
+  stockNearMinimum?: boolean; // 15% sobre stock mínimo
   dateFrom?: string;
   dateTo?: string;
+  lastModifiedType?: "entries" | "exits" | "both"; // Tipo de modificación
 }
 
 interface ProductFiltersProps {
@@ -30,6 +32,13 @@ interface ProductFiltersProps {
 /**
  * Componente de filtros avanzados para productos con diseño moderno.
  */
+// Función auxiliar para obtener fecha hace N días
+function getDateDaysAgo(days: number): string {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date.toISOString().split("T")[0];
+}
+
 export function ProductFilters({ filters, onFiltersChange, onClear }: ProductFiltersProps) {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = React.useState(false);
@@ -233,6 +242,129 @@ export function ProductFilters({ filters, onFiltersChange, onClear }: ProductFil
                       {t("products.lowStockOnly")}
                     </span>
                   </label>
+                  <label className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={filters.stockNearMinimum || false}
+                      onChange={(e) => handleFilterChange("stockNearMinimum", e.target.checked || undefined)}
+                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      {t("filters.stockNearMinimum") || "Productos al 15% del stock mínimo"}
+                    </span>
+                  </label>
+                </div>
+
+                {/* Filtros por fecha de modificación */}
+                <div className="space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+                  <Label>{t("filters.lastModified") || "Última modificación"}</Label>
+                  
+                  {/* Botones rápidos */}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant={filters.dateFrom === getDateDaysAgo(7) ? "primary" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        const dateFrom = getDateDaysAgo(7);
+                        handleFilterChange("dateFrom", dateFrom);
+                        handleFilterChange("dateTo", undefined);
+                      }}
+                    >
+                      {t("filters.last7Days") || "7 días"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={filters.dateFrom === getDateDaysAgo(30) ? "primary" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        const dateFrom = getDateDaysAgo(30);
+                        handleFilterChange("dateFrom", dateFrom);
+                        handleFilterChange("dateTo", undefined);
+                      }}
+                    >
+                      {t("filters.last30Days") || "30 días"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={filters.dateFrom === getDateDaysAgo(90) ? "primary" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        const dateFrom = getDateDaysAgo(90);
+                        handleFilterChange("dateFrom", dateFrom);
+                        handleFilterChange("dateTo", undefined);
+                      }}
+                    >
+                      {t("filters.last90Days") || "90 días"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={filters.dateFrom === getDateDaysAgo(365) ? "primary" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        const dateFrom = getDateDaysAgo(365);
+                        handleFilterChange("dateFrom", dateFrom);
+                        handleFilterChange("dateTo", undefined);
+                      }}
+                    >
+                      {t("filters.lastYear") || "1 año"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        handleFilterChange("dateFrom", undefined);
+                        handleFilterChange("dateTo", undefined);
+                      }}
+                    >
+                      {t("filters.clear") || "Limpiar"}
+                    </Button>
+                  </div>
+
+                  {/* Selector de rango personalizado */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="filter-dateFrom" className="text-xs">
+                        {t("filters.dateFrom") || "Desde"}
+                      </Label>
+                      <Input
+                        id="filter-dateFrom"
+                        type="date"
+                        value={filters.dateFrom || ""}
+                        onChange={(e) => handleFilterChange("dateFrom", e.target.value || undefined)}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="filter-dateTo" className="text-xs">
+                        {t("filters.dateTo") || "Hasta"}
+                      </Label>
+                      <Input
+                        id="filter-dateTo"
+                        type="date"
+                        value={filters.dateTo || ""}
+                        onChange={(e) => handleFilterChange("dateTo", e.target.value || undefined)}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Tipo de modificación */}
+                  <div>
+                    <Label className="text-xs mb-1 block">
+                      {t("filters.modificationType") || "Tipo de modificación"}
+                    </Label>
+                    <select
+                      value={filters.lastModifiedType || "both"}
+                      onChange={(e) => handleFilterChange("lastModifiedType", e.target.value as "entries" | "exits" | "both" || undefined)}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                    >
+                      <option value="both">{t("filters.both") || "Ambas"}</option>
+                      <option value="entries">{t("filters.entriesOnly") || "Solo entradas"}</option>
+                      <option value="exits">{t("filters.exitsOnly") || "Solo salidas"}</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 

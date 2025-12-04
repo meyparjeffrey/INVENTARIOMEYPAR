@@ -157,8 +157,14 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             >
               <div 
                 className="whitespace-pre-wrap break-words prose prose-sm dark:prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: message.content.replace(/\n/g, '<br />') }}
-              />
+              >
+                {message.content.split('\n').map((line, index, array) => (
+                  <React.Fragment key={index}>
+                    {line}
+                    {index < array.length - 1 && <br />}
+                  </React.Fragment>
+                ))}
+              </div>
               
               {/* Botones de menú si existen */}
               {menuOptions.length > 0 && (

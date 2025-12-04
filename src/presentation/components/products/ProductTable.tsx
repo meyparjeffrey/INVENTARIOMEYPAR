@@ -169,14 +169,13 @@ export const ProductTable = React.memo(function ProductTable({
         { id: "category", order: 2 },
         { id: "stockCurrent", order: 3 },
         { id: "stockMin", order: 4 },
-        { id: "alarm", order: 5 },
-        { id: "aisle", order: 6 },
-        { id: "supplierCode", order: 7 },
-        { id: "costPrice", order: 8 },
-        { id: "salePrice", order: 9 },
-        { id: "updatedAt", order: 10 },
-        { id: "status", order: 11 },
-        { id: "actions", order: 12 }
+        { id: "aisle", order: 5 },
+        { id: "supplierCode", order: 6 },
+        { id: "costPrice", order: 7 },
+        { id: "salePrice", order: 8 },
+        { id: "updatedAt", order: 9 },
+        { id: "status", order: 10 },
+        { id: "actions", order: 11 }
       ];
     }
     return visibleColumns
@@ -322,8 +321,6 @@ export const ProductTable = React.memo(function ProductTable({
                     return { label: t("products.lastUpdate"), sortField: "updatedAt" as SortField, align: "left" };
                   case "status":
                     return { label: t("table.status"), sortField: null, align: "center" };
-                  case "alarm":
-                    return { label: t("table.alarm"), sortField: null, align: "center" };
                   case "actions":
                     return { label: t("table.actions"), sortField: null, align: "center" };
                   default:
@@ -481,29 +478,62 @@ export const ProductTable = React.memo(function ProductTable({
                           </td>
                         );
                       case "stockCurrent":
-                        // Calcular porcentaje basado en mínimo como referencia
-                        // Si stock = mínimo, la barra está al 0% (en alarma)
-                        // Si stock = mínimo * 2, la barra está al 50%
-                        // Si stock >= mínimo * 2, la barra está al 100% o más
+                        // Sistema de porcentajes por 15% basado en stockMin
                         const stockMinRef = product.stockMin || 1; // Evitar división por 0
-                        const stockProgress = product.stockCurrent <= stockMinRef
-                          ? 0 // En alarma
-                          : Math.min((product.stockCurrent / (stockMinRef * 2)) * 100, 100); // Progresivo hasta 2x el mínimo
+                        let stockProgress = 0;
+                        let progressColor = "bg-red-500 dark:bg-red-600"; // Rojo por defecto
+                        
+                        if (product.stockCurrent <= stockMinRef) {
+                          // 0%: En o por debajo del mínimo (rojo)
+                          stockProgress = 0;
+                          progressColor = "bg-red-500 dark:bg-red-600";
+                        } else if (product.stockCurrent <= stockMinRef * 1.15) {
+                          // 15%: Entre mínimo y 15% por encima (amarillo)
+                          stockProgress = 15;
+                          progressColor = "bg-yellow-500 dark:bg-yellow-600";
+                        } else if (product.stockCurrent <= stockMinRef * 1.30) {
+                          // 30%: Entre 15% y 30% por encima (amarillo)
+                          stockProgress = 30;
+                          progressColor = "bg-yellow-500 dark:bg-yellow-600";
+                        } else if (product.stockCurrent <= stockMinRef * 1.45) {
+                          // 45%: Entre 30% y 45% por encima (amarillo/verde)
+                          stockProgress = 45;
+                          progressColor = "bg-yellow-500 dark:bg-yellow-600";
+                        } else if (product.stockCurrent <= stockMinRef * 1.60) {
+                          // 60%: Entre 45% y 60% por encima (verde claro)
+                          stockProgress = 60;
+                          progressColor = "bg-green-400 dark:bg-green-500";
+                        } else if (product.stockCurrent <= stockMinRef * 1.75) {
+                          // 75%: Entre 60% y 75% por encima (verde)
+                          stockProgress = 75;
+                          progressColor = "bg-green-500 dark:bg-green-600";
+                        } else if (product.stockCurrent <= stockMinRef * 1.90) {
+                          // 90%: Entre 75% y 90% por encima (verde)
+                          stockProgress = 90;
+                          progressColor = "bg-green-500 dark:bg-green-600";
+                        } else if (product.stockCurrent <= stockMinRef * 2) {
+                          // 100%: Entre 90% y 2x el mínimo (verde)
+                          stockProgress = 100;
+                          progressColor = "bg-green-600 dark:bg-green-700";
+                        } else {
+                          // 100%+: Más de 2x el mínimo (verde oscuro)
+                          stockProgress = 100;
+                          progressColor = "bg-green-700 dark:bg-green-800";
+                        }
                         
                         return (
                           <td key="stockCurrent" className="whitespace-nowrap px-4 py-3 text-right text-sm" style={cellStyle}>
                             <div className="flex flex-col items-end gap-1">
-                              <span className={cn("font-medium", isLowStock && "text-amber-600 dark:text-amber-400")}>
+                              <span className={cn(
+                                "font-medium",
+                                isLowStock && "text-red-600 dark:text-red-400",
+                                !isLowStock && product.stockCurrent <= stockMinRef * 1.15 && "text-yellow-600 dark:text-yellow-400"
+                              )}>
                                 {product.stockCurrent}
                               </span>
                               <div className="h-1.5 w-16 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                                 <div
-                                  className={cn(
-                                    "h-full transition-all duration-300",
-                                    isLowStock
-                                      ? "bg-amber-500 dark:bg-amber-600"
-                                      : "bg-green-500 dark:bg-green-600"
-                                  )}
+                                  className={cn("h-full transition-all duration-300", progressColor)}
                                   style={{
                                     width: `${Math.max(stockProgress, 5)}%` // Mínimo 5% para que sea visible
                                   }}
@@ -563,35 +593,24 @@ export const ProductTable = React.memo(function ProductTable({
                       case "status":
                         return (
                           <td key="status" className="whitespace-nowrap px-4 py-3 text-center text-sm" style={cellStyle}>
-                            {isLowStock && (
-                              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
-                                <AlertTriangle className="h-3 w-3" />
-                                {t("products.alarm")}
-                              </span>
-                            )}
-                            {!isLowStock && (
-                              <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
-                                {t("products.ok")}
-                              </span>
-                            )}
-                          </td>
-                        );
-                      case "alarm":
-                        return (
-                          <td key="alarm" className="whitespace-nowrap px-4 py-3 text-center text-sm" style={cellStyle}>
-                            {isLowStock && (
-                              <div className="flex items-center justify-center">
+                            {isLowStock ? (
+                              <div className="flex items-center justify-center gap-2">
                                 <div className="relative">
-                                  <AlertTriangle className="h-6 w-6 text-amber-500 dark:text-amber-400 animate-pulse" />
+                                  <AlertTriangle className="h-5 w-5 text-amber-500 dark:text-amber-400 animate-pulse" />
                                   <div className="absolute inset-0 flex items-center justify-center">
-                                    <div className="h-4 w-4 rounded-full bg-amber-500/30 animate-ping" />
+                                    <div className="h-3 w-3 rounded-full bg-amber-500/30 animate-ping" />
                                   </div>
                                 </div>
+                                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                                  {t("products.alarm")}
+                                </span>
                               </div>
-                            )}
-                            {!isLowStock && (
-                              <div className="flex items-center justify-center">
+                            ) : (
+                              <div className="flex items-center justify-center gap-2">
                                 <div className="h-2 w-2 rounded-full bg-green-500" />
+                                <span className="inline-flex items-center rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800 dark:bg-green-900 dark:text-green-200">
+                                  {t("products.ok")}
+                                </span>
                               </div>
                             )}
                           </td>

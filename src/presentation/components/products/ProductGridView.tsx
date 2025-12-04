@@ -92,9 +92,35 @@ export function ProductGridView({
       {products.map((product, index) => {
         const isLowStock = product.stockCurrent <= product.stockMin;
         const isHovered = hoveredCard === product.id;
-        const stockPercentage = product.stockMax
-          ? Math.min((product.stockCurrent / product.stockMax) * 100, 100)
-          : product.stockCurrent > 0 ? 100 : 0;
+        
+        // Calcular porcentaje basado en stockMin (más realista)
+        const stockMinRef = product.stockMin || 1; // Evitar división por 0
+        let stockPercentage = 0;
+        let barColor = "bg-red-500 dark:bg-red-600"; // Rojo por defecto
+        
+        if (product.stockCurrent <= stockMinRef) {
+          // En o por debajo del mínimo: 0% (rojo)
+          stockPercentage = 0;
+          barColor = "bg-red-500 dark:bg-red-600";
+        } else if (product.stockCurrent <= stockMinRef * 1.15) {
+          // Entre mínimo y 15% por encima: 0-15% (amarillo)
+          stockPercentage = ((product.stockCurrent - stockMinRef) / (stockMinRef * 0.15)) * 15;
+          barColor = "bg-yellow-500 dark:bg-yellow-600";
+        } else if (product.stockCurrent <= stockMinRef * 2) {
+          // Entre 15% y 2x el mínimo: 15-100% progresivo (amarillo/verde)
+          const excessOver15 = product.stockCurrent - (stockMinRef * 1.15);
+          const range15To2x = stockMinRef * 0.85; // Rango desde 1.15x hasta 2x
+          stockPercentage = 15 + (excessOver15 / range15To2x) * 85;
+          barColor = product.stockCurrent <= stockMinRef * 1.45
+            ? "bg-yellow-500 dark:bg-yellow-600"
+            : "bg-green-500 dark:bg-green-600";
+        } else {
+          // Más de 2x el mínimo: 100%+ (verde)
+          stockPercentage = 100;
+          barColor = "bg-green-500 dark:bg-green-600";
+        }
+        
+        stockPercentage = Math.min(Math.max(stockPercentage, 0), 100); // Asegurar entre 0-100
 
         return (
           <motion.div
@@ -147,17 +173,8 @@ export function ProductGridView({
               {/* Barra de progreso de stock */}
               <div className="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
                 <div
-                  className={cn(
-                    "h-full transition-all duration-300",
-                    isLowStock
-                      ? "bg-amber-500 dark:bg-amber-600"
-                      : stockPercentage >= 80
-                      ? "bg-green-500 dark:bg-green-600"
-                      : stockPercentage >= 50
-                      ? "bg-blue-500 dark:bg-blue-600"
-                      : "bg-yellow-500 dark:bg-yellow-600"
-                  )}
-                  style={{ width: `${stockPercentage}%` }}
+                  className={cn("h-full transition-all duration-300", barColor)}
+                  style={{ width: `${Math.max(stockPercentage, 2)}%` }} // Mínimo 2% para visibilidad
                 />
               </div>
               

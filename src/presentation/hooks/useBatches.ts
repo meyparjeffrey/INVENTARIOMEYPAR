@@ -1,8 +1,9 @@
 import * as React from "react";
 import type { ProductBatch, BatchStatus, Product, UUID } from "@domain/entities";
-import type { BatchFilters } from "@domain/repositories/ProductRepository";
+import type { BatchFilters, CreateBatchInput, UpdateBatchInput } from "@domain/repositories/ProductRepository";
 import { SupabaseProductRepository } from "@infrastructure/repositories/SupabaseProductRepository";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
+import { useRealtime } from "./useRealtime";
 
 const productRepository = new SupabaseProductRepository(supabaseClient);
 
@@ -23,6 +24,10 @@ interface UseBatchesReturn {
   setPage: (page: number) => void;
   refresh: () => Promise<void>;
   updateBatchStatus: (batchId: UUID, status: BatchStatus, reason?: string) => Promise<void>;
+  createBatch: (input: CreateBatchInput) => Promise<ProductBatch>;
+  updateBatch: (batchId: UUID, input: UpdateBatchInput) => Promise<ProductBatch>;
+  findByBatchCodeOrBarcode: (term: string) => Promise<ProductBatch | null>;
+  batchCodeExists: (batchCode: string) => Promise<boolean>;
 }
 
 /**
@@ -85,10 +90,86 @@ export function useBatches(): UseBatchesReturn {
     }
   }, [filters, page, pageSize, loadProductsMap]);
 
+  // Función auxiliar para mapear desde row de Supabase
+  const mapBatchFromRow = React.useCallback((row: any): ProductBatch => {
+    return {
+      id: row.id,
+      productId: row.product_id,
+      supplierId: row.supplier_id ?? undefined,
+      batchCode: row.batch_code,
+      batchBarcode: row.batch_barcode ?? undefined,
+      quantityTotal: row.quantity_total,
+      quantityAvailable: row.quantity_available,
+      quantityReserved: row.quantity_reserved ?? 0,
+      defectiveQty: row.defective_qty ?? 0,
+      status: row.status as BatchStatus,
+      blockedReason: row.blocked_reason ?? undefined,
+      qualityScore: row.quality_score ?? 1.0,
+      receivedAt: row.received_at,
+      expiryDate: row.expiry_date ?? undefined,
+      manufactureDate: row.manufacture_date ?? undefined,
+      costPerUnit: row.cost_per_unit ?? undefined,
+      locationOverride: row.location_override ?? undefined,
+      notes: row.notes ?? undefined,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+      createdBy: row.created_by ?? undefined
+    };
+  }, []);
+
   // Cargar al montar y cuando cambien filtros/página
   React.useEffect(() => {
     loadBatches();
   }, [loadBatches]);
+
+  // Sincronización en tiempo real con Supabase
+  useRealtime<any>({
+    table: "product_batches",
+    onInsert: async (newBatch) => {
+      // Cuando se crea un nuevo lote en Supabase, cargarlo con su producto
+      try {
+        const product = await productRepository.findById(newBatch.product_id);
+        const enrichedBatch: BatchWithProduct = {
+          ...mapBatchFromRow(newBatch),
+          product
+        };
+        setBatches((prev) => {
+          // Evitar duplicados
+          if (prev.some((b) => b.id === enrichedBatch.id)) {
+            return prev;
+          }
+          return [...prev, enrichedBatch].sort(
+            (a, b) => new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime()
+          );
+        });
+        setTotalCount((prev) => prev + 1);
+      } catch (err) {
+        // Si falla, recargar todo
+        void loadBatches();
+      }
+    },
+    onUpdate: async (updatedBatch) => {
+      // Cuando se actualiza un lote en Supabase, actualizarlo en la lista
+      try {
+        const product = await productRepository.findById(updatedBatch.product_id);
+        const enrichedBatch: BatchWithProduct = {
+          ...mapBatchFromRow(updatedBatch),
+          product
+        };
+        setBatches((prev) =>
+          prev.map((b) => (b.id === enrichedBatch.id ? enrichedBatch : b))
+        );
+      } catch (err) {
+        // Si falla, recargar todo
+        void loadBatches();
+      }
+    },
+    onDelete: (deletedBatch) => {
+      // Cuando se elimina un lote en Supabase, removerlo de la lista
+      setBatches((prev) => prev.filter((b) => b.id !== deletedBatch.id));
+      setTotalCount((prev) => Math.max(0, prev - 1));
+    }
+  });
 
   const updateBatchStatus = React.useCallback(
     async (batchId: UUID, status: BatchStatus, reason?: string) => {
@@ -104,6 +185,62 @@ export function useBatches(): UseBatchesReturn {
     [loadBatches]
   );
 
+  const createBatch = React.useCallback(
+    async (input: CreateBatchInput) => {
+      try {
+        const batch = await productRepository.createBatch(input);
+        await loadBatches();
+        return batch;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Error al crear lote";
+        setError(message);
+        throw err;
+      }
+    },
+    [loadBatches]
+  );
+
+  const updateBatch = React.useCallback(
+    async (batchId: UUID, input: UpdateBatchInput) => {
+      try {
+        const batch = await productRepository.updateBatch(batchId, input);
+        await loadBatches();
+        return batch;
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Error al actualizar lote";
+        setError(message);
+        throw err;
+      }
+    },
+    [loadBatches]
+  );
+
+  const findByBatchCodeOrBarcode = React.useCallback(
+    async (term: string) => {
+      try {
+        return await productRepository.findByBatchCodeOrBarcode(term);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Error al buscar lote";
+        setError(message);
+        return null;
+      }
+    },
+    []
+  );
+
+  const batchCodeExists = React.useCallback(
+    async (batchCode: string) => {
+      try {
+        return await productRepository.batchCodeExists(batchCode);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Error al verificar código de lote";
+        setError(message);
+        return false;
+      }
+    },
+    []
+  );
+
   return {
     batches,
     loading,
@@ -116,7 +253,11 @@ export function useBatches(): UseBatchesReturn {
     setFilters,
     setPage,
     refresh: loadBatches,
-    updateBatchStatus
+    updateBatchStatus,
+    createBatch,
+    updateBatch,
+    findByBatchCodeOrBarcode,
+    batchCodeExists
   };
 }
 

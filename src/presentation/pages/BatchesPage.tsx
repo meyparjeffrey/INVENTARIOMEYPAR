@@ -8,16 +8,23 @@ import {
   XCircle,
   Clock,
   Calendar,
-  ArrowRight
+  ArrowRight,
+  Plus,
+  Search,
+  QrCode
 } from "lucide-react";
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import type { BatchStatus, ProductBatch, Product } from "@domain/entities";
 import { Button } from "../components/ui/Button";
 import { Dialog } from "../components/ui/Dialog";
+import { Input } from "../components/ui/Input";
 import { useLanguage } from "../context/LanguageContext";
 import { useBatches } from "../hooks/useBatches";
 import { cn } from "../lib/cn";
+import { BatchForm } from "../components/batches/BatchForm";
+import { useAuth } from "../context/AuthContext";
+import type { CreateBatchInput, UpdateBatchInput } from "@domain/repositories/ProductRepository";
 
 interface BatchWithProduct extends ProductBatch {
   product?: Product;
@@ -60,11 +67,16 @@ const statusConfig: Record<
 export function BatchesPage() {
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const [statusFilter, setStatusFilter] = React.useState<BatchStatus | "">("");
+  const { authContext } = useAuth();
+  const [statusFilter, setStatusFilter] = React.useState<BatchStatus | "">("DEFECTIVE"); // Por defecto mostrar defectuosos
+  const [searchTerm, setSearchTerm] = React.useState("");
   const [selectedBatch, setSelectedBatch] = React.useState<BatchWithProduct | null>(null);
   const [showStatusDialog, setShowStatusDialog] = React.useState(false);
+  const [showBatchForm, setShowBatchForm] = React.useState(false);
+  const [editingBatch, setEditingBatch] = React.useState<BatchWithProduct | null>(null);
   const [newStatus, setNewStatus] = React.useState<BatchStatus>("OK");
   const [statusReason, setStatusReason] = React.useState("");
+  const [formLoading, setFormLoading] = React.useState(false);
 
   const {
     batches,
@@ -77,18 +89,26 @@ export function BatchesPage() {
     setFilters,
     setPage,
     refresh,
-    updateBatchStatus
+    updateBatchStatus,
+    createBatch,
+    updateBatch,
+    findByBatchCodeOrBarcode
   } = useBatches();
 
-  // Aplicar filtro de estado
+  // Aplicar filtro de estado y búsqueda
   React.useEffect(() => {
+    const newFilters: typeof filters = {};
+    
     if (statusFilter) {
-      setFilters({ ...filters, status: statusFilter });
-    } else {
-      const { status, ...rest } = filters;
-      setFilters(rest);
+      newFilters.status = [statusFilter];
     }
-  }, [statusFilter]);
+    
+    if (searchTerm.trim()) {
+      newFilters.search = searchTerm.trim();
+    }
+    
+    setFilters(newFilters);
+  }, [statusFilter, searchTerm]);
 
   const handleViewProduct = (productId: string) => {
     navigate(`/products/${productId}`);
@@ -118,6 +138,66 @@ export function BatchesPage() {
     setShowStatusDialog(true);
   };
 
+  const handleCreateBatch = () => {
+    setEditingBatch(null);
+    setShowBatchForm(true);
+  };
+
+  const handleEditBatch = (batch: BatchWithProduct) => {
+    setEditingBatch(batch);
+    setShowBatchForm(true);
+  };
+
+  const handleBatchSubmit = async (data: CreateBatchInput | UpdateBatchInput) => {
+    if (!authContext?.profile?.id) return;
+    
+    setFormLoading(true);
+    try {
+      if (editingBatch) {
+        await updateBatch(editingBatch.id, data as UpdateBatchInput);
+      } else {
+        await createBatch({
+          ...(data as CreateBatchInput),
+          createdBy: authContext.profile.id
+        });
+      }
+      setShowBatchForm(false);
+      setEditingBatch(null);
+    } catch (err) {
+      // Error ya manejado en el hook
+    } finally {
+      setFormLoading(false);
+    }
+  };
+
+  const handleScanQR = async () => {
+    // Simular escaneo de QR (en producción se usaría la cámara)
+    const scannedCode = prompt(t("batches.scanQR") || "Escanea o introduce el código QR del lote:");
+    if (scannedCode) {
+      const batch = await findByBatchCodeOrBarcode(scannedCode);
+      if (batch) {
+        // Encontrar el lote en la lista y destacarlo
+        setSearchTerm(batch.batchCode);
+        // Scroll al lote encontrado
+        setTimeout(() => {
+          const element = document.querySelector(`[data-batch-id="${batch.id}"]`);
+          element?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 500);
+      } else {
+        alert(t("batches.batchNotFound") || "Lote no encontrado");
+      }
+    }
+  };
+
+  // Ordenar lotes: defectuosos primero
+  const sortedBatches = React.useMemo(() => {
+    return [...batches].sort((a, b) => {
+      if (a.status === "DEFECTIVE" && b.status !== "DEFECTIVE") return -1;
+      if (a.status !== "DEFECTIVE" && b.status === "DEFECTIVE") return 1;
+      return new Date(b.receivedAt).getTime() - new Date(a.receivedAt).getTime();
+    });
+  }, [batches]);
+
   if (loading && batches.length === 0) {
     return (
       <div className="flex h-64 items-center justify-center">
@@ -143,40 +223,77 @@ export function BatchesPage() {
           <Button
             variant="outline"
             size="sm"
+            onClick={handleScanQR}
+            className="gap-2"
+            title={t("batches.scanQR") || "Escanear QR"}
+          >
+            <QrCode className="h-4 w-4" />
+            {t("batches.scanQR") || "Escanear"}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={refresh}
             className="gap-2"
           >
             <RefreshCw className="h-4 w-4" />
             {t("common.refresh")}
           </Button>
+          <Button
+            variant="primary"
+            size="sm"
+            onClick={handleCreateBatch}
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            {t("batches.newBatch") || "Nuevo Lote"}
+          </Button>
         </div>
       </div>
 
-      {/* Filtros de estado */}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          variant={statusFilter === "" ? "primary" : "outline"}
-          size="sm"
-          onClick={() => setStatusFilter("")}
-        >
-          {t("filters.all")}
-        </Button>
-        {(Object.keys(statusConfig) as BatchStatus[]).map((status) => {
-          const config = statusConfig[status];
-          const Icon = config.icon;
-          return (
-            <Button
-              key={status}
-              variant={statusFilter === status ? "primary" : "outline"}
-              size="sm"
-              onClick={() => setStatusFilter(status)}
-              className="gap-1.5"
-            >
-              <Icon className="h-4 w-4" />
-              {t(`batches.status.${status}`)}
-            </Button>
-          );
-        })}
+      {/* Búsqueda y Filtros */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex-1 max-w-md">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Input
+              type="text"
+              placeholder={t("batches.searchPlaceholder") || "Buscar por código o barcode..."}
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
+        </div>
+        
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant={statusFilter === "" ? "primary" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter("")}
+          >
+            {t("filters.all")}
+          </Button>
+          {(Object.keys(statusConfig) as BatchStatus[]).map((status) => {
+            const config = statusConfig[status];
+            const Icon = config.icon;
+            return (
+              <Button
+                key={status}
+                variant={statusFilter === status ? "primary" : "outline"}
+                size="sm"
+                onClick={() => setStatusFilter(status)}
+                className={cn(
+                  "gap-1.5",
+                  status === "DEFECTIVE" && statusFilter === status && "ring-2 ring-red-500"
+                )}
+              >
+                <Icon className="h-4 w-4" />
+                {t(`batches.status.${status}`)}
+              </Button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Error */}
@@ -230,7 +347,7 @@ export function BatchesPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-                {batches.map((batch) => {
+                {sortedBatches.map((batch) => {
                   const config = statusConfig[batch.status];
                   const Icon = config.icon;
                   const isExpiringSoon =
@@ -238,10 +355,16 @@ export function BatchesPage() {
                     new Date(batch.expiryDate) <
                       new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
+                  const isDefective = batch.status === "DEFECTIVE";
+                  
                   return (
                     <tr
                       key={batch.id}
-                      className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                      data-batch-id={batch.id}
+                      className={cn(
+                        "transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50",
+                        isDefective && "bg-red-50/50 dark:bg-red-900/10 border-l-4 border-l-red-500"
+                      )}
                     >
                       <td className="whitespace-nowrap px-4 py-3 text-sm">
                         <div className="font-medium text-gray-900 dark:text-gray-50">
@@ -331,15 +454,34 @@ export function BatchesPage() {
                         )}
                       </td>
                       <td className="whitespace-nowrap px-4 py-3 text-center text-sm">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleViewProduct(batch.productId)}
-                          className="gap-1"
-                        >
-                          {t("common.view")}
-                          <ArrowRight className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center justify-center gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleViewProduct(batch.productId)}
+                            className="gap-1"
+                          >
+                            {t("common.view")}
+                            <ArrowRight className="h-4 w-4" />
+                          </Button>
+                          {isDefective && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                // Mostrar todos los productos del mismo lote
+                                setSelectedBatch(batch);
+                                setShowStatusDialog(false);
+                                // Abrir modal de detalle de lote defectuoso
+                                // Por ahora, mostrar información en el dialog de estado
+                              }}
+                              className="gap-1 text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-700 dark:hover:bg-red-900/20"
+                            >
+                              <AlertTriangle className="h-4 w-4" />
+                              {t("batches.viewDefective") || "Ver Defectuosos"}
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -417,6 +559,53 @@ export function BatchesPage() {
             </div>
           )}
 
+          {/* Información del lote cuando se marca como defectuoso */}
+          {selectedBatch && newStatus === "DEFECTIVE" && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 dark:border-red-800 dark:bg-red-900/20">
+              <div className="mb-2 flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
+                <h4 className="font-semibold text-red-900 dark:text-red-300">
+                  {t("batches.defectiveWarning") || "Atención: Lote Defectuoso"}
+                </h4>
+              </div>
+              <p className="mb-3 text-sm text-red-800 dark:text-red-200">
+                {t("batches.defectiveWarningDesc") || "Este lote contiene productos defectuosos. Revisa todos los productos del mismo lote:"}
+              </p>
+              <div className="space-y-2 text-sm">
+                <div>
+                  <span className="font-medium text-red-900 dark:text-red-300">
+                    {t("batches.code") || "Código de Lote"}: 
+                  </span>{" "}
+                  <span className="text-red-700 dark:text-red-300">{selectedBatch.batchCode}</span>
+                </div>
+                {selectedBatch.product && (
+                  <div>
+                    <span className="font-medium text-red-900 dark:text-red-300">
+                      {t("batches.product") || "Producto"}: 
+                    </span>{" "}
+                    <span className="text-red-700 dark:text-red-300">
+                      {selectedBatch.product.code} - {selectedBatch.product.name}
+                    </span>
+                  </div>
+                )}
+                <div>
+                  <span className="font-medium text-red-900 dark:text-red-300">
+                    {t("batches.quantityTotal") || "Cantidad Total"}: 
+                  </span>{" "}
+                  <span className="text-red-700 dark:text-red-300">{selectedBatch.quantityTotal}</span>
+                </div>
+                {selectedBatch.defectiveQty > 0 && (
+                  <div>
+                    <span className="font-medium text-red-900 dark:text-red-300">
+                      {t("batches.form.defectiveQty") || "Cantidad Defectuosa"}: 
+                    </span>{" "}
+                    <span className="text-red-700 dark:text-red-300">{selectedBatch.defectiveQty}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
             <Button
               variant="outline"
@@ -434,6 +623,31 @@ export function BatchesPage() {
             </Button>
           </div>
         </div>
+      </Dialog>
+
+      {/* Dialog para crear/editar lote */}
+      <Dialog
+        isOpen={showBatchForm}
+        onClose={() => {
+          setShowBatchForm(false);
+          setEditingBatch(null);
+        }}
+        title={editingBatch ? (t("batches.editBatch") || "Editar Lote") : (t("batches.newBatch") || "Nuevo Lote")}
+        size="full"
+      >
+        <BatchForm
+          batch={editingBatch || undefined}
+          onSubmit={handleBatchSubmit}
+          onCancel={() => {
+            setShowBatchForm(false);
+            setEditingBatch(null);
+          }}
+          loading={formLoading}
+          onCreateProduct={() => {
+            setShowBatchForm(false);
+            navigate("/products/new");
+          }}
+        />
       </Dialog>
     </div>
   );
