@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Shield, Settings, FileText, Search, Plus, Edit, Trash2, MoreVertical, CheckCircle2, XCircle } from "lucide-react";
+import { Users, Shield, Settings, FileText, Search, Plus, Edit, Trash2, MoreVertical, CheckCircle2, XCircle, Upload } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
@@ -9,8 +9,9 @@ import { Input } from "../components/ui/Input";
 import { motion, AnimatePresence } from "framer-motion";
 import type { UserProfile } from "@domain/entities";
 import { highlightText } from "../utils/highlightText";
+import { ImportProductsDialog } from "../components/admin/ImportProductsDialog";
 
-type Tab = "users" | "permissions" | "settings" | "audit";
+type Tab = "users" | "permissions" | "settings" | "audit" | "import";
 
 interface UserRow extends UserProfile {
   email?: string;
@@ -26,6 +27,7 @@ export function AdminPage() {
   const [loading, setLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedUser, setSelectedUser] = React.useState<UserRow | null>(null);
+  const [importDialogOpen, setImportDialogOpen] = React.useState(false);
 
   // Verificar que solo ADMIN puede acceder
   React.useEffect(() => {
@@ -60,9 +62,8 @@ export function AdminPage() {
       // Obtener emails de auth.users (solo si tenemos acceso)
       const usersWithEmail: UserRow[] = await Promise.all(
         (profiles || []).map(async (profile) => {
-          // Obtener email desde auth.users (solo disponible en server-side, aquí usamos null)
+          // Obtener email desde auth.users (solo disponible en server-side, aquí usamos undefined)
           // En producción, esto debería hacerse desde el backend
-          const authUser = null;
           
           // Obtener último login
           const { data: loginEvents } = await supabaseClient
@@ -84,7 +85,7 @@ export function AdminPage() {
             isActive: profile.is_active,
             createdAt: profile.created_at,
             updatedAt: profile.updated_at,
-            email: authUser?.user?.email,
+            email: undefined, // No disponible desde el cliente
             lastLogin: loginEvents?.login_at
           };
         })
@@ -114,7 +115,8 @@ export function AdminPage() {
     { id: "users" as Tab, label: t("admin.users"), icon: Users },
     { id: "permissions" as Tab, label: t("admin.permissions"), icon: Shield },
     { id: "settings" as Tab, label: t("admin.settings"), icon: Settings },
-    { id: "audit" as Tab, label: t("admin.audit"), icon: FileText }
+    { id: "audit" as Tab, label: t("admin.audit"), icon: FileText },
+    { id: "import" as Tab, label: t("admin.import") || "Importar", icon: Upload }
   ];
 
   if (!authContext || authContext.profile.role !== "ADMIN") {
@@ -216,7 +218,65 @@ export function AdminPage() {
               <AuditTab t={t} />
             </motion.div>
           )}
+
+          {activeTab === "import" && (
+            <motion.div
+              key="import"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              transition={{ duration: 0.2 }}
+            >
+              <ImportTab onOpenDialog={() => setImportDialogOpen(true)} t={t} />
+            </motion.div>
+          )}
         </AnimatePresence>
+      </div>
+
+      {/* Import Dialog */}
+      <ImportProductsDialog isOpen={importDialogOpen} onClose={() => setImportDialogOpen(false)} />
+    </div>
+  );
+}
+
+function ImportTab({
+  onOpenDialog,
+  t
+}: {
+  onOpenDialog: () => void;
+  t: (key: string) => string;
+}) {
+  return (
+    <div className="space-y-6">
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-950">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
+              {t("admin.import.title") || "Importación Masiva de Productos"}
+            </h2>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              {t("admin.import.description") || "Importa productos desde un archivo Excel. Los productos existentes se actualizarán y los nuevos se crearán automáticamente."}
+            </p>
+          </div>
+          <Button onClick={onOpenDialog} className="gap-2">
+            <Upload className="h-4 w-4" />
+            {t("admin.import.button") || "Importar desde Excel"}
+          </Button>
+        </div>
+
+        <div className="mt-6 space-y-4">
+          <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4">
+            <h3 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">
+              {t("admin.import.instructions.title") || "Instrucciones"}
+            </h3>
+            <ul className="list-disc list-inside space-y-1 text-sm text-blue-800 dark:text-blue-300">
+              <li>{t("admin.import.instructions.format") || "El archivo debe ser un Excel (.xlsx o .xls)"}</li>
+              <li>{t("admin.import.instructions.columns") || "Debe contener las columnas: CODIGO, NOMBRE, COD. PRODUCTO PROVEEDOR (opcional)"}</li>
+              <li>{t("admin.import.instructions.size") || "Tamaño máximo: 10MB"}</li>
+              <li>{t("admin.import.instructions.update") || "Los productos existentes se actualizarán, los nuevos se crearán"}</li>
+            </ul>
+          </div>
+        </div>
       </div>
     </div>
   );

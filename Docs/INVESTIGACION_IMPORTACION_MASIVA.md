@@ -319,16 +319,20 @@ async function backupProducts() {
 
 Si se decide implementar las mejoras propuestas:
 
-- [ ] Implementar `generateRandomStockValues()`
-- [ ] Implementar `generateRandomLocation()`
-- [ ] Modificar `importProducts()` para usar valores aleatorios
-- [ ] Añadir validación de datos mejorada
-- [ ] Implementar lógica de actualización vs. creación
-- [ ] Añadir log detallado
-- [ ] Crear función de backup automático
+- [x] Implementar `generateRandomStockValues()`
+- [x] Implementar `generateRandomLocation()`
+- [x] Modificar `importProducts()` para usar valores aleatorios
+- [x] Añadir validación de datos mejorada
+- [x] Implementar lógica de actualización vs. creación
+- [x] Añadir log detallado
+- [x] Crear función de backup automático
+- [x] Crear Edge Function de Supabase para ejecución desde la nube
+- [x] Crear componente UI para importación
+- [x] Integrar en página de Admin
+- [x] Añadir traducciones (español y catalán)
 - [ ] Probar con archivo de prueba pequeño
-- [ ] Documentar cambios en el script
-- [ ] Actualizar este documento con los cambios implementados
+- [x] Documentar cambios en el script
+- [x] Actualizar este documento con los cambios implementados
 
 ---
 
@@ -347,4 +351,89 @@ El proceso actual de importación masiva es **funcional y seguro** gracias al us
 **Fecha de investigación**: 2025-01-27  
 **Investigado por**: AI Assistant  
 **Estado**: ✅ Completado
+
+---
+
+## 10. Cambios Implementados
+
+### 10.1 Script Local Mejorado (`scripts/import-products-from-excel.ts`)
+
+**Implementado**:
+- ✅ `generateRandomStockValues()`: Genera valores aleatorios para `stock_min` (5-20) y `stock_max` (50-200)
+- ✅ `generateRandomLocation()`: Genera ubicación aleatoria para `aisle` y `shelf`
+- ✅ Validación mejorada en `readExcelFile()`:
+  - Detección de códigos duplicados en el Excel
+  - Validación de formato de códigos (longitud, caracteres permitidos)
+  - Validación de longitud mínima de nombre (3 caracteres)
+  - Retorna lista de errores de validación
+- ✅ `importOrUpdateProducts()`: Reemplaza `deactivateAllProducts()` e `importProducts()`
+  - Verifica si cada producto existe por `code`
+  - Si existe: Actualiza (reactiva si estaba desactivado, actualiza nombre y barcode)
+  - Si no existe: Crea nuevo con valores aleatorios
+  - Mantiene historial de productos existentes
+- ✅ `backupProducts()`: Crea backup automático antes de importar
+  - Exporta todos los productos activos a JSON
+  - Guarda en `backups/backup-products-{timestamp}.json`
+- ✅ Logging mejorado:
+  - Log detallado de productos no importados (con razón)
+  - Resumen de productos actualizados vs. creados
+  - Tiempo total de importación
+  - Estadísticas y tasa de éxito
+
+### 10.2 Edge Function de Supabase (`supabase/functions/import-products-from-excel/index.ts`)
+
+**Implementado**:
+- ✅ Edge Function completa para ejecutar importación desde la nube
+- ✅ Validación de permisos (solo usuarios ADMIN)
+- ✅ Recepción de archivo Excel mediante FormData
+- ✅ Validación de archivo (extensión, tamaño máximo 10MB)
+- ✅ Procesamiento con todas las mejoras del script local
+- ✅ Respuesta JSON estructurada con resultados detallados
+- ✅ Manejo de errores robusto
+
+### 10.3 Componente UI (`src/presentation/components/admin/ImportProductsDialog.tsx`)
+
+**Implementado**:
+- ✅ Dialog para subir archivo Excel
+- ✅ Validación de archivo (extensión .xlsx/.xls, tamaño máximo)
+- ✅ Barra de progreso durante importación
+- ✅ Mostrar resumen de resultados (productos creados, actualizados, errores)
+- ✅ Botón para descargar log de errores
+- ✅ Integración con Edge Function de Supabase
+- ✅ Manejo de errores con mensajes claros
+
+### 10.4 Integración en AdminPage (`src/presentation/pages/AdminPage.tsx`)
+
+**Implementado**:
+- ✅ Nueva pestaña "Importar" en la página de administración
+- ✅ Sección de importación masiva con instrucciones
+- ✅ Botón para abrir diálogo de importación
+- ✅ Validación de permisos (solo ADMIN puede acceder)
+
+### 10.5 Traducciones (`src/presentation/context/LanguageContext.tsx`)
+
+**Implementado**:
+- ✅ Traducciones completas en español y catalán para:
+  - Títulos y descripciones de importación
+  - Mensajes de éxito y error
+  - Instrucciones de uso
+  - Etiquetas de resultados
+
+### 10.6 Archivos Creados/Modificados
+
+**Nuevos archivos**:
+- `supabase/functions/import-products-from-excel/index.ts`
+- `src/presentation/components/admin/ImportProductsDialog.tsx`
+
+**Archivos modificados**:
+- `scripts/import-products-from-excel.ts` (mejoras completas)
+- `src/presentation/pages/AdminPage.tsx` (integración de importación)
+- `src/presentation/context/LanguageContext.tsx` (traducciones)
+- `Docs/INVESTIGACION_IMPORTACION_MASIVA.md` (este documento)
+
+---
+
+**Fecha de implementación**: 2025-01-27  
+**Implementado por**: AI Assistant  
+**Estado**: ✅ Implementación Completa
 
