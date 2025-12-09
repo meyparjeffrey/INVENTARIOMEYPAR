@@ -3,20 +3,31 @@ import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "../components/ui/Button";
 import { MovementTable } from "../components/movements/MovementTable";
+import { MovementDetailModal } from "../components/movements/MovementDetailModal";
 import { useLanguage } from "../context/LanguageContext";
 import { useMovements } from "../hooks/useMovements";
 import { useProducts } from "../hooks/useProducts";
+import type { Product } from "@domain/entities";
+import type { InventoryMovement } from "@domain/entities";
 
 /**
  * Página que muestra el historial de movimientos de un producto específico.
+ * 
+ * Muestra todos los movimientos de inventario relacionados con el producto seleccionado,
+ * incluyendo entradas, salidas y ajustes. Si el producto no tiene movimientos,
+ * muestra un mensaje informativo.
+ * 
+ * @module @presentation/pages/ProductHistoryPage
  */
 export function ProductHistoryPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useLanguage();
   const { getById } = useProducts();
-  const [product, setProduct] = React.useState<any>(null);
+  const [product, setProduct] = React.useState<Product | null>(null);
   const [loadingProduct, setLoadingProduct] = React.useState(true);
+  const [selectedMovement, setSelectedMovement] = React.useState<InventoryMovement | null>(null);
+  const [isDetailOpen, setIsDetailOpen] = React.useState(false);
 
   // Configurar filtros para mostrar solo movimientos de este producto
   const {
@@ -54,9 +65,13 @@ export function ProductHistoryPage() {
   // Aplicar filtro de producto a los movimientos
   React.useEffect(() => {
     if (id) {
+      // Resetear a la primera página cuando cambia el producto
+      setPage(1);
+      // Limpiar filtros previos y aplicar solo el filtro de producto
+      // El hook useMovements recargará automáticamente cuando cambien los filtros
       setFilters({ productId: id });
     }
-  }, [id, setFilters]);
+  }, [id, setFilters, setPage]);
 
   if (loadingProduct) {
     return (
@@ -138,7 +153,7 @@ export function ProductHistoryPage() {
             {t("movements.total") || "Total Movimientos"}
           </p>
           <p className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-50">
-            {totalCount}
+            {movements.filter((m) => m.productId === id).length}
           </p>
         </div>
       </div>
@@ -150,12 +165,30 @@ export function ProductHistoryPage() {
         </div>
       )}
 
-      {/* Tabla de movimientos */}
+      {/* Tabla de movimientos - Filtrar solo movimientos de este producto como medida de seguridad */}
       <MovementTable
-        movements={movements}
+        movements={movements.filter((m) => m.productId === id)}
         loading={loadingMovements}
         onViewProduct={(productId) => navigate(`/products/${productId}`)}
+        onViewDetail={(movement) => {
+          setSelectedMovement(movement);
+          setIsDetailOpen(true);
+        }}
+        emptyMessage={t("movements.noMovements")}
+        emptyDescription={t("movements.noMovementsDesc")}
       />
+
+      {/* Modal de detalle */}
+      {selectedMovement && (
+        <MovementDetailModal
+          movement={selectedMovement}
+          isOpen={isDetailOpen}
+          onClose={() => {
+            setIsDetailOpen(false);
+            setSelectedMovement(null);
+          }}
+        />
+      )}
 
       {/* Paginación */}
       {totalPages > 1 && (
@@ -182,18 +215,6 @@ export function ProductHistoryPage() {
               {t("pagination.next")}
             </Button>
           </div>
-        </div>
-      )}
-
-      {movements.length === 0 && !loadingMovements && (
-        <div className="flex h-64 flex-col items-center justify-center rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
-          <History className="mb-4 h-12 w-12 text-gray-400" />
-          <p className="text-lg font-medium text-gray-600 dark:text-gray-400">
-            {t("movements.noMovements") || "No hay movimientos registrados"}
-          </p>
-          <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {t("movements.noMovementsDesc") || "Este producto aún no tiene movimientos de inventario"}
-          </p>
         </div>
       )}
     </div>

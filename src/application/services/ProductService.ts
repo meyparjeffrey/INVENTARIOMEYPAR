@@ -351,23 +351,26 @@ export class ProductService {
   }
 
   /**
-   * Elimina (baja lógica) un producto.
+   * Elimina físicamente un producto de la base de datos.
+   * 
+   * IMPORTANTE: Esta es una eliminación permanente e irreversible.
+   * El producto se eliminará completamente de Supabase junto con sus relaciones
+   * según las políticas CASCADE configuradas en la base de datos.
+   * 
+   * @param {UUID} id - ID del producto a eliminar
+   * @returns {Promise<Product>} El producto eliminado (para mostrar información en el diálogo)
+   * @throws {Error} Si el producto no existe
    */
-  async delete(id: UUID): Promise<void> {
+  async delete(id: UUID): Promise<Product> {
     // Verificar que el producto existe
     const product = await this.repository.findById(id);
     if (!product) {
       throw new Error("Producto no encontrado.");
     }
 
-    // Verificar que no tenga stock
-    if (product.stockCurrent > 0) {
-      throw new Error(
-        "No se puede eliminar un producto con stock. Primero reduce el stock a 0."
-      );
-    }
-
-    return this.repository.delete(id);
+    // Eliminación física permanente (sin restricción de stock)
+    await this.repository.delete(id);
+    return product;
   }
 }
 

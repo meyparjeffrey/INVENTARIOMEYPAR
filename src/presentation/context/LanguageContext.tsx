@@ -5,7 +5,7 @@ type LanguageCode = "es-ES" | "ca-ES";
 interface LanguageContextValue {
   language: LanguageCode;
   setLanguage: (lang: LanguageCode) => void;
-  t: (key: string) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
 }
 
 const LanguageContext = React.createContext<LanguageContextValue | undefined>(
@@ -67,13 +67,26 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "actions.export": "Exportar",
     "actions.activate": "Activar",
     "actions.deactivate": "Desactivar",
-    "actions.confirmDelete": "¿Estás seguro de eliminar este producto?",
+    "actions.confirmDelete": "¿Estás seguro de eliminar el producto \"{{productName}}\"?",
+    "actions.confirmDeleteWithStock": "El producto \"{{productName}}\" tiene un stock actual de {{stock}} unidades. ¿Realmente deseas eliminarlo permanentemente? Esta acción no se puede deshacer.",
+    "actions.confirmDeleteBulk": "¿Estás seguro de eliminar {{count}} productos seleccionados?",
+    "actions.confirmDeleteBulkWithStock": "Vas a eliminar {{count}} productos. De estos, {{withStockCount}} tienen stock (total: {{totalStock}} unidades). ¿Realmente deseas eliminarlos permanentemente? Esta acción no se puede deshacer.",
     // Productos
     "products.title": "Productos",
     "products.total": "productos en total",
     "products.new": "Nuevo Producto",
     "products.export": "Exportar",
     "products.search": "Buscar por código, nombre o barcode...",
+    "products.searchPlaceholder": "Buscar por código o nombre...",
+    "products.searchResults": "Resultados de búsqueda",
+    "products.searchTitle": "Buscar productos",
+    "products.searchDescription": "Escribe al menos 3 caracteres para buscar productos",
+    "products.tryDifferentSearch": "Intenta con un término de búsqueda diferente",
+    "products.products": "productos",
+    "products.for": "para",
+    "products.showing": "Mostrando",
+    "products.of": "de",
+    "products.noResults": "No se encontraron resultados",
     "products.includeInactive": "Incluir inactivos",
     "products.lowStockOnly": "Solo en alarma",
     "products.noProducts": "No hay productos",
@@ -349,6 +362,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "help.close": "Cerrar ayuda",
     // Común
     "common.cancel": "Cancelar",
+    "common.confirm": "Confirmar",
     "common.save": "Guardar",
     "common.delete": "Eliminar",
     "common.edit": "Editar",
@@ -360,6 +374,11 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "common.noResults": "No se encontraron resultados",
     "common.comingSoon": "Próximamente...",
     "common.unsavedChanges": "¿Descartar los cambios sin guardar?",
+    "common.clear": "Limpiar",
+    "common.loading": "Cargando...",
+    "common.previous": "Anterior",
+    "common.next": "Siguiente",
+    "common.page": "Página",
     // Navegación
     "nav.dashboard": "Dashboard",
     "nav.products": "Productos",
@@ -526,7 +545,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "movements.referenceDocument": "Documento de Referencia",
     "movements.sourceLocation": "Ubicación Origen",
     "movements.destinationLocation": "Ubicación Destino",
-    "movements.searchPlaceholder": "Buscar por código antiguo, comentarios, motivo...",
+    "movements.searchPlaceholder": "Buscar por código de producto, comentarios, motivo...",
     "movements.filter.stockInDesc": "Aumentos de stock en el inventario",
     "movements.filter.stockOutDesc": "Disminuciones de stock en el inventario",
     "movements.filter.locationDesc": "Movimientos entre ubicaciones del almacén",
@@ -733,13 +752,26 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "actions.export": "Exportar",
     "actions.activate": "Activar",
     "actions.deactivate": "Desactivar",
-    "actions.confirmDelete": "Estàs segur d'eliminar aquest producte?",
+    "actions.confirmDelete": "Estàs segur d'eliminar el producte \"{{productName}}\"?",
+    "actions.confirmDeleteWithStock": "El producte \"{{productName}}\" té un estoc actual de {{stock}} unitats. Realment vols eliminar-lo permanentment? Aquesta acció no es pot desfer.",
+    "actions.confirmDeleteBulk": "Estàs segur d'eliminar {{count}} productes seleccionats?",
+    "actions.confirmDeleteBulkWithStock": "Vas a eliminar {{count}} productes. D'aquests, {{withStockCount}} tenen estoc (total: {{totalStock}} unitats). Realment vols eliminar-los permanentment? Aquesta acció no es pot desfer.",
     // Productes
     "products.title": "Productes",
     "products.total": "productes en total",
     "products.new": "Nou Producte",
     "products.export": "Exportar",
     "products.search": "Buscar per codi, nom o barcode...",
+    "products.searchPlaceholder": "Buscar per codi o nom...",
+    "products.searchResults": "Resultats de cerca",
+    "products.searchTitle": "Buscar productes",
+    "products.searchDescription": "Escriu almenys 3 caràcters per buscar productes",
+    "products.tryDifferentSearch": "Intenta amb un terme de cerca diferent",
+    "products.products": "productes",
+    "products.for": "per",
+    "products.showing": "Mostrant",
+    "products.of": "de",
+    "products.noResults": "No s'han trobat resultats",
     "products.includeInactive": "Incloure inactius",
     "products.lowStockOnly": "Només en alarma",
     "products.noProducts": "No hi ha productes",
@@ -1015,6 +1047,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "help.close": "Tancar ajuda",
     // Comú
     "common.cancel": "Cancel·lar",
+    "common.confirm": "Confirmar",
     "common.save": "Desar",
     "common.delete": "Eliminar",
     "common.edit": "Editar",
@@ -1026,6 +1059,11 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "common.noResults": "No s'han trobat resultats",
     "common.comingSoon": "Pròximament...",
     "common.unsavedChanges": "Descartar els canvis sense desar?",
+    "common.clear": "Netejar",
+    "common.loading": "Carregant...",
+    "common.previous": "Anterior",
+    "common.next": "Següent",
+    "common.page": "Pàgina",
     // Navegació
     "nav.dashboard": "Dashboard",
     "nav.products": "Productes",
@@ -1190,7 +1228,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     "movements.referenceDocument": "Document de Referència",
     "movements.sourceLocation": "Ubicació Origen",
     "movements.destinationLocation": "Ubicació Destí",
-    "movements.searchPlaceholder": "Buscar per codi antic, comentaris, motiu...",
+    "movements.searchPlaceholder": "Buscar per codi de producte, comentaris, motiu...",
     "movements.filter.stockInDesc": "Augments d'estoc a l'inventari",
     "movements.filter.stockOutDesc": "Disminucions d'estoc a l'inventari",
     "movements.filter.locationDesc": "Moviments entre ubicacions del magatzem",
@@ -1364,9 +1402,33 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     return stored ?? "ca-ES"; // Idioma por defecto: CATALÁN
   });
 
+  /**
+   * Función de traducción con soporte para interpolación de variables.
+   * 
+   * Soporta variables en formato {{variableName}} que se reemplazan con los valores
+   * proporcionados en el objeto de parámetros.
+   * 
+   * @param {string} key - Clave de traducción
+   * @param {Record<string, string | number>} [params] - Parámetros para interpolación
+   * @returns {string} Texto traducido con variables interpoladas
+   * @example
+   * t("actions.confirmDelete", { productName: "Producto 1" })
+   * // "¿Estás seguro de eliminar el producto \"Producto 1\"?"
+   */
   const t = React.useCallback(
-    (key: string): string => {
-      return translations[language]?.[key] ?? key;
+    (key: string, params?: Record<string, string | number>): string => {
+      let text = translations[language]?.[key] ?? key;
+      
+      // Interpolar variables si se proporcionan parámetros
+      if (params) {
+        Object.keys(params).forEach((paramKey) => {
+          const value = String(params[paramKey]);
+          // Reemplazar {{paramKey}} con el valor
+          text = text.replace(new RegExp(`\\{\\{${paramKey}\\}\\}`, "g"), value);
+        });
+      }
+      
+      return text;
     },
     [language]
   );

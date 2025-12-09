@@ -275,7 +275,10 @@ export function useProducts() {
   );
 
   /**
-   * Elimina (baja lógica) un producto.
+   * Elimina físicamente un producto de la base de datos.
+   * 
+   * IMPORTANTE: Esta es una eliminación permanente e irreversible.
+   * El producto se eliminará completamente de Supabase junto con sus relaciones.
    */
   const remove = React.useCallback(
     async (id: UUID): Promise<void> => {

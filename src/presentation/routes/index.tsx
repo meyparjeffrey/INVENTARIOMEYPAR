@@ -59,6 +59,10 @@ const BatchesPage = React.lazy(() =>
   import("../pages/BatchesPage").then((module) => ({ default: module.BatchesPage }))
 );
 
+const SearchResultsPage = React.lazy(() =>
+  import("../pages/SearchResultsPage").then((module) => ({ default: module.SearchResultsPage }))
+);
+
 // Lazy load de páginas
 const DashboardPage = React.lazy(() =>
   import("../pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
@@ -185,6 +189,20 @@ const routes: RouteObject[] = [
             }
           >
             <ProductHistoryPage />
+          </React.Suspense>
+        )
+      },
+      {
+        path: "/products/search",
+        element: (
+          <React.Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+              </div>
+            }
+          >
+            <SearchResultsPage />
           </React.Suspense>
         )
       },

@@ -1,5 +1,5 @@
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Package, Box, MapPin, DollarSign, Info, Settings, CheckCircle2, AlertCircle, Wand2 } from "lucide-react";
+import { ArrowLeft, Package, Box, MapPin, Coins, Info, Settings, CheckCircle2, AlertCircle, Wand2 } from "lucide-react";
 import * as React from "react";
 import type { CreateProductInput, UpdateProductInput } from "@domain/repositories/ProductRepository";
 import type { Product } from "@domain/entities";
@@ -692,7 +692,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
       </SectionCard>
 
       {/* Precios */}
-      <SectionCard icon={DollarSign} title={t("form.prices")} delay={0.3}>
+      <SectionCard icon={Coins} title={t("form.prices")} delay={0.3}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <FieldWrapper error={errors.costPrice} touched={touchedFields.has("costPrice")}>
             <Label htmlFor="costPrice">

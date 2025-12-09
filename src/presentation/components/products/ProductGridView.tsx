@@ -7,6 +7,7 @@ import { cn } from "../../lib/cn";
 import { highlightText } from "../../utils/highlightText";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { motion } from "framer-motion";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 interface ProductGridViewProps {
   products: Product[];
@@ -41,6 +42,10 @@ export function ProductGridView({
   const { t } = useLanguage();
   const [hoveredCard, setHoveredCard] = React.useState<string | null>(null);
   const [actionMenuOpen, setActionMenuOpen] = React.useState<string | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = React.useState<{ isOpen: boolean; product: Product | null }>({
+    isOpen: false,
+    product: null
+  });
 
   if (loading) {
     return (
@@ -331,10 +336,8 @@ export function ProductGridView({
                               <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
                               <button
                                 onClick={() => {
-                                  if (window.confirm(t("actions.confirmDelete") || `¿Estás seguro de eliminar ${product.name}?`)) {
-                                    onDelete(product);
-                                  }
                                   setActionMenuOpen(null);
+                                  setDeleteConfirm({ isOpen: true, product });
                                 }}
                                 className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                               >
@@ -353,6 +356,31 @@ export function ProductGridView({
           </motion.div>
         );
       })}
+      
+      {/* Diálogo de confirmación de eliminación */}
+      {deleteConfirm.product && (
+        <ConfirmDialog
+          isOpen={deleteConfirm.isOpen}
+          onClose={() => setDeleteConfirm({ isOpen: false, product: null })}
+          onConfirm={() => {
+            if (deleteConfirm.product && onDelete) {
+              onDelete(deleteConfirm.product);
+            }
+          }}
+          title={t("actions.delete")}
+          message={
+            deleteConfirm.product.stockCurrent > 0
+              ? t("actions.confirmDeleteWithStock", {
+                  productName: deleteConfirm.product.name,
+                  stock: deleteConfirm.product.stockCurrent
+                })
+              : t("actions.confirmDelete", { productName: deleteConfirm.product.name })
+          }
+          confirmText={t("actions.delete")}
+          cancelText={t("common.cancel")}
+          variant="destructive"
+        />
+      )}
     </div>
   );
 }

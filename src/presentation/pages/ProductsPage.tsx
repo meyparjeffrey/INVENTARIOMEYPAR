@@ -16,28 +16,46 @@ import { ColumnConfigDialog } from "../components/products/ColumnConfigDialog";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { SearchInput } from "../components/ui/SearchInput";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 import { calculateColumnWidth, createTotalsRow } from "../utils/excelUtils";
 import { useTableColumns, type TableColumn } from "../hooks/useTableColumns";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
+import { PAGE_SIZE_OPTIONS, DEFAULT_PAGE_SIZE, normalizePageSize } from "../constants/pageSizeOptions";
+import { SupabaseUserRepository } from "@infrastructure/repositories/SupabaseUserRepository";
 
 /**
  * Página principal de gestión de productos.
  */
 export function ProductsPage() {
   const navigate = useNavigate();
-  const { authContext } = useAuth();
+  const { authContext, refreshContext } = useAuth();
   const { t } = useLanguage();
   const { products, loading, error, pagination, list, remove, update, getAll } = useProducts();
   const [searchTerm, setSearchTerm] = React.useState("");
   const [showInactive, setShowInactive] = React.useState(false);
   const [showLowStock, setShowLowStock] = React.useState(false);
   const [currentPage, setCurrentPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(25);
+  const userRepository = React.useMemo(() => new SupabaseUserRepository(), []);
+  
+  // Cargar pageSize desde la configuración del usuario, normalizando si es necesario
+  const defaultPageSize = authContext?.settings?.itemsPerPage 
+    ? normalizePageSize(authContext.settings.itemsPerPage)
+    : DEFAULT_PAGE_SIZE;
+  const [pageSize, setPageSize] = React.useState(defaultPageSize);
+  
+  // Actualizar pageSize cuando cambie la configuración del usuario
+  React.useEffect(() => {
+    if (authContext?.settings?.itemsPerPage) {
+      const normalized = normalizePageSize(authContext.settings.itemsPerPage);
+      setPageSize(normalized);
+    }
+  }, [authContext?.settings?.itemsPerPage]);
   const [advancedFilters, setAdvancedFilters] = React.useState<ProductFiltersState>({});
   const [showExportDialog, setShowExportDialog] = React.useState(false);
   const [viewMode, setViewMode] = React.useState<"table" | "grid">("table");
   const [showColumnConfig, setShowColumnConfig] = React.useState(false);
   const [selectedProductIds, setSelectedProductIds] = React.useState<string[]>([]);
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = React.useState(false);
 
   // Configuración de columnas personalizables
   const defaultColumns: TableColumn[] = React.useMemo(() => [
@@ -108,94 +126,299 @@ export function ProductsPage() {
     return () => clearTimeout(timeoutId);
   }, [searchTerm, showInactive, showLowStock, currentPage, pageSize, advancedFilters, list]);
 
+  /**
+   * Maneja la visualización de un producto.
+   * Valida que el producto exista antes de navegar.
+   */
   const handleView = (product: Product) => {
+    if (!product || !product.id) {
+      // eslint-disable-next-line no-console
+      console.error("Producto inválido para visualizar");
+      return;
+    }
     navigate(`/products/${product.id}`);
   };
 
+  /**
+   * Maneja la edición de un producto.
+   * Valida que el producto exista y que el usuario tenga permisos.
+   */
   const handleEdit = (product: Product) => {
+    if (!product || !product.id) {
+      // eslint-disable-next-line no-console
+      console.error("Producto inválido para editar");
+      return;
+    }
+    if (!canEdit) {
+      // eslint-disable-next-line no-console
+      console.warn("No tienes permisos para editar productos");
+      return;
+    }
     navigate(`/products/${product.id}/edit`);
   };
 
+  /**
+   * Maneja la creación de un movimiento para un producto.
+   * Valida que el producto exista y que el usuario tenga permisos.
+   */
   const handleMovement = (product: Product) => {
+    if (!product || !product.id) {
+      // eslint-disable-next-line no-console
+      console.error("Producto inválido para crear movimiento");
+      return;
+    }
+    if (!canCreateMovement) {
+      // eslint-disable-next-line no-console
+      console.warn("No tienes permisos para crear movimientos");
+      return;
+    }
     navigate(`/movements?product=${product.id}`);
   };
 
+  /**
+   * Maneja la eliminación de un producto.
+   * Incluye confirmación del usuario y validaciones.
+   */
   const handleDelete = async (product: Product) => {
+    if (!product || !product.id) {
+      // eslint-disable-next-line no-console
+      console.error("Producto inválido para eliminar");
+      return;
+    }
+    
+    // La confirmación ya se hace en ProductTable, pero añadimos validación adicional
     try {
       await remove(product.id);
-      // Recargar lista
+      // Recargar lista manteniendo filtros y paginación actuales
       await list(
         {
           search: searchTerm || undefined,
           includeInactive: showInactive,
           lowStock: showLowStock || advancedFilters.lowStock || undefined,
           category: advancedFilters.category,
-          isBatchTracked: advancedFilters.isBatchTracked
+          isBatchTracked: advancedFilters.isBatchTracked,
+          lastModifiedFrom: advancedFilters.dateFrom,
+          lastModifiedTo: advancedFilters.dateTo,
+          lastModifiedType: advancedFilters.lastModifiedType || "both",
+          stockMin: advancedFilters.stockMin,
+          stockMax: advancedFilters.stockMax,
+          stockMinMin: advancedFilters.stockMinMin,
+          stockMinMax: advancedFilters.stockMinMax,
+          priceMin: advancedFilters.priceMin,
+          priceMax: advancedFilters.priceMax,
+          supplierCode: advancedFilters.supplierCode,
+          aisle: advancedFilters.aisle,
+          shelf: advancedFilters.shelf,
+          batchStatus: advancedFilters.batchStatus,
+          createdAtFrom: advancedFilters.createdAtFrom,
+          createdAtTo: advancedFilters.createdAtTo
         },
-        { page: currentPage, pageSize: 25 }
+        { page: currentPage, pageSize }
       );
-    } catch {
-      // Error ya está manejado en el hook
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Error al eliminar producto:", error);
+      // El error ya está manejado en el hook, pero mostramos un mensaje adicional si es necesario
     }
   };
 
+  /**
+   * Maneja la duplicación de un producto.
+   * Valida que el producto exista y que el usuario tenga permisos.
+   */
   const handleDuplicate = (product: Product) => {
+    if (!product || !product.id) {
+      // eslint-disable-next-line no-console
+      console.error("Producto inválido para duplicar");
+      return;
+    }
+    if (!canCreate) {
+      // eslint-disable-next-line no-console
+      console.warn("No tienes permisos para crear productos");
+      return;
+    }
     navigate(`/products/duplicate/${product.id}`);
   };
 
+  /**
+   * Maneja la visualización del historial de un producto.
+   * Valida que el producto exista.
+   */
   const handleHistory = (product: Product) => {
+    if (!product || !product.id) {
+      // eslint-disable-next-line no-console
+      console.error("Producto inválido para ver historial");
+      return;
+    }
     navigate(`/products/${product.id}/history`);
   };
 
+  /**
+   * Maneja la exportación de un producto individual a Excel.
+   * Valida que el producto tenga datos válidos y exporta todos los campos relevantes.
+   */
   const handleExportProduct = async (product: Product) => {
-    // Exportar producto individual a Excel
-    const excelData = [{
-      Código: product.code,
-      Nombre: product.name,
-      Categoría: product.category || "",
-      "Stock Actual": product.stockCurrent,
-      "Stock Mínimo": product.stockMin,
-      "Precio Coste (€)": typeof product.costPrice === "number" ? product.costPrice : parseFloat(product.costPrice?.toString() || "0"),
-      "Precio Venta (€)": product.salePrice ? (typeof product.salePrice === "number" ? product.salePrice : parseFloat(product.salePrice.toString())) : "",
-      "Código Proveedor": product.supplierCode || ""
-    }];
+    if (!product || !product.id) {
+      // eslint-disable-next-line no-console
+      console.error("Producto inválido para exportar");
+      return;
+    }
 
-    const worksheet = XLSX.utils.json_to_sheet(excelData);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Producto");
-    const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
-    const blob = new Blob([excelBuffer], {
-      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `producto_${product.code}_${new Date().toISOString().split("T")[0]}.xlsx`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    try {
+      // Exportar producto individual a Excel con todos los campos relevantes
+      // Asegurar que todos los valores sean primitivos válidos (sin null/undefined)
+      const excelData = [{
+        Código: String(product.code || ""),
+        "Código de Barras": String(product.barcode || ""),
+        Nombre: String(product.name || ""),
+        Descripción: String(product.description || ""),
+        Categoría: String(product.category || ""),
+        "Stock Actual": Number(product.stockCurrent ?? 0),
+        "Stock Mínimo": Number(product.stockMin ?? 0),
+        "Stock Máximo": product.stockMax != null ? Number(product.stockMax) : "",
+        "Precio Coste (€)": typeof product.costPrice === "number" ? Number(product.costPrice) : Number(parseFloat(String(product.costPrice || "0")) || 0),
+        "Precio Venta (€)": product.salePrice != null 
+          ? (typeof product.salePrice === "number" ? Number(product.salePrice) : Number(parseFloat(String(product.salePrice)) || 0))
+          : "",
+        "Cód.Provedor": String(product.supplierCode || ""),
+        Pasillo: String(product.aisle || ""),
+        Estante: String(product.shelf || ""),
+        "Ubicación Extra": String(product.locationExtra || ""),
+        "Control por Lotes": product.isBatchTracked ? "Sí" : "No",
+        "Unidad de Medida": String(product.unitOfMeasure || ""),
+        "Peso (kg)": product.weightKg != null ? Number(product.weightKg) : "",
+        "Dimensiones (cm)": product.dimensionsCm 
+          ? `${product.dimensionsCm.length || ""} x ${product.dimensionsCm.width || ""} x ${product.dimensionsCm.height || ""}`
+          : "",
+        "URL de Compra": String(product.purchaseUrl || ""),
+        "URL de Imagen": String(product.imageUrl || ""),
+        Notas: String(product.notes || ""),
+        Estado: product.isActive ? "Activo" : "Inactivo",
+        "Fecha de Creación": product.createdAt ? new Date(product.createdAt).toLocaleDateString("es-ES") : "",
+        "Fecha de Modificación": product.updatedAt ? new Date(product.updatedAt).toLocaleDateString("es-ES") : ""
+      }];
+
+      const worksheet = XLSX.utils.json_to_sheet(excelData);
+      const workbook = XLSX.utils.book_new();
+      
+      // Ajustar anchos de columna para mejor legibilidad
+      const colWidths = [
+        { wch: 15 }, // Código
+        { wch: 20 }, // Código de Barras
+        { wch: 40 }, // Nombre
+        { wch: 50 }, // Descripción
+        { wch: 15 }, // Categoría
+        { wch: 12 }, // Stock Actual
+        { wch: 12 }, // Stock Mínimo
+        { wch: 12 }, // Stock Máximo
+        { wch: 15 }, // Precio Coste
+        { wch: 15 }, // Precio Venta
+        { wch: 18 }, // Cód.Provedor
+        { wch: 10 }, // Pasillo
+        { wch: 10 }, // Estante
+        { wch: 18 }, // Ubicación Extra
+        { wch: 15 }, // Control por Lotes
+        { wch: 15 }, // Unidad de Medida
+        { wch: 12 }, // Peso
+        { wch: 20 }, // Dimensiones
+        { wch: 30 }, // URL de Compra
+        { wch: 30 }, // URL de Imagen
+        { wch: 50 }, // Notas
+        { wch: 10 }, // Estado
+        { wch: 18 }, // Fecha de Creación
+        { wch: 20 }  // Fecha de Modificación
+      ];
+      worksheet["!cols"] = colWidths;
+
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Producto");
+      
+      // Generar el buffer Excel con opciones explícitas
+      const excelBuffer = XLSX.write(workbook, { 
+        bookType: "xlsx", 
+        type: "array",
+        cellStyles: false,
+        compression: true
+      });
+      
+      // Crear el blob con el tipo MIME correcto
+      const blob = new Blob([excelBuffer], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+      });
+      
+      // Crear y descargar el archivo
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      const fileName = `producto_${(product.code || "sin_codigo").replace(/[^a-zA-Z0-9_-]/g, "_")}_${new Date().toISOString().split("T")[0]}.xlsx`;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      // Mostrar mensaje de éxito
+      // eslint-disable-next-line no-console
+      console.log(`Producto "${product.name}" exportado correctamente como ${fileName}`);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Error al exportar producto:", error);
+      // Mostrar error al usuario
+      const errorMessage = error instanceof Error ? error.message : "Error desconocido";
+      alert(t("products.exportError") || `Error al exportar el producto: ${errorMessage}`);
+    }
   };
 
+  /**
+   * Maneja la activación/desactivación de un producto.
+   * Valida que el producto exista y que el usuario tenga permisos.
+   */
   const handleToggleActive = async (product: Product) => {
+    if (!product || !product.id) {
+      // eslint-disable-next-line no-console
+      console.error("Producto inválido para cambiar estado");
+      return;
+    }
+    if (!canEdit) {
+      // eslint-disable-next-line no-console
+      console.warn("No tienes permisos para editar productos");
+      return;
+    }
+
     try {
       await update(product.id, {
         isActive: !product.isActive,
         updatedBy: authContext?.profile.id || ""
       });
-      // Recargar lista
+      // Recargar lista manteniendo filtros y paginación actuales
       await list(
         {
           search: searchTerm || undefined,
           includeInactive: showInactive,
           lowStock: showLowStock || advancedFilters.lowStock || undefined,
           category: advancedFilters.category,
-          isBatchTracked: advancedFilters.isBatchTracked
+          isBatchTracked: advancedFilters.isBatchTracked,
+          lastModifiedFrom: advancedFilters.dateFrom,
+          lastModifiedTo: advancedFilters.dateTo,
+          lastModifiedType: advancedFilters.lastModifiedType || "both",
+          stockMin: advancedFilters.stockMin,
+          stockMax: advancedFilters.stockMax,
+          stockMinMin: advancedFilters.stockMinMin,
+          stockMinMax: advancedFilters.stockMinMax,
+          priceMin: advancedFilters.priceMin,
+          priceMax: advancedFilters.priceMax,
+          supplierCode: advancedFilters.supplierCode,
+          aisle: advancedFilters.aisle,
+          shelf: advancedFilters.shelf,
+          batchStatus: advancedFilters.batchStatus,
+          createdAtFrom: advancedFilters.createdAtFrom,
+          createdAtTo: advancedFilters.createdAtTo
         },
-        { page: currentPage, pageSize: 25 }
+        { page: currentPage, pageSize }
       );
-    } catch {
-      // Error ya está manejado en el hook
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error("Error al cambiar estado del producto:", error);
+      // El error ya está manejado en el hook
     }
   };
 
@@ -253,19 +476,53 @@ export function ProductsPage() {
   };
 
   const handleBulkExport = async () => {
-    const selectedProducts = (products || []).filter((p) => selectedProductIds.includes(p.id));
-    if (selectedProducts.length === 0) return;
+    if (selectedProductIds.length === 0) return;
 
     try {
+      // Construir filtros actuales para obtener TODOS los productos filtrados
+      const currentFilters: ProductFiltersState = {
+        search: searchTerm || undefined,
+        includeInactive: showInactive,
+        lowStock: showLowStock || advancedFilters.lowStock || undefined,
+        category: advancedFilters.category,
+        isBatchTracked: advancedFilters.isBatchTracked,
+        stockMin: advancedFilters.stockMin,
+        stockMax: advancedFilters.stockMax,
+        priceMin: advancedFilters.priceMin,
+        priceMax: advancedFilters.priceMax,
+        supplierCode: advancedFilters.supplierCode,
+        aisle: advancedFilters.aisle,
+        shelf: advancedFilters.shelf,
+        stockMinMin: advancedFilters.stockMinMin,
+        stockMinMax: advancedFilters.stockMinMax,
+        batchStatus: advancedFilters.batchStatus,
+        lastModifiedFrom: advancedFilters.dateFrom,
+        lastModifiedTo: advancedFilters.dateTo,
+        createdAtFrom: advancedFilters.createdAtFrom,
+        createdAtTo: advancedFilters.createdAtTo
+      };
+      
+      // Obtener TODOS los productos filtrados (sin paginación)
+      const allProducts = await getAll(currentFilters);
+      
+      // Filtrar solo los productos seleccionados
+      const selectedProducts = allProducts.filter((p) => selectedProductIds.includes(p.id));
+      
+      if (selectedProducts.length === 0) {
+        // eslint-disable-next-line no-console
+        console.warn("No se encontraron productos seleccionados para exportar");
+        return;
+      }
+
       const excelData = selectedProducts.map((product) => ({
-        Código: product.code,
-        Nombre: product.name,
+        Código: product.code || "",
+        Nombre: product.name || "",
         Categoría: product.category || "",
-        "Stock Actual": product.stockCurrent,
-        "Stock Mínimo": product.stockMin,
+        "Stock Actual": product.stockCurrent ?? 0,
+        "Stock Mínimo": product.stockMin ?? 0,
         "Precio Coste (€)": typeof product.costPrice === "number" ? product.costPrice : parseFloat(product.costPrice?.toString() || "0"),
         "Precio Venta (€)": product.salePrice ? (typeof product.salePrice === "number" ? product.salePrice : parseFloat(product.salePrice.toString())) : "",
-        "Código Proveedor": product.supplierCode || ""
+        "Cód.Provedor": product.supplierCode || ""
       }));
 
       const worksheet = XLSX.utils.json_to_sheet(excelData);
@@ -291,20 +548,36 @@ export function ProductsPage() {
   };
 
   const handleBulkDelete = async () => {
-    if (!window.confirm(t("actions.confirmDelete") || `¿Estás seguro de eliminar ${selectedProductIds.length} productos?`)) {
-      return;
-    }
+    setShowBulkDeleteConfirm(true);
+  };
 
+  const confirmBulkDelete = async () => {
     try {
       await Promise.all(selectedProductIds.map((id) => remove(id)));
       setSelectedProductIds([]);
+      setShowBulkDeleteConfirm(false);
       await list(
         {
           search: searchTerm || undefined,
           includeInactive: showInactive,
           lowStock: showLowStock || advancedFilters.lowStock || undefined,
           category: advancedFilters.category,
-          isBatchTracked: advancedFilters.isBatchTracked
+          isBatchTracked: advancedFilters.isBatchTracked,
+          lastModifiedFrom: advancedFilters.dateFrom,
+          lastModifiedTo: advancedFilters.dateTo,
+          lastModifiedType: advancedFilters.lastModifiedType || "both",
+          stockMin: advancedFilters.stockMin,
+          stockMax: advancedFilters.stockMax,
+          stockMinMin: advancedFilters.stockMinMin,
+          stockMinMax: advancedFilters.stockMinMax,
+          priceMin: advancedFilters.priceMin,
+          priceMax: advancedFilters.priceMax,
+          supplierCode: advancedFilters.supplierCode,
+          aisle: advancedFilters.aisle,
+          shelf: advancedFilters.shelf,
+          batchStatus: advancedFilters.batchStatus,
+          createdAtFrom: advancedFilters.createdAtFrom,
+          createdAtTo: advancedFilters.createdAtTo
         },
         { page: currentPage, pageSize }
       );
@@ -312,6 +585,15 @@ export function ProductsPage() {
       // Error ya está manejado en el hook
     }
   };
+
+  // Calcular información de stock para productos seleccionados
+  const selectedProductsWithStock = React.useMemo(() => {
+    if (!products || selectedProductIds.length === 0) return { count: 0, totalStock: 0 };
+    const selected = products.filter((p) => selectedProductIds.includes(p.id));
+    const withStock = selected.filter((p) => p.stockCurrent > 0);
+    const totalStock = withStock.reduce((sum, p) => sum + p.stockCurrent, 0);
+    return { count: withStock.length, totalStock };
+  }, [products, selectedProductIds]);
 
   const exportColumns: ColumnOption[] = [
     // Por defecto seleccionados según petición: Codi, Nom, Estoc, Mín, Stock Máximo,
@@ -328,7 +610,7 @@ export function ProductsPage() {
     { key: "locationExtra", label: "Ubicación Extra", defaultSelected: true },
     { key: "costPrice", label: "Precio Coste (€)", defaultSelected: false },
     { key: "salePrice", label: "Precio Venta (€)", defaultSelected: false },
-    { key: "supplierCode", label: t("table.supplierCode"), defaultSelected: true },
+    { key: "supplierCode", label: "Cód.Provedor", defaultSelected: true },
     { key: "isBatchTracked", label: "Control por Lotes", defaultSelected: true },
     { key: "unitOfMeasure", label: "Unidad de Medida", defaultSelected: false },
     { key: "isActive", label: t("table.status"), defaultSelected: false }
@@ -336,11 +618,13 @@ export function ProductsPage() {
 
   const handleExportExcel = React.useCallback(async (
     selectedColumns: string[], 
-    format: "xlsx" | "csv" = "xlsx"
+    format: "xlsx" | "csv" = "xlsx",
+    includeFilters: boolean = false
   ) => {
     try {
-      // Construir filtros actuales
-      const currentFilters: ProductFiltersState = {
+      // Si includeFilters es false, exportar TODOS los productos sin filtros
+      // Si includeFilters es true, aplicar los filtros actuales
+      const filtersToApply: ProductFiltersState | undefined = includeFilters ? {
         includeInactive: showInactive,
         lowStock: showLowStock || advancedFilters.lowStock || undefined,
         category: advancedFilters.category,
@@ -350,10 +634,12 @@ export function ProductsPage() {
         priceMin: advancedFilters.priceMin,
         priceMax: advancedFilters.priceMax,
         supplierCode: advancedFilters.supplierCode
-      };
+      } : undefined;
 
       // Obtener TODOS los productos (sin paginación)
-      const allProducts = await getAll(currentFilters);
+      // Si filtersToApply es undefined, exportar TODOS los productos (activos e inactivos)
+      // para cumplir con la solicitud del usuario de exportar todos los productos de la base de datos
+      const allProducts = await getAll(filtersToApply || { includeInactive: true });
 
       if (!allProducts || allProducts.length === 0) {
         // eslint-disable-next-line no-console
@@ -379,7 +665,7 @@ export function ProductsPage() {
       locationExtra: (p) => p.locationExtra || "",
       costPrice: (p) => typeof p.costPrice === "number" ? p.costPrice : parseFloat(p.costPrice?.toString() || "0"),
       salePrice: (p) => p.salePrice ? (typeof p.salePrice === "number" ? p.salePrice : parseFloat(p.salePrice.toString())) : "",
-      supplierCode: (p) => p.supplierCode || "",
+      supplierCode: (p) => p.supplierCode || "", // Se mapeará a "Cód.Provedor" en el label
       isBatchTracked: (p) => p.isBatchTracked ? "Sí" : "No",
       unitOfMeasure: (p) => p.unitOfMeasure || "",
       isActive: (p) => p.isActive ? "Activo" : "Inactivo"
@@ -641,6 +927,14 @@ export function ProductsPage() {
                 placeholder={t("products.search")}
                 value={searchTerm}
                 onChange={setSearchTerm}
+                onClear={() => {
+                  setSearchTerm("");
+                }}
+                onSearch={(value) => {
+                  if (value.trim().length >= 3) {
+                    navigate(`/products/search?q=${encodeURIComponent(value.trim())}`);
+                  }
+                }}
               />
             </div>
             <div className="flex items-center gap-2">
@@ -844,8 +1138,32 @@ export function ProductsPage() {
         <BulkActionsBar
           selectedCount={selectedProductIds.length}
           totalCount={pagination.total}
-          onSelectAll={() => {
-            const allIds = (products || []).map((p) => p.id);
+          onSelectAll={async () => {
+            // Obtener TODOS los productos filtrados (no solo los de la página actual)
+            const currentFilters: ProductFiltersState = {
+              search: searchTerm || undefined,
+              includeInactive: showInactive,
+              lowStock: showLowStock || advancedFilters.lowStock || undefined,
+              category: advancedFilters.category,
+              isBatchTracked: advancedFilters.isBatchTracked,
+              stockMin: advancedFilters.stockMin,
+              stockMax: advancedFilters.stockMax,
+              priceMin: advancedFilters.priceMin,
+              priceMax: advancedFilters.priceMax,
+              supplierCode: advancedFilters.supplierCode,
+              aisle: advancedFilters.aisle,
+              shelf: advancedFilters.shelf,
+              stockMinMin: advancedFilters.stockMinMin,
+              stockMinMax: advancedFilters.stockMinMax,
+              batchStatus: advancedFilters.batchStatus,
+              lastModifiedFrom: advancedFilters.dateFrom,
+              lastModifiedTo: advancedFilters.dateTo,
+              createdAtFrom: advancedFilters.createdAtFrom,
+              createdAtTo: advancedFilters.createdAtTo
+            };
+            
+            const allFilteredProducts = await getAll(currentFilters);
+            const allIds = allFilteredProducts.map((p) => p.id);
             setSelectedProductIds(allIds);
           }}
           onDeselectAll={() => setSelectedProductIds([])}
@@ -853,7 +1171,7 @@ export function ProductsPage() {
           onDeactivate={canEdit ? handleBulkDeactivate : undefined}
           onExport={canView ? handleBulkExport : undefined}
           onDelete={canEdit ? handleBulkDelete : undefined}
-          isAllSelected={selectedProductIds.length === (products || []).length}
+          isAllSelected={selectedProductIds.length === pagination.total}
         />
       )}
 
@@ -917,17 +1235,32 @@ export function ProductsPage() {
               </label>
               <select
                 value={pageSize}
-                onChange={(e) => {
+                onChange={async (e) => {
                   const newSize = parseInt(e.target.value, 10);
                   setPageSize(newSize);
                   setCurrentPage(1);
+                  
+                  // Guardar automáticamente en la configuración del usuario
+                  if (authContext?.profile?.id) {
+                    try {
+                      await userRepository.updateSettings(authContext.profile.id, {
+                        itemsPerPage: newSize
+                      });
+                      // Refrescar el contexto para que se actualice en toda la app
+                      await refreshContext();
+                    } catch (error) {
+                      // eslint-disable-next-line no-console
+                      console.error("Error al guardar elementos por página:", error);
+                    }
+                  }
                 }}
                 className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
               >
-                <option value={10}>10</option>
-                <option value={25}>25</option>
-                <option value={50}>50</option>
-                <option value={100}>100</option>
+                {PAGE_SIZE_OPTIONS.map((size) => (
+                  <option key={size} value={size}>
+                    {size}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -1016,6 +1349,26 @@ export function ProductsPage() {
           setShowColumnConfig(false);
         }}
         onReset={resetColumns}
+      />
+
+      {/* Diálogo de confirmación de eliminación masiva */}
+      <ConfirmDialog
+        isOpen={showBulkDeleteConfirm}
+        onClose={() => setShowBulkDeleteConfirm(false)}
+        onConfirm={confirmBulkDelete}
+        title={t("actions.delete")}
+        message={
+          selectedProductsWithStock.count > 0
+            ? t("actions.confirmDeleteBulkWithStock", {
+                count: selectedProductIds.length,
+                withStockCount: selectedProductsWithStock.count,
+                totalStock: selectedProductsWithStock.totalStock
+              })
+            : t("actions.confirmDeleteBulk", { count: selectedProductIds.length })
+        }
+        confirmText={t("actions.delete")}
+        cancelText={t("common.cancel")}
+        variant="destructive"
       />
     </div>
   );

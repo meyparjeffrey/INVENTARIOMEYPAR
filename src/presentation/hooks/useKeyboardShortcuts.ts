@@ -12,9 +12,26 @@ export interface KeyboardShortcut {
 /**
  * Hook para gestionar atajos de teclado en la aplicación.
  */
+/**
+ * Hook para gestionar atajos de teclado en la aplicación.
+ * 
+ * No ejecuta atajos cuando el usuario está escribiendo en un input, textarea o contenteditable.
+ */
 export function useKeyboardShortcuts(shortcuts: KeyboardShortcut[]) {
   React.useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      // No ejecutar atajos si el usuario está escribiendo en un campo de texto
+      const target = event.target as HTMLElement;
+      const isInputField = 
+        target.tagName === "INPUT" || 
+        target.tagName === "TEXTAREA" || 
+        target.isContentEditable ||
+        (target.tagName === "DIV" && target.getAttribute("role") === "textbox");
+
+      if (isInputField) {
+        return; // No ejecutar atajos cuando se está escribiendo
+      }
+
       shortcuts.forEach((shortcut) => {
         const keyMatch = event.key.toLowerCase() === shortcut.key.toLowerCase();
         const ctrlMatch = shortcut.ctrl ? event.ctrlKey || event.metaKey : !event.ctrlKey && !event.metaKey;

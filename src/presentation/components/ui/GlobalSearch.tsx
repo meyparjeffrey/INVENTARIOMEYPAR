@@ -189,7 +189,20 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          if (results.length > 0) {
+          const trimmedValue = value.trim();
+          // Si hay un término de búsqueda válido (3+ caracteres), navegar a la página de resultados
+          if (trimmedValue.length >= 3) {
+            // Guardar en búsquedas recientes
+            const updated = [trimmedValue, ...recentSearches.filter((s) => s !== trimmedValue)].slice(0, 5);
+            setRecentSearches(updated);
+            localStorage.setItem("recentSearches", JSON.stringify(updated));
+            
+            // Navegar a la página de resultados de búsqueda
+            navigate(`/products/search?q=${encodeURIComponent(trimmedValue)}`);
+            setValue("");
+            setIsOpen(false);
+          } else if (results.length > 0) {
+            // Si no hay término válido pero hay resultados, ir al primero
             handleResultClick(results[0]);
           }
         }}
@@ -198,10 +211,31 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
         <Input
           ref={inputRef}
-          type="search"
+          type="text"
           placeholder={placeholder}
           value={value}
           onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            // Ctrl+Z o Cmd+Z: Limpiar el campo
+            if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+              e.preventDefault();
+              setValue("");
+              setIsOpen(false);
+              return;
+            }
+            // Ctrl+X o Cmd+X: Cortar texto seleccionado (comportamiento por defecto)
+            // No necesitamos hacer nada especial, el navegador lo maneja automáticamente
+          }}
+          onPaste={(e) => {
+            // Permitir el comportamiento por defecto del navegador
+            // React actualizará el valor automáticamente a través de onChange
+            const pastedText = e.clipboardData.getData("text");
+            if (pastedText) {
+              // Prevenir el comportamiento por defecto y establecer el valor manualmente
+              e.preventDefault();
+              setValue(pastedText);
+            }
+          }}
           onFocus={() => {
             if (results.length > 0 || recentSearches.length > 0) setIsOpen(true);
           }}

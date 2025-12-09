@@ -8,6 +8,7 @@ import { highlightText } from "../../utils/highlightText";
 import { formatCurrency } from "../../utils/formatCurrency";
 import { ResizableColumnHeader } from "./ResizableColumnHeader";
 import { ProductPreviewTooltip } from "./ProductPreviewTooltip";
+import { ConfirmDialog } from "../ui/ConfirmDialog";
 
 type SortField = "code" | "name" | "category" | "stockCurrent" | "stockMin" | "aisle" | "supplierCode" | "costPrice" | "salePrice" | "updatedAt";
 type SortDirection = "asc" | "desc";
@@ -55,6 +56,10 @@ export const ProductTable = React.memo(function ProductTable({
   const [actionMenuOpen, setActionMenuOpen] = React.useState<string | null>(null);
   const [sortField, setSortField] = React.useState<SortField | null>(null);
   const [sortDirection, setSortDirection] = React.useState<SortDirection>("asc");
+  const [deleteConfirm, setDeleteConfirm] = React.useState<{ isOpen: boolean; product: Product | null }>({
+    isOpen: false,
+    product: null
+  });
 
   // Función para ordenar productos
   const sortedProducts = React.useMemo(() => {
@@ -755,11 +760,8 @@ export const ProductTable = React.memo(function ProductTable({
                                     <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
                                     <button
                                       onClick={() => {
-                                        const confirmMessage = t("actions.confirmDelete") || "Estas seguro de eliminar " + product.name;
-                                        if (window.confirm(confirmMessage)) {
-                                          onDelete(product);
-                                        }
                                         setActionMenuOpen(null);
+                                        setDeleteConfirm({ isOpen: true, product });
                                       }}
                                       className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
                                     >
@@ -783,6 +785,31 @@ export const ProductTable = React.memo(function ProductTable({
         </tbody>
       </table>
       </div>
+      
+      {/* Diálogo de confirmación de eliminación */}
+      {deleteConfirm.product && (
+        <ConfirmDialog
+          isOpen={deleteConfirm.isOpen}
+          onClose={() => setDeleteConfirm({ isOpen: false, product: null })}
+          onConfirm={() => {
+            if (deleteConfirm.product && onDelete) {
+              onDelete(deleteConfirm.product);
+            }
+          }}
+          title={t("actions.delete")}
+          message={
+            deleteConfirm.product.stockCurrent > 0
+              ? t("actions.confirmDeleteWithStock", {
+                  productName: deleteConfirm.product.name,
+                  stock: deleteConfirm.product.stockCurrent
+                })
+              : t("actions.confirmDelete", { productName: deleteConfirm.product.name })
+          }
+          confirmText={t("actions.delete")}
+          cancelText={t("common.cancel")}
+          variant="destructive"
+        />
+      )}
     </div>
   );
 }, (prevProps, nextProps) => {

@@ -343,98 +343,120 @@ export class SupabaseProductRepository
   }
 
   async getAll(filters?: ProductFilters): Promise<Product[]> {
-    let query = this.client
-      .from("products")
-      .select("*")
-      .order("name", { ascending: true });
+    // Supabase tiene un límite por defecto de 1000 registros
+    // Para obtener TODOS los productos, necesitamos hacer peticiones en lotes
+    const BATCH_SIZE = 1000;
+    let allProducts: Product[] = [];
+    let currentBatch = 0;
+    let hasMore = true;
 
-    if (!filters?.includeInactive) {
-      query = query.eq("is_active", true);
-    }
+    while (hasMore) {
+      const from = currentBatch * BATCH_SIZE;
+      const to = from + BATCH_SIZE - 1;
 
-    if (filters?.category) {
-      query = query.eq("category", filters.category);
-    }
+      let query = this.client
+        .from("products")
+        .select("*", { count: "exact" })
+        .order("name", { ascending: true })
+        .range(from, to);
 
-    if (typeof filters?.isBatchTracked === "boolean") {
-      query = query.eq("is_batch_tracked", filters.isBatchTracked);
-    }
+      if (!filters?.includeInactive) {
+        query = query.eq("is_active", true);
+      }
 
-    // Filtros por rango de stock
-    if (filters?.stockMin !== undefined) {
-      query = query.gte("stock_current", filters.stockMin);
-    }
-    if (filters?.stockMax !== undefined) {
-      query = query.lte("stock_current", filters.stockMax);
-    }
+      if (filters?.category) {
+        query = query.eq("category", filters.category);
+      }
 
-    // Filtros por rango de precio (cost_price)
-    if (filters?.priceMin !== undefined) {
-      query = query.gte("cost_price", filters.priceMin);
-    }
-    if (filters?.priceMax !== undefined) {
-      query = query.lte("cost_price", filters.priceMax);
-    }
+      if (typeof filters?.isBatchTracked === "boolean") {
+        query = query.eq("is_batch_tracked", filters.isBatchTracked);
+      }
 
-    // Filtro por código de proveedor
-    if (filters?.supplierCode) {
-      query = query.ilike("supplier_code", `%${filters.supplierCode}%`);
-    }
+      // Filtros por rango de stock
+      if (filters?.stockMin !== undefined) {
+        query = query.gte("stock_current", filters.stockMin);
+      }
+      if (filters?.stockMax !== undefined) {
+        query = query.lte("stock_current", filters.stockMax);
+      }
 
-    // Filtros por ubicación
-    if (filters?.aisle) {
-      query = query.ilike("aisle", `%${filters.aisle}%`);
-    }
-    if (filters?.shelf) {
-      query = query.ilike("shelf", `%${filters.shelf}%`);
-    }
+      // Filtros por rango de precio (cost_price)
+      if (filters?.priceMin !== undefined) {
+        query = query.gte("cost_price", filters.priceMin);
+      }
+      if (filters?.priceMax !== undefined) {
+        query = query.lte("cost_price", filters.priceMax);
+      }
 
-    // Filtro por rango de stock mínimo
-    if (filters?.stockMinMin !== undefined) {
-      query = query.gte("stock_min", filters.stockMinMin);
-    }
-    if (filters?.stockMinMax !== undefined) {
-      query = query.lte("stock_min", filters.stockMinMax);
-    }
+      // Filtro por código de proveedor
+      if (filters?.supplierCode) {
+        query = query.ilike("supplier_code", `%${filters.supplierCode}%`);
+      }
 
-    // Filtros por fecha de modificación
-    if (filters?.lastModifiedFrom) {
-      query = query.gte("updated_at", filters.lastModifiedFrom);
-    }
-    if (filters?.lastModifiedTo) {
-      query = query.lte("updated_at", filters.lastModifiedTo + "T23:59:59.999Z");
-    }
+      // Filtros por ubicación
+      if (filters?.aisle) {
+        query = query.ilike("aisle", `%${filters.aisle}%`);
+      }
+      if (filters?.shelf) {
+        query = query.ilike("shelf", `%${filters.shelf}%`);
+      }
 
-    // Filtros por fecha de creación
-    if (filters?.createdAtFrom) {
-      query = query.gte("created_at", filters.createdAtFrom);
-    }
-    if (filters?.createdAtTo) {
-      query = query.lte("created_at", filters.createdAtTo + "T23:59:59.999Z");
-    }
+      // Filtro por rango de stock mínimo
+      if (filters?.stockMinMin !== undefined) {
+        query = query.gte("stock_min", filters.stockMinMin);
+      }
+      if (filters?.stockMinMax !== undefined) {
+        query = query.lte("stock_min", filters.stockMinMax);
+      }
 
-    if (filters?.search) {
-      const searchTerm = filters.search.trim();
-      if (searchTerm) {
-        // Usar utilidad de búsqueda avanzada con operadores lógicos (AND, OR, NOT, *, comillas)
-        const searchCondition = processSearchTerm(searchTerm, ["code", "name", "barcode"]);
-        if (searchCondition) {
-          query = query.or(searchCondition);
+      // Filtros por fecha de modificación
+      if (filters?.lastModifiedFrom) {
+        query = query.gte("updated_at", filters.lastModifiedFrom);
+      }
+      if (filters?.lastModifiedTo) {
+        query = query.lte("updated_at", filters.lastModifiedTo + "T23:59:59.999Z");
+      }
+
+      // Filtros por fecha de creación
+      if (filters?.createdAtFrom) {
+        query = query.gte("created_at", filters.createdAtFrom);
+      }
+      if (filters?.createdAtTo) {
+        query = query.lte("created_at", filters.createdAtTo + "T23:59:59.999Z");
+      }
+
+      if (filters?.search) {
+        const searchTerm = filters.search.trim();
+        if (searchTerm) {
+          // Usar utilidad de búsqueda avanzada con operadores lógicos (AND, OR, NOT, *, comillas)
+          const searchCondition = processSearchTerm(searchTerm, ["code", "name", "barcode"]);
+          if (searchCondition) {
+            query = query.or(searchCondition);
+          }
         }
+      }
+
+      const { data, error, count } = await query;
+      this.handleError("obtener todos los productos", error);
+
+      const batchProducts = (data ?? []).map(mapProduct);
+      allProducts = [...allProducts, ...batchProducts];
+
+      // Si recibimos menos productos que el tamaño del lote, no hay más
+      // O si el total de productos obtenidos es igual al count
+      if (batchProducts.length < BATCH_SIZE || (count !== null && allProducts.length >= count)) {
+        hasMore = false;
+      } else {
+        currentBatch++;
       }
     }
 
-    const { data, error } = await query;
-    this.handleError("obtener todos los productos", error);
-
-    let products = (data ?? []).map(mapProduct);
-
     // Filtrar por stock bajo en el cliente
     if (filters?.lowStock) {
-      products = products.filter((p) => p.stockCurrent <= p.stockMin);
+      allProducts = allProducts.filter((p) => p.stockCurrent <= p.stockMin);
     }
 
-    return products;
+    return allProducts;
   }
 
   async findById(id: string) {
@@ -583,10 +605,20 @@ export class SupabaseProductRepository
     return mapProduct(data as ProductRow);
   }
 
+  /**
+   * Elimina físicamente un producto de la base de datos.
+   * 
+   * IMPORTANTE: Esta es una eliminación permanente e irreversible.
+   * El producto y sus relaciones (lotes, movimientos, historial, etc.)
+   * se eliminarán automáticamente según las políticas CASCADE de la base de datos.
+   * 
+   * @param {string} id - ID del producto a eliminar
+   * @throws {Error} Si hay un error al eliminar el producto
+   */
   async delete(id: string): Promise<void> {
     const { error } = await this.client
       .from("products")
-      .update({ is_active: false, updated_at: new Date().toISOString() })
+      .delete()
       .eq("id", id);
 
     this.handleError("eliminar producto", error);

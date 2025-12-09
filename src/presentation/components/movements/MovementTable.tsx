@@ -25,6 +25,8 @@ interface MovementTableProps {
   loading?: boolean;
   onViewProduct?: (productId: string) => void;
   onViewDetail?: (movement: MovementWithProduct) => void;
+  emptyMessage?: string; // Mensaje personalizado cuando no hay movimientos
+  emptyDescription?: string; // Descripción personalizada cuando no hay movimientos
 }
 
 const movementTypeConfig: Record<
@@ -60,7 +62,9 @@ export function MovementTable({
   movements,
   loading = false,
   onViewProduct,
-  onViewDetail
+  onViewDetail,
+  emptyMessage,
+  emptyDescription
 }: MovementTableProps) {
   const { t } = useLanguage();
 
@@ -76,8 +80,8 @@ export function MovementTable({
     return (
       <div className="flex h-64 flex-col items-center justify-center text-gray-500 dark:text-gray-400">
         <Package className="mb-4 h-12 w-12" />
-        <p className="text-lg font-medium">{t("movements.noMovements")}</p>
-        <p className="text-sm">{t("movements.createFirst")}</p>
+        <p className="text-lg font-medium">{emptyMessage || t("movements.noMovements")}</p>
+        <p className="text-sm">{emptyDescription || t("movements.createFirst")}</p>
       </div>
     );
   }
@@ -116,7 +120,7 @@ export function MovementTable({
                 {t("movements.user")}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {t("common.actions")}
+                {t("table.actions")}
               </th>
             </tr>
           </thead>

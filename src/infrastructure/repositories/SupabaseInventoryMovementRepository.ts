@@ -106,10 +106,32 @@ export class SupabaseInventoryMovementRepository
       query = query.lte("movement_date", filters.dateTo);
     }
 
-    // Búsqueda por texto (en comments, request_reason, código antiguo, nombre producto)
+    // Búsqueda por texto (en comments, request_reason, código producto, nombre producto)
     if (filters?.search && filters.search.trim()) {
-      const searchTerm = filters.search.trim().toLowerCase();
-      query = query.or(`comments.ilike.%${searchTerm}%,request_reason.ilike.%${searchTerm}%`);
+      const searchTerm = filters.search.trim();
+      
+      // Buscar productos que coincidan con el código o nombre
+      const { data: matchingProducts } = await this.client
+        .from("products")
+        .select("id")
+        .or(`code.ilike.%${searchTerm}%,name.ilike.%${searchTerm}%`);
+      
+      const matchingProductIds = matchingProducts?.map((p: { id: string }) => p.id) || [];
+      
+      // Construir condición de búsqueda
+      const searchConditions: string[] = [
+        `comments.ilike.%${searchTerm}%`,
+        `request_reason.ilike.%${searchTerm}%`
+      ];
+      
+      // Si hay productos que coinciden, añadir filtro por product_id
+      if (matchingProductIds.length > 0) {
+        // Para cada product_id, añadir una condición
+        const productConditions = matchingProductIds.map((id: string) => `product_id.eq.${id}`);
+        searchConditions.push(...productConditions);
+      }
+      
+      query = query.or(searchConditions.join(","));
     }
 
     // Ordenación

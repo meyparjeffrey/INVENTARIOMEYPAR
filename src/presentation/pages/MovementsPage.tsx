@@ -188,6 +188,10 @@ export function MovementsPage() {
             placeholder={t("movements.searchPlaceholder")}
             value={searchTerm}
             onChange={(value) => setSearchTerm(value)}
+            onClear={() => {
+              setSearchTerm("");
+              setFilters({ ...filters, search: undefined });
+            }}
           />
         </div>
         <MovementFilters filters={filters} onFiltersChange={setFilters} />
