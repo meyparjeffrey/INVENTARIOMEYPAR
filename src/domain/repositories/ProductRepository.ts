@@ -16,6 +16,19 @@ export interface ProductFilters {
   lastModifiedFrom?: string; // Fecha desde (ISO string)
   lastModifiedTo?: string; // Fecha hasta (ISO string)
   lastModifiedType?: "entries" | "exits" | "both"; // Tipo de modificación: entradas, salidas, ambas
+  stockMin?: number; // Stock mínimo (filtro por rango)
+  stockMax?: number; // Stock máximo (filtro por rango)
+  priceMin?: number; // Precio mínimo (filtro por rango de cost_price)
+  priceMax?: number; // Precio máximo (filtro por rango de cost_price)
+  supplierCode?: string; // Código de proveedor
+  // Nuevos filtros
+  aisle?: string; // Pasillo (ubicación)
+  shelf?: string; // Estante (ubicación)
+  batchStatus?: ("OK" | "DEFECTIVE" | "BLOCKED" | "EXPIRED")[]; // Estado de lote
+  stockMinMin?: number; // Stock mínimo mínimo (filtro por rango de stock_min)
+  stockMinMax?: number; // Stock mínimo máximo (filtro por rango de stock_min)
+  createdAtFrom?: string; // Fecha de creación desde (ISO string)
+  createdAtTo?: string; // Fecha de creación hasta (ISO string)
 }
 
 export interface BatchFilters {

@@ -15,6 +15,7 @@ import type {
 import type { PaginationParams } from "@domain/repositories/types";
 import { BaseSupabaseRepository } from "./BaseSupabaseRepository";
 import { buildPagination, toPaginatedResult } from "./pagination";
+import { processSearchTerm } from "./searchUtils";
 
 type ProductRow = {
   id: string;
@@ -188,11 +189,60 @@ export class SupabaseProductRepository
       query = query.eq("is_batch_tracked", filters.isBatchTracked);
     }
 
+    // Filtros por rango de stock
+    if (filters?.stockMin !== undefined) {
+      query = query.gte("stock_current", filters.stockMin);
+    }
+    if (filters?.stockMax !== undefined) {
+      query = query.lte("stock_current", filters.stockMax);
+    }
+
+    // Filtros por rango de precio (cost_price)
+    if (filters?.priceMin !== undefined) {
+      query = query.gte("cost_price", filters.priceMin);
+    }
+    if (filters?.priceMax !== undefined) {
+      query = query.lte("cost_price", filters.priceMax);
+    }
+
+    // Filtro por código de proveedor
+    if (filters?.supplierCode) {
+      query = query.ilike("supplier_code", `%${filters.supplierCode}%`);
+    }
+
+    // Filtros por ubicación
+    if (filters?.aisle) {
+      query = query.ilike("aisle", `%${filters.aisle}%`);
+    }
+    if (filters?.shelf) {
+      query = query.ilike("shelf", `%${filters.shelf}%`);
+    }
+
+    // Filtro por rango de stock mínimo
+    if (filters?.stockMinMin !== undefined) {
+      query = query.gte("stock_min", filters.stockMinMin);
+    }
+    if (filters?.stockMinMax !== undefined) {
+      query = query.lte("stock_min", filters.stockMinMax);
+    }
+
+    // Filtros por fecha de creación
+    if (filters?.createdAtFrom) {
+      query = query.gte("created_at", filters.createdAtFrom);
+    }
+    if (filters?.createdAtTo) {
+      query = query.lte("created_at", filters.createdAtTo + "T23:59:59.999Z");
+    }
+
     if (filters?.search) {
-      const term = `%${filters.search}%`;
-      query = query.or(
-        `code.ilike.${term},name.ilike.${term},barcode.ilike.${term}`
-      );
+      const searchTerm = filters.search.trim();
+      if (searchTerm) {
+        // Usar utilidad de búsqueda avanzada con operadores lógicos (AND, OR, NOT, *, comillas)
+        const searchCondition = processSearchTerm(searchTerm, ["code", "name", "barcode"]);
+        if (searchCondition) {
+          query = query.or(searchCondition);
+        }
+      }
     }
 
     // Filtros por fecha de modificación
@@ -206,7 +256,8 @@ export class SupabaseProductRepository
     // Para filtros que requieren comparación entre columnas o consultas complejas,
     // necesitamos obtener todos los productos primero y filtrar en el cliente
     const needsClientFiltering = filters?.lowStock || filters?.stockNearMinimum || 
-                                  (filters?.lastModifiedType && filters.lastModifiedType !== "both");
+                                  (filters?.lastModifiedType && filters.lastModifiedType !== "both") ||
+                                  (filters?.batchStatus && filters.batchStatus.length > 0);
 
     if (needsClientFiltering) {
       // Obtener todos los productos que cumplan los filtros básicos (sin paginación)
@@ -240,10 +291,27 @@ export class SupabaseProductRepository
           .lte("movement_date", dateTo + "T23:59:59.999Z");
         
         if (movementsData && movementsData.length > 0) {
-          const productIdsWithMovements = new Set(movementsData.map((m: any) => m.product_id));
+          const productIdsWithMovements = new Set(movementsData.map((m: { product_id: string }) => m.product_id));
           allProducts = allProducts.filter((p) => productIdsWithMovements.has(p.id));
         } else {
           // Si no hay movimientos, no hay productos que mostrar
+          allProducts = [];
+        }
+      }
+
+      // Filtrar por estado de lote
+      if (filters?.batchStatus && filters.batchStatus.length > 0) {
+        // Obtener productos que tengan lotes con los estados especificados
+        const { data: batchesData } = await this.client
+          .from("product_batches")
+          .select("product_id")
+          .in("status", filters.batchStatus);
+        
+        if (batchesData && batchesData.length > 0) {
+          const productIdsWithBatches = new Set(batchesData.map((b: { product_id: string }) => b.product_id));
+          allProducts = allProducts.filter((p) => productIdsWithBatches.has(p.id));
+        } else {
+          // Si no hay lotes con esos estados, no hay productos que mostrar
           allProducts = [];
         }
       }
@@ -292,11 +360,68 @@ export class SupabaseProductRepository
       query = query.eq("is_batch_tracked", filters.isBatchTracked);
     }
 
+    // Filtros por rango de stock
+    if (filters?.stockMin !== undefined) {
+      query = query.gte("stock_current", filters.stockMin);
+    }
+    if (filters?.stockMax !== undefined) {
+      query = query.lte("stock_current", filters.stockMax);
+    }
+
+    // Filtros por rango de precio (cost_price)
+    if (filters?.priceMin !== undefined) {
+      query = query.gte("cost_price", filters.priceMin);
+    }
+    if (filters?.priceMax !== undefined) {
+      query = query.lte("cost_price", filters.priceMax);
+    }
+
+    // Filtro por código de proveedor
+    if (filters?.supplierCode) {
+      query = query.ilike("supplier_code", `%${filters.supplierCode}%`);
+    }
+
+    // Filtros por ubicación
+    if (filters?.aisle) {
+      query = query.ilike("aisle", `%${filters.aisle}%`);
+    }
+    if (filters?.shelf) {
+      query = query.ilike("shelf", `%${filters.shelf}%`);
+    }
+
+    // Filtro por rango de stock mínimo
+    if (filters?.stockMinMin !== undefined) {
+      query = query.gte("stock_min", filters.stockMinMin);
+    }
+    if (filters?.stockMinMax !== undefined) {
+      query = query.lte("stock_min", filters.stockMinMax);
+    }
+
+    // Filtros por fecha de modificación
+    if (filters?.lastModifiedFrom) {
+      query = query.gte("updated_at", filters.lastModifiedFrom);
+    }
+    if (filters?.lastModifiedTo) {
+      query = query.lte("updated_at", filters.lastModifiedTo + "T23:59:59.999Z");
+    }
+
+    // Filtros por fecha de creación
+    if (filters?.createdAtFrom) {
+      query = query.gte("created_at", filters.createdAtFrom);
+    }
+    if (filters?.createdAtTo) {
+      query = query.lte("created_at", filters.createdAtTo + "T23:59:59.999Z");
+    }
+
     if (filters?.search) {
-      const term = `%${filters.search}%`;
-      query = query.or(
-        `code.ilike.${term},name.ilike.${term},barcode.ilike.${term}`
-      );
+      const searchTerm = filters.search.trim();
+      if (searchTerm) {
+        // Usar utilidad de búsqueda avanzada con operadores lógicos (AND, OR, NOT, *, comillas)
+        const searchCondition = processSearchTerm(searchTerm, ["code", "name", "barcode"]);
+        if (searchCondition) {
+          query = query.or(searchCondition);
+        }
+      }
     }
 
     const { data, error } = await query;

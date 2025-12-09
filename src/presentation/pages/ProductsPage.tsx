@@ -1,7 +1,8 @@
-import { Package, Plus, Download, X, LayoutGrid, Table2, Settings } from "lucide-react";
+import { Plus, Download, X, LayoutGrid, Table2, Settings } from "lucide-react";
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
+import type { Product } from "@domain/entities";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useProducts } from "../hooks/useProducts";
@@ -9,13 +10,13 @@ import { ProductTable } from "../components/products/ProductTable";
 import { ProductGridView } from "../components/products/ProductGridView";
 import { BulkActionsBar } from "../components/products/BulkActionsBar";
 import { ProductFilters, type ProductFiltersState } from "../components/products/ProductFilters";
+import { DATE_RANGE_OPTIONS } from "../components/ui/DateRangeSlider";
 import { ExportDialog, type ColumnOption } from "../components/products/ExportDialog";
 import { ColumnConfigDialog } from "../components/products/ColumnConfigDialog";
 import { Button } from "../components/ui/Button";
 import { Input } from "../components/ui/Input";
 import { SearchInput } from "../components/ui/SearchInput";
-import { formatCurrency } from "../utils/formatCurrency";
-import { calculateColumnWidth, formatCurrencyCell, createTotalsRow } from "../utils/excelUtils";
+import { calculateColumnWidth, createTotalsRow } from "../utils/excelUtils";
 import { useTableColumns, type TableColumn } from "../hooks/useTableColumns";
 import { useKeyboardShortcuts } from "../hooks/useKeyboardShortcuts";
 
@@ -56,9 +57,6 @@ export function ProductsPage() {
 
   const {
     columns: tableColumns,
-    visibleColumns,
-    toggleColumnVisibility,
-    reorderColumns,
     resetColumns,
     saveColumns
   } = useTableColumns({
@@ -70,9 +68,15 @@ export function ProductsPage() {
   React.useEffect(() => {
     const timeoutId = setTimeout(async () => {
       try {
+        // Búsqueda mejorada: permite código completo, 3+ caracteres parciales, o nombre
+        const trimmedSearch = searchTerm.trim();
+        const searchValue = trimmedSearch.length >= 3 || trimmedSearch.length === 0 
+          ? trimmedSearch || undefined 
+          : undefined; // Solo buscar si tiene 3+ caracteres o está vacío
+
         await list(
           {
-            search: searchTerm || undefined,
+            search: searchValue,
             includeInactive: showInactive,
             lowStock: showLowStock || advancedFilters.lowStock || undefined,
             stockNearMinimum: advancedFilters.stockNearMinimum,
@@ -80,27 +84,39 @@ export function ProductsPage() {
             isBatchTracked: advancedFilters.isBatchTracked,
             lastModifiedFrom: advancedFilters.dateFrom,
             lastModifiedTo: advancedFilters.dateTo,
-            lastModifiedType: advancedFilters.lastModifiedType || "both"
+            lastModifiedType: advancedFilters.lastModifiedType || "both",
+            stockMin: advancedFilters.stockMin,
+            stockMax: advancedFilters.stockMax,
+            stockMinMin: advancedFilters.stockMinMin,
+            stockMinMax: advancedFilters.stockMinMax,
+            priceMin: advancedFilters.priceMin,
+            priceMax: advancedFilters.priceMax,
+            supplierCode: advancedFilters.supplierCode,
+            aisle: advancedFilters.aisle,
+            shelf: advancedFilters.shelf,
+            batchStatus: advancedFilters.batchStatus,
+            createdAtFrom: advancedFilters.createdAtFrom,
+            createdAtTo: advancedFilters.createdAtTo
           },
           { page: currentPage, pageSize }
         );
-      } catch (err) {
+      } catch {
         // Error ya está manejado en el hook
       }
-    }, searchTerm ? 300 : 0); // Debounce solo para búsqueda
+    }, searchTerm.trim() ? 300 : 0); // Debounce de 300ms para mejor rendimiento
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, showInactive, showLowStock, currentPage, advancedFilters, list]);
+  }, [searchTerm, showInactive, showLowStock, currentPage, pageSize, advancedFilters, list]);
 
-  const handleView = (product: any) => {
+  const handleView = (product: Product) => {
     navigate(`/products/${product.id}`);
   };
 
-  const handleEdit = (product: any) => {
+  const handleEdit = (product: Product) => {
     navigate(`/products/${product.id}/edit`);
   };
 
-  const handleMovement = (product: any) => {
+  const handleMovement = (product: Product) => {
     navigate(`/movements?product=${product.id}`);
   };
 
@@ -118,7 +134,7 @@ export function ProductsPage() {
         },
         { page: currentPage, pageSize: 25 }
       );
-    } catch (err) {
+    } catch {
       // Error ya está manejado en el hook
     }
   };
@@ -178,7 +194,7 @@ export function ProductsPage() {
         },
         { page: currentPage, pageSize: 25 }
       );
-    } catch (err) {
+    } catch {
       // Error ya está manejado en el hook
     }
   };
@@ -205,7 +221,7 @@ export function ProductsPage() {
         },
         { page: currentPage, pageSize }
       );
-    } catch (err) {
+    } catch {
       // Error ya está manejado en el hook
     }
   };
@@ -231,7 +247,7 @@ export function ProductsPage() {
         },
         { page: currentPage, pageSize }
       );
-    } catch (err) {
+    } catch {
       // Error ya está manejado en el hook
     }
   };
@@ -292,7 +308,7 @@ export function ProductsPage() {
         },
         { page: currentPage, pageSize }
       );
-    } catch (err) {
+    } catch {
       // Error ya está manejado en el hook
     }
   };
@@ -320,13 +336,11 @@ export function ProductsPage() {
 
   const handleExportExcel = React.useCallback(async (
     selectedColumns: string[], 
-    format: "xlsx" | "csv" = "xlsx",
-    includeFilters: boolean = false
+    format: "xlsx" | "csv" = "xlsx"
   ) => {
     try {
       // Construir filtros actuales
       const currentFilters: ProductFiltersState = {
-        search: searchTerm || undefined,
         includeInactive: showInactive,
         lowStock: showLowStock || advancedFilters.lowStock || undefined,
         category: advancedFilters.category,
@@ -352,7 +366,7 @@ export function ProductsPage() {
       }
 
     // Mapeo de columnas
-    const columnMap: Record<string, (p: any) => any> = {
+    const columnMap: Record<string, (p: Product) => string | number> = {
       code: (p) => p.code,
       name: (p) => p.name,
       category: (p) => p.category || "",
@@ -373,7 +387,7 @@ export function ProductsPage() {
 
     // Preparar datos para Excel solo con columnas seleccionadas
     const excelData = allProducts.map((product) => {
-      const row: Record<string, any> = {};
+      const row: Record<string, string | number> = {};
       selectedColumns.forEach((colKey) => {
         const column = exportColumns.find((c) => c.key === colKey);
         if (column && columnMap[colKey]) {
@@ -435,7 +449,7 @@ export function ProductsPage() {
     
     if (Object.keys(numericColumns).length > 0 && excelData.length > 0) {
       const totalsRow = createTotalsRow(excelData, headerRow, numericColumns);
-      const totalsData: Record<string, any> = {};
+      const totalsData: Record<string, string | number> = {};
       headerRow.forEach((col) => {
         if (numericColumns[col]) {
           totalsData[col] = totalsRow[col] || 0;
@@ -473,7 +487,6 @@ export function ProductsPage() {
     // Generar archivo según formato
     let blob: Blob;
     let fileName: string;
-    let mimeType: string;
 
     if (format === "csv") {
       // Convertir a CSV (UTF-8 con BOM para que Excel muestre bien acentos y caracteres especiales)
@@ -481,7 +494,6 @@ export function ProductsPage() {
       const bom = "\uFEFF"; // Byte Order Mark para UTF-8
       blob = new Blob([bom + csvContent], { type: "text/csv;charset=utf-8;" });
       fileName = `productos_${new Date().toISOString().split("T")[0]}.csv`;
-      mimeType = "text/csv";
     } else {
       // Excel (xlsx) - formato por defecto
       const excelBuffer = XLSX.write(workbook, { bookType: "xlsx", type: "array" });
@@ -489,7 +501,6 @@ export function ProductsPage() {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
       });
       fileName = `productos_${new Date().toISOString().split("T")[0]}.xlsx`;
-      mimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
     }
 
     // Crear enlace de descarga
@@ -668,7 +679,7 @@ export function ProductsPage() {
           <div className="flex flex-wrap items-center gap-2">
             {searchTerm && (
               <span className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-3 py-1 text-xs font-medium text-primary-800 dark:bg-primary-900/30 dark:text-primary-300">
-                {t("products.search")}: "{searchTerm}"
+                {t("products.search")}: &quot;{searchTerm}&quot;
                 <button
                   onClick={() => setSearchTerm("")}
                   className="ml-1 rounded-full hover:bg-primary-200 dark:hover:bg-primary-800"
@@ -749,6 +760,76 @@ export function ProductsPage() {
                 <button
                   onClick={() => setAdvancedFilters({ ...advancedFilters, supplierCode: undefined })}
                   className="ml-1 rounded-full hover:bg-teal-200 dark:hover:bg-teal-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {advancedFilters.aisle && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-3 py-1 text-xs font-medium text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300">
+                Pasillo: {advancedFilters.aisle}
+                <button
+                  onClick={() => setAdvancedFilters({ ...advancedFilters, aisle: undefined })}
+                  className="ml-1 rounded-full hover:bg-cyan-200 dark:hover:bg-cyan-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {advancedFilters.shelf && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-3 py-1 text-xs font-medium text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300">
+                Estante: {advancedFilters.shelf}
+                <button
+                  onClick={() => setAdvancedFilters({ ...advancedFilters, shelf: undefined })}
+                  className="ml-1 rounded-full hover:bg-cyan-200 dark:hover:bg-cyan-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {advancedFilters.batchStatus && advancedFilters.batchStatus.length > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-800 dark:bg-orange-900/30 dark:text-orange-300">
+                Estado lote: {advancedFilters.batchStatus.join(", ")}
+                <button
+                  onClick={() => setAdvancedFilters({ ...advancedFilters, batchStatus: undefined })}
+                  className="ml-1 rounded-full hover:bg-orange-200 dark:hover:bg-orange-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {(advancedFilters.stockMinMin !== undefined || advancedFilters.stockMinMax !== undefined) && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                Stock mín: {advancedFilters.stockMinMin ?? "0"} - {advancedFilters.stockMinMax ?? "∞"}
+                <button
+                  onClick={() => setAdvancedFilters({ ...advancedFilters, stockMinMin: undefined, stockMinMax: undefined })}
+                  className="ml-1 rounded-full hover:bg-emerald-200 dark:hover:bg-emerald-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {advancedFilters.createdAtFrom && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-800 dark:bg-violet-900/30 dark:text-violet-300">
+                Creado: {advancedFilters.createdAtSlider !== undefined 
+                  ? DATE_RANGE_OPTIONS.find(opt => opt.value === advancedFilters.createdAtSlider)?.label || "Personalizado"
+                  : "Personalizado"}
+                <button
+                  onClick={() => setAdvancedFilters({ ...advancedFilters, createdAtFrom: undefined, createdAtTo: undefined, createdAtSlider: undefined })}
+                  className="ml-1 rounded-full hover:bg-violet-200 dark:hover:bg-violet-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {advancedFilters.dateFrom && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-800 dark:bg-pink-900/30 dark:text-pink-300">
+                Modificado: {advancedFilters.lastModifiedSlider !== undefined 
+                  ? DATE_RANGE_OPTIONS.find(opt => opt.value === advancedFilters.lastModifiedSlider)?.label || "Personalizado"
+                  : "Personalizado"}
+                <button
+                  onClick={() => setAdvancedFilters({ ...advancedFilters, dateFrom: undefined, dateTo: undefined, lastModifiedSlider: undefined })}
+                  className="ml-1 rounded-full hover:bg-pink-200 dark:hover:bg-pink-800"
                 >
                   <X className="h-3 w-3" />
                 </button>

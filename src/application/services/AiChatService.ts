@@ -154,7 +154,7 @@ export class AiChatService {
             }
           ]
         };
-      } catch (error) {
+      } catch {
         return {
           content: "Lo siento, hubo un error al consultar los productos en alarma. Por favor, inténtalo de nuevo."
         };
@@ -191,7 +191,7 @@ export class AiChatService {
               content: `No se encontró ningún producto con el código "${code}". Verifica que el código sea correcto.`
             };
           }
-        } catch (error) {
+        } catch {
           return {
             content: "Lo siento, hubo un error al buscar el producto. Por favor, inténtalo de nuevo."
           };
@@ -330,7 +330,7 @@ export class AiChatService {
               content: `No se encontró ningún producto con el código "${code}". Verifica que el código sea correcto.`
             };
           }
-        } catch (error) {
+        } catch {
           return {
             content: "Lo siento, hubo un error al consultar el stock. Por favor, inténtalo de nuevo."
           };

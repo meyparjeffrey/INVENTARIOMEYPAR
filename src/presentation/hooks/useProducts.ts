@@ -8,7 +8,7 @@ import type {
   ProductRepository,
   UpdateProductInput
 } from "@domain/repositories/ProductRepository";
-import type { PaginationParams, PaginatedResult } from "@domain/repositories/types";
+import type { PaginationParams } from "@domain/repositories/types";
 import { SupabaseProductRepository } from "@infrastructure/repositories/SupabaseProductRepository";
 import { SupabaseInventoryMovementRepository } from "@infrastructure/repositories/SupabaseInventoryMovementRepository";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
@@ -16,6 +16,19 @@ import { useRealtime } from "./useRealtime";
 
 /**
  * Hook para gestionar productos con operaciones CRUD.
+ * 
+ * Proporciona estado, funciones y paginación para productos.
+ * Incluye suscripción en tiempo real a cambios en Supabase.
+ * 
+ * @returns {Object} Objeto con productos, loading, error, pagination y funciones CRUD
+ * @example
+ * const { products, loading, list, create, update, remove } = useProducts();
+ * 
+ * // Cargar productos
+ * await list({ search: "term", category: "Electrónica" }, { page: 1, pageSize: 25 });
+ * 
+ * // Crear producto
+ * const newProduct = await create({ code: "PROD001", name: "Producto", ... });
  */
 export function useProducts() {
   const [loading, setLoading] = React.useState(false);
@@ -45,7 +58,7 @@ export function useProducts() {
   );
 
   // Función para mapear un producto desde la fila de Supabase (igual que en el repositorio)
-  const mapProductFromRow = React.useCallback((row: any): Product => {
+  const mapProductFromRow = React.useCallback((row: Record<string, unknown>): Product => {
     const parseDimensions = (raw: string | null) => {
       if (!raw) return null;
       try {
@@ -86,7 +99,7 @@ export function useProducts() {
   }, []);
 
   // Suscripción en tiempo real para productos (solo productos activos)
-  useRealtime<any>({
+  useRealtime<Record<string, unknown>>({
     table: "products",
     filter: "is_active=eq.true",
     onInsert: (newProduct) => {
@@ -306,6 +319,15 @@ export function useProducts() {
     []
   );
 
+  /**
+   * Recarga la lista de productos con los filtros actuales.
+   * Útil para refrescar datos después de cambios externos.
+   */
+  const refresh = React.useCallback(async () => {
+    // Recargar con los mismos filtros (si hay alguno guardado)
+    await list();
+  }, [list]);
+
   return {
     products,
     loading,
@@ -317,7 +339,8 @@ export function useProducts() {
     create,
     update,
     remove,
-    findByCode
+    findByCode,
+    refresh
   };
 }
 

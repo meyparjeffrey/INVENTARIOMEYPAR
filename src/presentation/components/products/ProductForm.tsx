@@ -84,6 +84,23 @@ interface ProductFormProps {
 
 /**
  * Formulario moderno e interactivo para crear o editar productos.
+ * 
+ * Incluye validación en tiempo real, animaciones, y soporte para productos con lotes.
+ * El formulario se divide en secciones: Información básica, Stock, Ubicación, Precios, etc.
+ * 
+ * @component
+ * @param {ProductFormProps} props - Propiedades del componente
+ * @param {Product} [props.product] - Producto a editar (si no se proporciona, se crea uno nuevo)
+ * @param {Function} props.onSubmit - Callback al enviar el formulario con los datos validados
+ * @param {Function} props.onCancel - Callback al cancelar la edición
+ * @param {boolean} [props.loading=false] - Estado de carga durante el envío
+ * @example
+ * <ProductForm
+ *   product={existingProduct}
+ *   onSubmit={async (data) => await updateProduct(product.id, data)}
+ *   onCancel={() => navigate('/products')}
+ *   loading={isUpdating}
+ * />
  */
 export function ProductForm({ product, onSubmit, onCancel, loading = false }: ProductFormProps) {
   const { t } = useLanguage();

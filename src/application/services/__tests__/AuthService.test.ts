@@ -59,6 +59,15 @@ const createUserRepositoryMock = () => {
     defaultMovementType: "OUT",
     itemsPerPage: 25,
     dateFormat: "DD/MM/YYYY",
+    avatarSize: "md",
+    avatarCustomSize: undefined,
+    avatarBorderEnabled: false,
+    avatarBorderWidth: 2,
+    avatarBorderColor: "#DC2626",
+    avatarShadowEnabled: true,
+    avatarShadowIntensity: "md",
+    avatarShape: "circle",
+    avatarAnimationEnabled: true,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };

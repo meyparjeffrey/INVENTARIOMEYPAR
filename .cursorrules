@@ -14,8 +14,199 @@
 - Siempre mejora el código existente: refactorizar cuando se toque una zona con deuda.
 - UI y textos en español/catalán según i18n; base de datos y código en inglés.
 - **REGLA CRÍTICA DE TRADUCCIONES:** TODO texto nuevo visible al usuario DEBE estar traducido a ambos idiomas (español y catalán). Añadir las traducciones en `src/presentation/context/LanguageContext.tsx` o en el sistema de i18n correspondiente. El idioma por defecto es CATALÁN (ca-ES).
+
+## Documentación en Español - REGLA OBLIGATORIA
+
+### **REGLA CRÍTICA DE DOCUMENTACIÓN:**
+**TODO código, archivo, función, clase, componente, hook, servicio, repositorio y módulo DEBE estar documentado en ESPAÑOL para facilitar el entendimiento del proyecto.**
+
+### Documentación de Archivos
+- **SIEMPRE** incluir un comentario JSDoc en la parte superior de cada archivo nuevo explicando:
+  - Qué hace el archivo
+  - A qué módulo/capa pertenece
+  - Dependencias principales
+  - Ejemplo:
+    ```typescript
+    /**
+     * Servicio de autenticación de usuarios.
+     * 
+     * Gestiona el login, logout y sesión de usuarios mediante Supabase Auth.
+     * Proporciona el contexto completo del usuario (perfil, permisos, configuración).
+     * 
+     * @module @application/services/AuthService
+     * @requires @domain/repositories/UserRepository
+     * @requires @infrastructure/supabase/supabaseClient
+     */
+    ```
+
+### Documentación de Funciones y Métodos
+- **SIEMPRE** documentar funciones públicas y métodos con JSDoc en español:
+  ```typescript
+  /**
+   * Obtiene el contexto completo del usuario actual.
+   * 
+   * Incluye perfil, configuración, permisos y eventos de login.
+   * Retorna null si no hay sesión activa.
+   * 
+   * @returns {Promise<AuthContext | null>} Contexto del usuario o null si no hay sesión
+   * @throws {Error} Si hay un error al obtener la sesión de Supabase
+   */
+  async getCurrentContext(): Promise<AuthContext | null> {
+    // ...
+  }
+  ```
+
+### Documentación de Componentes React
+- **SIEMPRE** documentar componentes con:
+  - Descripción de qué hace el componente
+  - Props con tipos y descripciones
+  - Ejemplo de uso si es relevante
+  ```typescript
+  /**
+   * Componente de tabla de productos con funcionalidades avanzadas.
+   * 
+   * Muestra una tabla paginada de productos con filtros, ordenamiento,
+   * selección múltiple y acciones masivas.
+   * 
+   * @component
+   * @param {ProductTableProps} props - Propiedades del componente
+   * @param {Product[]} props.products - Lista de productos a mostrar
+   * @param {boolean} props.loading - Estado de carga
+   * @param {string} props.searchTerm - Término de búsqueda actual
+   * @param {Function} props.onView - Callback al ver un producto
+   * @param {Function} props.onEdit - Callback al editar un producto
+   * @example
+   * <ProductTable
+   *   products={products}
+   *   loading={false}
+   *   searchTerm=""
+   *   onView={(product) => navigate(`/products/${product.id}`)}
+   *   onEdit={(product) => navigate(`/products/${product.id}/edit`)}
+   * />
+   */
+  export function ProductTable({ products, loading, searchTerm, onView, onEdit }: ProductTableProps) {
+    // ...
+  }
+  ```
+
+### Documentación de Hooks
+- **SIEMPRE** documentar hooks personalizados:
+  ```typescript
+  /**
+   * Hook para gestionar productos con operaciones CRUD.
+   * 
+   * Proporciona estado, funciones y paginación para productos.
+   * Incluye suscripción en tiempo real a cambios en Supabase.
+   * 
+   * @returns {Object} Objeto con productos, loading, error, pagination y funciones CRUD
+   * @example
+   * const { products, loading, list, create, update, remove } = useProducts();
+   * 
+   * // Cargar productos
+   * await list({ search: "term", category: "Electrónica" }, { page: 1, pageSize: 25 });
+   * 
+   * // Crear producto
+   * const newProduct = await create({ code: "PROD001", name: "Producto", ... });
+   */
+  export function useProducts() {
+    // ...
+  }
+  ```
+
+### Documentación de Clases y Servicios
+- **SIEMPRE** documentar clases y sus métodos principales:
+  ```typescript
+  /**
+   * Servicio de gestión de productos.
+   * 
+   * Encapsula la lógica de negocio para productos, incluyendo validaciones,
+   * reglas de negocio y coordinación con repositorios.
+   */
+  export class ProductService {
+    /**
+     * Crea un nuevo producto con validaciones.
+     * 
+     * Valida que el código sea único y que los datos sean correctos
+     * antes de crear el producto en la base de datos.
+     * 
+     * @param {CreateProductInput} input - Datos del producto a crear
+     * @returns {Promise<Product>} Producto creado
+     * @throws {Error} Si el código ya existe o los datos son inválidos
+     */
+    async create(input: CreateProductInput): Promise<Product> {
+      // ...
+    }
+  }
+  ```
+
+### Documentación de Interfaces y Tipos
+- **SIEMPRE** documentar interfaces y tipos complejos:
+  ```typescript
+  /**
+   * Filtros para búsqueda de productos.
+   * 
+   * Permite filtrar productos por múltiples criterios:
+   * - Búsqueda de texto (código, nombre, barcode)
+   * - Categoría
+   * - Stock (mínimo, máximo, bajo stock)
+   * - Fechas de modificación
+   */
+  export interface ProductFilters {
+    /** Término de búsqueda que busca en código, nombre y barcode */
+    search?: string;
+    /** Categoría del producto */
+    category?: string;
+    /** Incluir productos inactivos */
+    includeInactive?: boolean;
+    // ...
+  }
+  ```
+
+### Documentación de Lógica Compleja
+- **SIEMPRE** añadir comentarios en español para:
+  - Lógica de negocio compleja
+  - Algoritmos no obvios
+  - Workarounds o soluciones temporales
+  - Decisiones de diseño importantes
+  ```typescript
+  // Aplicar filtro de stock bajo: productos con stock actual <= stock mínimo
+  // Este filtro se aplica en el cliente porque requiere comparación entre columnas
+  if (filters?.lowStock) {
+    allProducts = allProducts.filter((p) => p.stockCurrent <= p.stockMin);
+  }
+  ```
+
+### Documentación de Archivos de Configuración
+- **SIEMPRE** documentar archivos de configuración:
+  ```typescript
+  /**
+   * Configuración de Vite para el renderer de Electron.
+   * 
+   * Configura el build del frontend para Electron con:
+   * - Base path relativo para assets en producción
+   * - Hot reload en desarrollo
+   * - Alias de imports absolutos
+   */
+  ```
+
+### Excepciones
+- Los comentarios inline muy simples pueden estar en inglés si son obvios: `// TODO: refactor this`
+- Los nombres de variables y funciones pueden estar en inglés (es la convención)
+- Los mensajes de commit pueden estar en español o inglés (preferiblemente español)
+
+### Checklist de Documentación
+Antes de considerar un archivo/código completo, verificar:
+- [ ] Archivo tiene comentario JSDoc en la parte superior
+- [ ] Funciones públicas tienen JSDoc con descripción, parámetros y retorno
+- [ ] Componentes React tienen JSDoc con props documentadas
+- [ ] Hooks tienen JSDoc con ejemplo de uso
+- [ ] Interfaces/tipos complejos tienen descripción
+- [ ] Lógica compleja tiene comentarios explicativos
+- [ ] Decisiones de diseño están documentadas
+
+### Documentación de PRs y Commits
 - Documenta lo imprescindible en cada PR: resumen técnico y decisiones clave.
-- Documentar cada pieza de código nueva con comentarios y/o descripciones en español, manteniendo la brevedad necesaria.
+- Los mensajes de commit deben ser descriptivos en español cuando sea posible.
 
 ## Seguridad y configuración
 - Variables sensibles solo en `.env.local` (ver `Docs/env.example`). Nunca subir claves.
@@ -83,4 +274,72 @@
 - Usa ramas temáticas, commits pequeños y mensajes descriptivos en español.
 - Corre linters/tests antes de pedir revisión.
 - **SIEMPRE** verificar que los cambios funcionan en Web Y Windows antes de commit.
+
+## Reglas para Cursor AI y Desarrollo Asistido
+
+### Estructura de Archivos y Código
+- **NUNCA** crear archivos fuera de la estructura de carpetas establecida (domain/infrastructure/application/presentation).
+- **SIEMPRE** usar imports absolutos con alias (`@domain/`, `@application/`, `@infrastructure/`, `@presentation/`).
+- **SIEMPRE** verificar que los imports existan antes de usarlos. Si un archivo no existe, crearlo siguiendo la estructura del proyecto.
+- Al crear nuevos componentes React, usar la estructura: `ComponentName.tsx` con exportación nombrada `export function ComponentName()`.
+- Al crear nuevos hooks, usar prefijo `use` y seguir el patrón de los hooks existentes.
+
+### TypeScript y Tipos
+- **SIEMPRE** usar tipos estrictos. Evitar `any` a menos que sea absolutamente necesario (y documentar por qué).
+- **SIEMPRE** definir interfaces/tipos en `@domain/entities` para entidades de negocio.
+- **SIEMPRE** usar `UUID` del dominio en lugar de `string` para IDs.
+- Al crear nuevos tipos, verificar si ya existen tipos similares en `@domain/entities` o `@domain/repositories/types`.
+
+### React y Componentes
+- **SIEMPRE** usar hooks de React correctamente (no violar reglas de hooks).
+- **SIEMPRE** usar `React.useMemo` y `React.useCallback` cuando sea apropiado para optimización.
+- **SIEMPRE** manejar estados de carga (`loading`), error (`error`) y datos (`data`) en todos los componentes que consuman datos.
+- Al crear componentes UI reutilizables, ponerlos en `src/presentation/components/ui/`.
+- Al crear componentes específicos de una página, ponerlos en `src/presentation/components/{feature}/`.
+
+### Supabase y Base de Datos
+- **SIEMPRE** usar el repositorio correspondiente en lugar de acceder directamente a Supabase desde componentes.
+- **SIEMPRE** verificar que las queries de Supabase usen RLS correctamente.
+- Al crear nuevas queries, seguir el patrón de los repositorios existentes en `@infrastructure/repositories/`.
+- **NUNCA** exponer `SUPABASE_SERVICE_ROLE_KEY` en el frontend. Solo usar `SUPABASE_ANON_KEY`.
+
+### Testing
+- Al modificar servicios en `@application/services/`, actualizar o crear tests correspondientes.
+- Los tests deben estar en `src/application/services/__tests__/`.
+- Usar Vitest para testing. Seguir el patrón de los tests existentes.
+
+### Búsqueda y Filtros
+- **SIEMPRE** usar la sintaxis correcta de Supabase para búsquedas: `query.or('code.ilike.%term%,name.ilike.%term%')`.
+- **SIEMPRE** aplicar `.trim()` a los términos de búsqueda antes de usarlos.
+- **SIEMPRE** implementar debounce (300-500ms) en búsquedas de texto.
+
+### Errores y Validación
+- **SIEMPRE** manejar errores de forma apropiada. Mostrar mensajes de error amigables al usuario.
+- **SIEMPRE** validar datos de entrada antes de enviarlos a la base de datos.
+- **NUNCA** dejar `catch (error)` sin usar. Si no se usa, usar `catch` sin parámetro.
+
+### i18n y Traducciones
+- **CRÍTICO:** TODO texto visible al usuario DEBE estar en el sistema de traducciones.
+- **SIEMPRE** usar `t("key")` del hook `useLanguage()` en lugar de texto hardcodeado.
+- Al agregar nuevas traducciones, añadirlas en `src/presentation/context/LanguageContext.tsx` para ES y CA.
+- El idioma por defecto es CATALÁN (ca-ES).
+
+### Performance
+- **SIEMPRE** usar paginación para listas grandes (más de 50 items).
+- **SIEMPRE** usar `React.memo` para componentes que se renderizan frecuentemente.
+- **SIEMPRE** optimizar queries de Supabase usando `.select()` específico en lugar de `*`.
+
+### Git y Commits
+- **SIEMPRE** ejecutar `npm run lint` y `npm run typecheck` antes de commitear.
+- **SIEMPRE** verificar que no haya errores de TypeScript ni ESLint.
+- Los mensajes de commit deben ser descriptivos en español: `feat: agregar búsqueda mejorada en productos`.
+
+### Cuando Cursor AI Sugiere Código
+- **SIEMPRE** revisar que el código sugerido siga las reglas de este archivo.
+- **SIEMPRE** verificar que los imports sean correctos y usen los alias del proyecto.
+- **SIEMPRE** verificar que el código sea compatible con Electron Y Web.
+- **SIEMPRE** verificar que el código sugerido incluya documentación en español.
+- **SIEMPRE** probar el código sugerido antes de aceptarlo completamente.
+- Si el código sugerido no sigue estas reglas, pedir corrección específica.
+- **CRÍTICO:** Si Cursor AI genera código sin documentación en español, pedir explícitamente: "Añade documentación JSDoc en español para todas las funciones, clases y componentes".
 

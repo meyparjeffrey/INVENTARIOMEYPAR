@@ -23,8 +23,16 @@ interface GlobalSearchProps {
 
 /**
  * Búsqueda global con dropdown de resultados.
+ * 
+ * Permite búsqueda por código completo, primeros 3+ caracteres del código, o nombre.
+ * Busca en productos y lotes activos, mostrando hasta 10 resultados de productos y 5 de lotes.
+ * 
+ * @component
+ * @param {GlobalSearchProps} props - Propiedades del componente
+ * @param {string} [props.placeholder] - Texto placeholder
+ * @param {string} [props.className] - Clases CSS adicionales
  */
-export function GlobalSearch({ placeholder = "Buscar productos, lotes...", className }: GlobalSearchProps) {
+export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 3 caracteres)", className }: GlobalSearchProps) {
   const { t } = useLanguage();
   const [value, setValue] = React.useState("");
   const [results, setResults] = React.useState<SearchResult[]>([]);
@@ -72,31 +80,45 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes...", class
       clearTimeout(debounceRef.current);
     }
 
-    if (value.length < 2) {
+    // Permitir búsqueda con 3+ caracteres para mejor rendimiento
+    if (value.length < 3) {
       setResults([]);
-      setIsOpen(false);
+      setIsOpen(value.length > 0 && recentSearches.length > 0);
       return;
     }
 
     setLoading(true);
     debounceRef.current = setTimeout(async () => {
       try {
-        const term = `%${value}%`;
+        const searchTerm = value.trim();
+        const term = `%${searchTerm}%`;
 
-        // Buscar productos
-        const { data: products } = await supabaseClient
+        // Buscar productos: código completo, código parcial (3+ caracteres), nombre, barcode
+        // Priorizar coincidencias exactas primero
+        const { data: products, error: productsError } = await supabaseClient
           .from("products")
-          .select("id, code, name, description")
-          .or(`code.ilike.${term},name.ilike.${term},barcode.ilike.${term}`)
+          .select("id, code, name, description, barcode")
+          .or(`code.ilike.${term},name.ilike.${term},barcode.ilike.${term},code.eq.${searchTerm},barcode.eq.${searchTerm}`)
           .eq("is_active", true)
-          .limit(5);
+          .order("code", { ascending: true })
+          .limit(10); // Aumentar a 10 resultados
+
+        if (productsError) {
+          // eslint-disable-next-line no-console
+          console.error("[GlobalSearch] Error buscando productos:", productsError);
+        }
 
         // Buscar lotes
-        const { data: batches } = await supabaseClient
+        const { data: batches, error: batchesError } = await supabaseClient
           .from("product_batches")
-          .select("id, batch_code, product_id, products:product_id(name)")
-          .or(`batch_code.ilike.${term},batch_barcode.ilike.${term}`)
+          .select("id, batch_code, product_id, batch_barcode, products:product_id(name)")
+          .or(`batch_code.ilike.${term},batch_barcode.ilike.${term},batch_code.eq.${searchTerm},batch_barcode.eq.${searchTerm}`)
           .limit(5);
+
+        if (batchesError) {
+          // eslint-disable-next-line no-console
+          console.error("[GlobalSearch] Error buscando lotes:", batchesError);
+        }
 
         const searchResults: SearchResult[] = [];
 
@@ -221,7 +243,7 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes...", class
               <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
                 {t("search.loading") || "Buscando..."}
               </div>
-            ) : value.length < 2 ? (
+            ) : value.length < 3 ? (
               recentSearches.length > 0 ? (
                 <div>
                   <div className="border-b border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500 dark:border-gray-700 dark:text-gray-400">
