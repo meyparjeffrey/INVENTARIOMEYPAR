@@ -223,13 +223,17 @@ export class SupabaseProductRepository
     }
 
     // Filtros por fecha de creación
-    // createdAtFrom: productos creados ANTES de esta fecha (hace más de X tiempo)
-    // Usamos lte porque queremos productos donde created_at <= fecha (creados hace más tiempo)
-    if (filters?.createdAtFrom) {
-      query = query.lte('created_at', filters.createdAtFrom + 'T23:59:59.999Z');
-    }
-    if (filters?.createdAtTo) {
-      query = query.gte('created_at', filters.createdAtTo);
+    // Lógica:
+    // - Si hay createdAtFrom Y createdAtTo: productos creados en el rango (recientes, período corto)
+    // - Si solo hay createdAtTo: productos creados ANTES de esta fecha (antiguos, período largo)
+    if (filters?.createdAtFrom && filters?.createdAtTo) {
+      // Período corto: productos creados RECIENTEMENTE (en el rango)
+      query = query
+        .gte('created_at', filters.createdAtFrom + 'T00:00:00.000Z')
+        .lte('created_at', filters.createdAtTo + 'T23:59:59.999Z');
+    } else if (filters?.createdAtTo && !filters?.createdAtFrom) {
+      // Período largo: productos creados ANTES de esta fecha (antiguos)
+      query = query.lte('created_at', filters.createdAtTo + 'T23:59:59.999Z');
     }
 
     if (filters?.search) {
@@ -248,13 +252,17 @@ export class SupabaseProductRepository
     }
 
     // Filtros por fecha de modificación
-    // lastModifiedFrom: productos modificados ANTES de esta fecha (hace más de X tiempo)
-    // Usamos lte porque queremos productos donde updated_at <= fecha (modificados hace más tiempo)
-    if (filters?.lastModifiedFrom) {
-      query = query.lte('updated_at', filters.lastModifiedFrom + 'T23:59:59.999Z');
-    }
-    if (filters?.lastModifiedTo) {
-      query = query.gte('updated_at', filters.lastModifiedTo);
+    // Lógica:
+    // - Si hay dateFrom Y dateTo: productos modificados en el rango (recientes, período corto)
+    // - Si solo hay dateTo: productos modificados ANTES de esta fecha (antiguos, período largo)
+    if (filters?.dateFrom && filters?.dateTo) {
+      // Período corto: productos modificados RECIENTEMENTE (en el rango)
+      query = query
+        .gte('updated_at', filters.dateFrom + 'T00:00:00.000Z')
+        .lte('updated_at', filters.dateTo + 'T23:59:59.999Z');
+    } else if (filters?.dateTo && !filters?.dateFrom) {
+      // Período largo: productos modificados ANTES de esta fecha (antiguos, no modificados)
+      query = query.lte('updated_at', filters.dateTo + 'T23:59:59.999Z');
     }
 
     // Para filtros que requieren comparación entre columnas o consultas complejas,
