@@ -177,6 +177,12 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
       v !== undefined && v !== '' && v !== false && (!Array.isArray(v) || v.length > 0),
   ).length;
 
+  // Contar filtros activos en estado local (para habilitar/deshabilitar botón Limpiar)
+  const localActiveFiltersCount = Object.values(localFilters).filter(
+    (v) =>
+      v !== undefined && v !== '' && v !== false && (!Array.isArray(v) || v.length > 0),
+  ).length;
+
   // Cambiar filtros en estado local (sin aplicar todavía)
   const handleFilterChange = (key: keyof ProductFiltersState, value: unknown) => {
     setLocalFilters({
@@ -722,7 +728,7 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
                     onClick={() => {
                       setLocalFilters({});
                     }}
-                    disabled={activeFiltersCount === 0}
+                    disabled={localActiveFiltersCount === 0}
                   >
                     {t('filters.clear') || 'Netejar'}
                   </Button>

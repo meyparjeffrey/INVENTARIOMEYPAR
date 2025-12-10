@@ -187,28 +187,40 @@ export function getSliderValueFromDate(
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  // Si hay dateTo, verificar si es un período corto (recientes)
-  if (dateTo) {
+  // Si hay dateTo y dateFrom, es un período corto (recientes)
+  // dateFrom es la fecha de inicio del período, dateTo es hoy
+  if (dateTo && dateFrom) {
+    const startDate = new Date(dateFrom);
     const endDate = new Date(dateTo);
-    const daysDiffTo = Math.floor(
+    const daysDiff = Math.floor(
+      (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    // Buscar la opción que más se acerque a la duración del período
+    // Para períodos cortos, comparamos la duración del período
+    for (let i = 0; i <= 1; i++) {
+      // Solo períodos cortos: 1 semana (7 días) y 15 días
+      if (Math.abs(daysDiff - DATE_RANGE_OPTIONS[i].days) <= 1) {
+        return DATE_RANGE_OPTIONS[i].value;
+      }
+    }
+    // Si no coincide exactamente, usar el más cercano
+    if (daysDiff <= DATE_RANGE_OPTIONS[0].days) return 0; // 1 semana
+    if (daysDiff <= DATE_RANGE_OPTIONS[1].days) return 1; // 15 días
+  }
+
+  // Si solo hay dateTo (sin dateFrom), es un período largo (antiguos)
+  // dateTo es la fecha límite (hasta cuándo no se ha modificado)
+  if (dateTo && !dateFrom) {
+    const endDate = new Date(dateTo);
+    const daysDiff = Math.floor(
       (today.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24),
     );
 
-    // Períodos cortos: 1 semana o 15 días
-    if (daysDiffTo <= DATE_RANGE_OPTIONS[0].days) return 0; // 1 semana
-    if (daysDiffTo <= DATE_RANGE_OPTIONS[1].days) return 1; // 15 días
-  }
-
-  // Si hay dateFrom, verificar si es un período largo (antiguos)
-  if (dateFrom) {
-    const startDate = new Date(dateFrom);
-    const daysDiffFrom = Math.floor(
-      (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
-    );
-
     // Encontrar la opción más cercana para períodos largos
-    for (let i = DATE_RANGE_OPTIONS.length - 1; i >= 0; i--) {
-      if (daysDiffFrom >= DATE_RANGE_OPTIONS[i].days) {
+    for (let i = DATE_RANGE_OPTIONS.length - 1; i >= 2; i--) {
+      // Solo períodos largos: desde 1 mes en adelante
+      if (daysDiff >= DATE_RANGE_OPTIONS[i].days) {
         return DATE_RANGE_OPTIONS[i].value;
       }
     }
