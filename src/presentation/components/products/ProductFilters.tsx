@@ -323,7 +323,7 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
               initial={{ opacity: 0, scale: 0.95, x: '-50%', y: '-50%' }}
               animate={{ opacity: 1, scale: 1, x: '-50%', y: '-50%' }}
               exit={{ opacity: 0, scale: 0.95, x: '-50%', y: '-50%' }}
-              className="fixed left-1/2 top-1/2 z-50 flex flex-col w-[90vw] max-w-[500px] max-h-[90vh] rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
+              className="fixed left-1/2 top-1/2 z-50 flex flex-col w-[90vw] sm:w-[500px] max-w-[500px] max-h-[90vh] rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
               onWheel={(e) => {
                 // Prevenir que el scroll se propague a la página detrás
                 e.stopPropagation();
