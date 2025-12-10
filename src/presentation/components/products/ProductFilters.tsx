@@ -181,17 +181,66 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
     localFilters.createdAtSlider,
   ]);
 
+  /**
+   * Cuenta los filtros activos de forma lógica.
+   * Agrupa filtros relacionados (como fecha de modificación) como un solo filtro.
+   */
+  const countActiveFilters = (filterState: ProductFiltersState): number => {
+    let count = 0;
+
+    // Categoría
+    if (filterState.category && filterState.category !== '') count++;
+
+    // Stock actual (rango)
+    if (filterState.stockMin !== undefined || filterState.stockMax !== undefined) count++;
+
+    // Stock mínimo (rango)
+    if (filterState.stockMinMin !== undefined || filterState.stockMinMax !== undefined)
+      count++;
+
+    // Precio (rango)
+    if (filterState.priceMin !== undefined || filterState.priceMax !== undefined) count++;
+
+    // Código proveedor
+    if (filterState.supplierCode && filterState.supplierCode !== '') count++;
+
+    // Ubicación (pasillo o estante)
+    if (filterState.aisle || filterState.shelf) count++;
+
+    // Estado de lote
+    if (filterState.batchStatus && filterState.batchStatus.length > 0) count++;
+
+    // Filtros booleanos
+    if (filterState.isBatchTracked === true) count++;
+    if (filterState.lowStock === true) count++;
+    if (filterState.stockNearMinimum === true) count++;
+
+    // Fecha de modificación (agrupa dateFrom, dateTo y lastModifiedSlider como 1 filtro)
+    if (
+      filterState.dateFrom ||
+      filterState.dateTo ||
+      filterState.lastModifiedSlider !== undefined
+    ) {
+      count++;
+    }
+
+    // Fecha de creación (agrupa createdAtFrom, createdAtTo y createdAtSlider como 1 filtro)
+    if (
+      filterState.createdAtFrom ||
+      filterState.createdAtTo ||
+      filterState.createdAtSlider !== undefined
+    ) {
+      count++;
+    }
+
+    return count;
+  };
+
   // Contar filtros activos aplicados (para el badge del botón)
-  const activeFiltersCount = Object.values(filters).filter(
-    (v) =>
-      v !== undefined && v !== '' && v !== false && (!Array.isArray(v) || v.length > 0),
-  ).length;
+  const activeFiltersCount = countActiveFilters(filters);
 
   // Contar filtros activos en estado local (para habilitar/deshabilitar botón Limpiar)
-  const localActiveFiltersCount = Object.values(localFilters).filter(
-    (v) =>
-      v !== undefined && v !== '' && v !== false && (!Array.isArray(v) || v.length > 0),
-  ).length;
+  const localActiveFiltersCount = countActiveFilters(localFilters);
 
   // Cambiar filtros en estado local (sin aplicar todavía)
   const handleFilterChange = (key: keyof ProductFiltersState, value: unknown) => {
