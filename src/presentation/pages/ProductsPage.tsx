@@ -13,7 +13,10 @@ import {
   ProductFilters,
   type ProductFiltersState,
 } from '../components/products/ProductFilters';
-import { DATE_RANGE_OPTIONS } from '../components/ui/DateRangeSlider';
+import {
+  DATE_RANGE_OPTIONS,
+  getSliderValueFromDate,
+} from '../components/ui/DateRangeSlider';
 import { ExportDialog, type ColumnOption } from '../components/products/ExportDialog';
 import { ColumnConfigDialog } from '../components/products/ColumnConfigDialog';
 import { Button } from '../components/ui/Button';
@@ -1118,12 +1121,41 @@ export function ProductsPage() {
             )}
             {advancedFilters.isBatchTracked && (
               <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-                Solo con lotes
+                {t('filters.batchTracked') || 'Solo con lotes'}
                 <button
                   onClick={() =>
                     setAdvancedFilters({ ...advancedFilters, isBatchTracked: undefined })
                   }
                   className="ml-1 rounded-full hover:bg-purple-200 dark:hover:bg-purple-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {advancedFilters.lowStock && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                {t('products.lowStockOnly')}
+                <button
+                  onClick={() =>
+                    setAdvancedFilters({ ...advancedFilters, lowStock: undefined })
+                  }
+                  className="ml-1 rounded-full hover:bg-red-200 dark:hover:bg-red-800"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </span>
+            )}
+            {advancedFilters.stockNearMinimum && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                {t('filters.stockNearMinimum') || 'Productos al 15% del stock mínimo'}
+                <button
+                  onClick={() =>
+                    setAdvancedFilters({
+                      ...advancedFilters,
+                      stockNearMinimum: undefined,
+                    })
+                  }
+                  className="ml-1 rounded-full hover:bg-yellow-200 dark:hover:bg-yellow-800"
                 >
                   <X className="h-3 w-3" />
                 </button>
@@ -1241,11 +1273,24 @@ export function ProductsPage() {
             {(advancedFilters.createdAtFrom || advancedFilters.createdAtTo) && (
               <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-800 dark:bg-violet-900/30 dark:text-violet-300">
                 {t('products.createdAt') || 'Creado'}:{' '}
-                {advancedFilters.createdAtSlider !== undefined
-                  ? DATE_RANGE_OPTIONS.find(
-                      (opt) => opt.value === advancedFilters.createdAtSlider,
-                    )?.label || 'Personalizado'
-                  : 'Personalizado'}
+                {(() => {
+                  if (advancedFilters.createdAtSlider !== undefined) {
+                    return (
+                      DATE_RANGE_OPTIONS.find(
+                        (opt) => opt.value === advancedFilters.createdAtSlider,
+                      )?.label || 'Personalizado'
+                    );
+                  }
+                  // Si no hay slider, intentar calcularlo desde las fechas
+                  const sliderValue = getSliderValueFromDate(
+                    advancedFilters.createdAtFrom,
+                    advancedFilters.createdAtTo,
+                  );
+                  return sliderValue !== undefined
+                    ? DATE_RANGE_OPTIONS.find((opt) => opt.value === sliderValue)
+                        ?.label || 'Personalizado'
+                    : 'Personalizado';
+                })()}
                 <button
                   onClick={() =>
                     setAdvancedFilters({
@@ -1264,11 +1309,24 @@ export function ProductsPage() {
             {(advancedFilters.dateFrom || advancedFilters.dateTo) && (
               <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-800 dark:bg-pink-900/30 dark:text-pink-300">
                 {t('filters.lastModified') || 'Modificado'}:{' '}
-                {advancedFilters.lastModifiedSlider !== undefined
-                  ? DATE_RANGE_OPTIONS.find(
-                      (opt) => opt.value === advancedFilters.lastModifiedSlider,
-                    )?.label || 'Personalizado'
-                  : 'Personalizado'}
+                {(() => {
+                  if (advancedFilters.lastModifiedSlider !== undefined) {
+                    return (
+                      DATE_RANGE_OPTIONS.find(
+                        (opt) => opt.value === advancedFilters.lastModifiedSlider,
+                      )?.label || 'Personalizado'
+                    );
+                  }
+                  // Si no hay slider, intentar calcularlo desde las fechas
+                  const sliderValue = getSliderValueFromDate(
+                    advancedFilters.dateFrom,
+                    advancedFilters.dateTo,
+                  );
+                  return sliderValue !== undefined
+                    ? DATE_RANGE_OPTIONS.find((opt) => opt.value === sliderValue)
+                        ?.label || 'Personalizado'
+                    : 'Personalizado';
+                })()}
                 <button
                   onClick={() =>
                     setAdvancedFilters({
