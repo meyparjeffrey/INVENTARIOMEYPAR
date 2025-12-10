@@ -304,14 +304,18 @@ export class SupabaseProductRepository
         }
       }
 
-      // Filtrar por stock bajo
+      // Filtrar por stock bajo (por debajo o igual al stock mínimo)
       if (filters?.lowStock) {
         allProducts = allProducts.filter((p) => p.stockCurrent <= p.stockMin);
       }
 
       // Filtrar por stock cerca del mínimo (15%)
+      // Solo productos que están POR ENCIMA del mínimo pero hasta el 15% por encima
+      // Excluye los que ya están en alarma (por debajo del mínimo)
       if (filters?.stockNearMinimum) {
-        allProducts = allProducts.filter((p) => p.stockCurrent <= p.stockMin * 1.15);
+        allProducts = allProducts.filter(
+          (p) => p.stockCurrent > p.stockMin && p.stockCurrent <= p.stockMin * 1.15,
+        );
       }
 
       // Filtrar por tipo de modificación (entradas/salidas)
