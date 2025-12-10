@@ -247,7 +247,7 @@ export function ProductFilters({
               initial={{ opacity: 0, scale: 0.95, x: '-50%', y: '-50%' }}
               animate={{ opacity: 1, scale: 1, x: '-50%', y: '-50%' }}
               exit={{ opacity: 0, scale: 0.95, x: '-50%', y: '-50%' }}
-              className="fixed left-1/2 top-1/2 z-50 w-[90vw] max-w-[500px] max-h-[90vh] rounded-lg border border-gray-200 bg-white p-4 sm:p-6 shadow-xl dark:border-gray-700 dark:bg-gray-800 overflow-y-auto"
+              className="fixed left-1/2 top-1/2 z-50 flex flex-col w-[90vw] max-w-[500px] max-h-[90vh] rounded-lg border border-gray-200 bg-white shadow-xl dark:border-gray-700 dark:bg-gray-800"
               onWheel={(e) => {
                 // Prevenir que el scroll se propague a la página detrás
                 e.stopPropagation();
@@ -257,7 +257,8 @@ export function ProductFilters({
                 e.stopPropagation();
               }}
             >
-              <div className="mb-4 flex items-center justify-between">
+              {/* Header fijo */}
+              <div className="flex items-center justify-between border-b border-gray-200 px-4 py-4 sm:px-6 dark:border-gray-700 flex-shrink-0">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
                   {t('filters.title') || 'Filtros Avanzados'}
                 </h3>
@@ -269,359 +270,362 @@ export function ProductFilters({
                 </button>
               </div>
 
-              <div className="space-y-4">
-                {/* Filtros guardados */}
-                {savedFilters.length > 0 && (
-                  <div className="border-b border-gray-200 pb-4 dark:border-gray-700">
-                    <Label className="mb-2 block">{t('filters.saved.title')}</Label>
-                    <div className="flex flex-wrap gap-2">
-                      {savedFilters.map((saved) => (
-                        <div
-                          key={saved.id}
-                          className="group relative flex items-center gap-1 rounded-lg bg-primary-50 px-3 py-1.5 text-sm text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
-                        >
-                          <button
-                            onClick={() => handleLoadFilter(saved)}
-                            className="flex items-center gap-1 hover:underline"
+              {/* Contenido con scroll */}
+              <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
+                <div className="space-y-4">
+                  {/* Filtros guardados */}
+                  {savedFilters.length > 0 && (
+                    <div className="border-b border-gray-200 pb-4 dark:border-gray-700">
+                      <Label className="mb-2 block">{t('filters.saved.title')}</Label>
+                      <div className="flex flex-wrap gap-2">
+                        {savedFilters.map((saved) => (
+                          <div
+                            key={saved.id}
+                            className="group relative flex items-center gap-1 rounded-lg bg-primary-50 px-3 py-1.5 text-sm text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"
                           >
-                            <Bookmark className="h-3 w-3" />
-                            {saved.name}
-                          </button>
-                          <button
-                            onClick={() => handleDeleteFilter(saved.id)}
-                            className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity text-primary-500 hover:text-primary-700"
-                          >
-                            <X className="h-3 w-3" />
-                          </button>
-                        </div>
-                      ))}
+                            <button
+                              onClick={() => handleLoadFilter(saved)}
+                              className="flex items-center gap-1 hover:underline"
+                            >
+                              <Bookmark className="h-3 w-3" />
+                              {saved.name}
+                            </button>
+                            <button
+                              onClick={() => handleDeleteFilter(saved.id)}
+                              className="ml-1 opacity-0 group-hover:opacity-100 transition-opacity text-primary-500 hover:text-primary-700"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                {/* Categoría */}
-                <div>
-                  <Label htmlFor="filter-category">{t('table.category')}</Label>
-                  <select
-                    id="filter-category"
-                    value={filters.category || ''}
-                    onChange={(e) => handleFilterChange('category', e.target.value)}
-                    className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-                  >
-                    <option value="">{t('filters.all') || 'Todas'}</option>
-                    {loadingCategories ? (
-                      <option disabled>{t('common.loading')}</option>
-                    ) : (
-                      categories.map((cat) => (
-                        <option key={cat} value={cat}>
-                          {cat}
-                        </option>
-                      ))
-                    )}
-                  </select>
-                </div>
-
-                {/* Ubicación */}
-                <div className="grid grid-cols-2 gap-2">
+                  {/* Categoría */}
                   <div>
-                    <Label htmlFor="filter-aisle">{t('filters.aisle')}</Label>
-                    <Input
-                      id="filter-aisle"
-                      value={filters.aisle || ''}
-                      onChange={(e) => handleFilterChange('aisle', e.target.value)}
-                      placeholder={t('filters.aislePlaceholder')}
-                      className="mt-1"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="filter-shelf">{t('filters.shelf')}</Label>
-                    <Input
-                      id="filter-shelf"
-                      value={filters.shelf || ''}
-                      onChange={(e) => handleFilterChange('shelf', e.target.value)}
-                      placeholder={t('filters.shelfPlaceholder')}
-                      className="mt-1"
-                    />
-                  </div>
-                </div>
-
-                {/* Stock actual */}
-                <div>
-                  <Label>{t('table.stock')} (actual)</Label>
-                  <div className="mt-1 grid grid-cols-2 gap-2">
-                    <div>
-                      <Input
-                        type="number"
-                        placeholder={t('filters.min') || 'Mín'}
-                        value={filters.stockMin || ''}
-                        onChange={(e) =>
-                          handleFilterChange(
-                            'stockMin',
-                            e.target.value ? Number(e.target.value) : undefined,
-                          )
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        type="number"
-                        placeholder={t('filters.max') || 'Máx'}
-                        value={filters.stockMax || ''}
-                        onChange={(e) =>
-                          handleFilterChange(
-                            'stockMax',
-                            e.target.value ? Number(e.target.value) : undefined,
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Stock mínimo (rango) */}
-                <div>
-                  <Label>{t('filters.stockMinRange')}</Label>
-                  <div className="mt-1 grid grid-cols-2 gap-2">
-                    <div>
-                      <Input
-                        type="number"
-                        placeholder={t('filters.min') || 'Mín'}
-                        value={filters.stockMinMin || ''}
-                        onChange={(e) =>
-                          handleFilterChange(
-                            'stockMinMin',
-                            e.target.value ? Number(e.target.value) : undefined,
-                          )
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        type="number"
-                        placeholder={t('filters.max') || 'Máx'}
-                        value={filters.stockMinMax || ''}
-                        onChange={(e) =>
-                          handleFilterChange(
-                            'stockMinMax',
-                            e.target.value ? Number(e.target.value) : undefined,
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Precio */}
-                <div>
-                  <Label>{t('filters.price')}</Label>
-                  <div className="mt-1 grid grid-cols-2 gap-2">
-                    <div>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder={t('filters.min') || 'Mín'}
-                        value={filters.priceMin || ''}
-                        onChange={(e) =>
-                          handleFilterChange(
-                            'priceMin',
-                            e.target.value ? Number(e.target.value) : undefined,
-                          )
-                        }
-                      />
-                    </div>
-                    <div>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        placeholder={t('filters.max') || 'Máx'}
-                        value={filters.priceMax || ''}
-                        onChange={(e) =>
-                          handleFilterChange(
-                            'priceMax',
-                            e.target.value ? Number(e.target.value) : undefined,
-                          )
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Código Proveedor */}
-                <div>
-                  <Label htmlFor="filter-supplier">{t('table.supplierCode')}</Label>
-                  <Input
-                    id="filter-supplier"
-                    value={filters.supplierCode || ''}
-                    onChange={(e) => handleFilterChange('supplierCode', e.target.value)}
-                    placeholder={
-                      t('filters.supplierCodePlaceholder') || 'Buscar por código...'
-                    }
-                  />
-                </div>
-
-                {/* Estado de lote */}
-                <div>
-                  <Label>{t('filters.batchStatus')}</Label>
-                  <div className="mt-1 flex flex-wrap gap-2">
-                    {(['OK', 'DEFECTIVE', 'BLOCKED', 'EXPIRED'] as const).map(
-                      (status) => (
-                        <label key={status} className="flex items-center gap-2">
-                          <input
-                            type="checkbox"
-                            checked={filters.batchStatus?.includes(status) || false}
-                            onChange={(e) => {
-                              const current = filters.batchStatus || [];
-                              const updated = e.target.checked
-                                ? [...current, status]
-                                : current.filter((s) => s !== status);
-                              handleFilterChange(
-                                'batchStatus',
-                                updated.length > 0 ? updated : undefined,
-                              );
-                            }}
-                            className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                          />
-                          <span className="text-sm text-gray-700 dark:text-gray-300">
-                            {status}
-                          </span>
-                        </label>
-                      ),
-                    )}
-                  </div>
-                </div>
-
-                {/* Checkboxes */}
-                <div className="space-y-2">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={filters.isBatchTracked || false}
-                      onChange={(e) =>
-                        handleFilterChange(
-                          'isBatchTracked',
-                          e.target.checked || undefined,
-                        )
-                      }
-                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {t('filters.batchTracked') || 'Solo con lotes'}
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={filters.lowStock || false}
-                      onChange={(e) =>
-                        handleFilterChange('lowStock', e.target.checked || undefined)
-                      }
-                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {t('products.lowStockOnly')}
-                    </span>
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="checkbox"
-                      checked={filters.stockNearMinimum || false}
-                      onChange={(e) =>
-                        handleFilterChange(
-                          'stockNearMinimum',
-                          e.target.checked || undefined,
-                        )
-                      }
-                      className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
-                    />
-                    <span className="text-sm text-gray-700 dark:text-gray-300">
-                      {t('filters.stockNearMinimum') ||
-                        'Productes al 15% del stock mínim'}
-                    </span>
-                  </label>
-                </div>
-
-                {/* Filtros por fecha de modificación con slider */}
-                <div className="space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
-                  <div className="flex items-center gap-2">
-                    <Label>{t('filters.lastModified') || 'Última modificación'}</Label>
-                    {filters.lastModifiedSlider !== undefined && (
-                      <span
-                        className={cn(
-                          'rounded-full px-2 py-0.5 text-xs font-medium',
-                          isShortPeriod(filters.lastModifiedSlider)
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                            : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
-                        )}
-                      >
-                        {isShortPeriod(filters.lastModifiedSlider)
-                          ? t('filters.recent')
-                          : t('filters.old')}
-                      </span>
-                    )}
-                  </div>
-
-                  <DateRangeSlider
-                    value={filters.lastModifiedSlider}
-                    onChange={(value) => handleSliderChange('modified', value)}
-                    label=""
-                  />
-
-                  {/* Tipo de modificación */}
-                  <div>
-                    <Label className="text-xs mb-1 block">
-                      {t('filters.modificationType') || 'Tipus de modificació'}
-                    </Label>
+                    <Label htmlFor="filter-category">{t('table.category')}</Label>
                     <select
-                      value={filters.lastModifiedType || 'both'}
-                      onChange={(e) =>
-                        handleFilterChange(
-                          'lastModifiedType',
-                          (e.target.value as 'entries' | 'exits' | 'both') || undefined,
-                        )
-                      }
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                      id="filter-category"
+                      value={filters.category || ''}
+                      onChange={(e) => handleFilterChange('category', e.target.value)}
+                      className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                     >
-                      <option value="both">{t('filters.both') || 'Ambdues'}</option>
-                      <option value="entries">
-                        {t('filters.entriesOnly') || 'Només entrades'}
-                      </option>
-                      <option value="exits">
-                        {t('filters.exitsOnly') || 'Només sortides'}
-                      </option>
+                      <option value="">{t('filters.all') || 'Todas'}</option>
+                      {loadingCategories ? (
+                        <option disabled>{t('common.loading')}</option>
+                      ) : (
+                        categories.map((cat) => (
+                          <option key={cat} value={cat}>
+                            {cat}
+                          </option>
+                        ))
+                      )}
                     </select>
                   </div>
-                </div>
 
-                {/* Filtros por fecha de creación con slider */}
-                <div className="space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
-                  <div className="flex items-center gap-2">
-                    <Label>{t('products.createdAt')}</Label>
-                    {filters.createdAtSlider !== undefined && (
-                      <span
-                        className={cn(
-                          'rounded-full px-2 py-0.5 text-xs font-medium',
-                          isShortPeriod(filters.createdAtSlider)
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                            : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
-                        )}
-                      >
-                        {isShortPeriod(filters.createdAtSlider)
-                          ? t('filters.recent')
-                          : t('filters.old')}
-                      </span>
-                    )}
+                  {/* Ubicación */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label htmlFor="filter-aisle">{t('filters.aisle')}</Label>
+                      <Input
+                        id="filter-aisle"
+                        value={filters.aisle || ''}
+                        onChange={(e) => handleFilterChange('aisle', e.target.value)}
+                        placeholder={t('filters.aislePlaceholder')}
+                        className="mt-1"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="filter-shelf">{t('filters.shelf')}</Label>
+                      <Input
+                        id="filter-shelf"
+                        value={filters.shelf || ''}
+                        onChange={(e) => handleFilterChange('shelf', e.target.value)}
+                        placeholder={t('filters.shelfPlaceholder')}
+                        className="mt-1"
+                      />
+                    </div>
                   </div>
 
-                  <DateRangeSlider
-                    value={filters.createdAtSlider}
-                    onChange={(value) => handleSliderChange('created', value)}
-                    label=""
-                  />
+                  {/* Stock actual */}
+                  <div>
+                    <Label>{t('table.stock')} (actual)</Label>
+                    <div className="mt-1 grid grid-cols-2 gap-2">
+                      <div>
+                        <Input
+                          type="number"
+                          placeholder={t('filters.min') || 'Mín'}
+                          value={filters.stockMin || ''}
+                          onChange={(e) =>
+                            handleFilterChange(
+                              'stockMin',
+                              e.target.value ? Number(e.target.value) : undefined,
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Input
+                          type="number"
+                          placeholder={t('filters.max') || 'Máx'}
+                          value={filters.stockMax || ''}
+                          onChange={(e) =>
+                            handleFilterChange(
+                              'stockMax',
+                              e.target.value ? Number(e.target.value) : undefined,
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Stock mínimo (rango) */}
+                  <div>
+                    <Label>{t('filters.stockMinRange')}</Label>
+                    <div className="mt-1 grid grid-cols-2 gap-2">
+                      <div>
+                        <Input
+                          type="number"
+                          placeholder={t('filters.min') || 'Mín'}
+                          value={filters.stockMinMin || ''}
+                          onChange={(e) =>
+                            handleFilterChange(
+                              'stockMinMin',
+                              e.target.value ? Number(e.target.value) : undefined,
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Input
+                          type="number"
+                          placeholder={t('filters.max') || 'Máx'}
+                          value={filters.stockMinMax || ''}
+                          onChange={(e) =>
+                            handleFilterChange(
+                              'stockMinMax',
+                              e.target.value ? Number(e.target.value) : undefined,
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Precio */}
+                  <div>
+                    <Label>{t('filters.price')}</Label>
+                    <div className="mt-1 grid grid-cols-2 gap-2">
+                      <div>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder={t('filters.min') || 'Mín'}
+                          value={filters.priceMin || ''}
+                          onChange={(e) =>
+                            handleFilterChange(
+                              'priceMin',
+                              e.target.value ? Number(e.target.value) : undefined,
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <Input
+                          type="number"
+                          step="0.01"
+                          placeholder={t('filters.max') || 'Máx'}
+                          value={filters.priceMax || ''}
+                          onChange={(e) =>
+                            handleFilterChange(
+                              'priceMax',
+                              e.target.value ? Number(e.target.value) : undefined,
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Código Proveedor */}
+                  <div>
+                    <Label htmlFor="filter-supplier">{t('table.supplierCode')}</Label>
+                    <Input
+                      id="filter-supplier"
+                      value={filters.supplierCode || ''}
+                      onChange={(e) => handleFilterChange('supplierCode', e.target.value)}
+                      placeholder={
+                        t('filters.supplierCodePlaceholder') || 'Buscar por código...'
+                      }
+                    />
+                  </div>
+
+                  {/* Estado de lote */}
+                  <div>
+                    <Label>{t('filters.batchStatus')}</Label>
+                    <div className="mt-1 flex flex-wrap gap-2">
+                      {(['OK', 'DEFECTIVE', 'BLOCKED', 'EXPIRED'] as const).map(
+                        (status) => (
+                          <label key={status} className="flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={filters.batchStatus?.includes(status) || false}
+                              onChange={(e) => {
+                                const current = filters.batchStatus || [];
+                                const updated = e.target.checked
+                                  ? [...current, status]
+                                  : current.filter((s) => s !== status);
+                                handleFilterChange(
+                                  'batchStatus',
+                                  updated.length > 0 ? updated : undefined,
+                                );
+                              }}
+                              className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                            />
+                            <span className="text-sm text-gray-700 dark:text-gray-300">
+                              {status}
+                            </span>
+                          </label>
+                        ),
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Checkboxes */}
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={filters.isBatchTracked || false}
+                        onChange={(e) =>
+                          handleFilterChange(
+                            'isBatchTracked',
+                            e.target.checked || undefined,
+                          )
+                        }
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {t('filters.batchTracked') || 'Solo con lotes'}
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={filters.lowStock || false}
+                        onChange={(e) =>
+                          handleFilterChange('lowStock', e.target.checked || undefined)
+                        }
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {t('products.lowStockOnly')}
+                      </span>
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={filters.stockNearMinimum || false}
+                        onChange={(e) =>
+                          handleFilterChange(
+                            'stockNearMinimum',
+                            e.target.checked || undefined,
+                          )
+                        }
+                        className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+                      />
+                      <span className="text-sm text-gray-700 dark:text-gray-300">
+                        {t('filters.stockNearMinimum') ||
+                          'Productes al 15% del stock mínim'}
+                      </span>
+                    </label>
+                  </div>
+
+                  {/* Filtros por fecha de modificación con slider */}
+                  <div className="space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+                    <div className="flex items-center gap-2">
+                      <Label>{t('filters.lastModified') || 'Última modificación'}</Label>
+                      {filters.lastModifiedSlider !== undefined && (
+                        <span
+                          className={cn(
+                            'rounded-full px-2 py-0.5 text-xs font-medium',
+                            isShortPeriod(filters.lastModifiedSlider)
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                              : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+                          )}
+                        >
+                          {isShortPeriod(filters.lastModifiedSlider)
+                            ? t('filters.recent')
+                            : t('filters.old')}
+                        </span>
+                      )}
+                    </div>
+
+                    <DateRangeSlider
+                      value={filters.lastModifiedSlider}
+                      onChange={(value) => handleSliderChange('modified', value)}
+                      label=""
+                    />
+
+                    {/* Tipo de modificación */}
+                    <div>
+                      <Label className="text-xs mb-1 block">
+                        {t('filters.modificationType') || 'Tipus de modificació'}
+                      </Label>
+                      <select
+                        value={filters.lastModifiedType || 'both'}
+                        onChange={(e) =>
+                          handleFilterChange(
+                            'lastModifiedType',
+                            (e.target.value as 'entries' | 'exits' | 'both') || undefined,
+                          )
+                        }
+                        className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                      >
+                        <option value="both">{t('filters.both') || 'Ambdues'}</option>
+                        <option value="entries">
+                          {t('filters.entriesOnly') || 'Només entrades'}
+                        </option>
+                        <option value="exits">
+                          {t('filters.exitsOnly') || 'Només sortides'}
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Filtros por fecha de creación con slider */}
+                  <div className="space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
+                    <div className="flex items-center gap-2">
+                      <Label>{t('products.createdAt')}</Label>
+                      {filters.createdAtSlider !== undefined && (
+                        <span
+                          className={cn(
+                            'rounded-full px-2 py-0.5 text-xs font-medium',
+                            isShortPeriod(filters.createdAtSlider)
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                              : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+                          )}
+                        >
+                          {isShortPeriod(filters.createdAtSlider)
+                            ? t('filters.recent')
+                            : t('filters.old')}
+                        </span>
+                      )}
+                    </div>
+
+                    <DateRangeSlider
+                      value={filters.createdAtSlider}
+                      onChange={(value) => handleSliderChange('created', value)}
+                      label=""
+                    />
+                  </div>
                 </div>
               </div>
 
-              {/* Botones */}
-              <div className="mt-6 flex items-center justify-between gap-2 border-t border-gray-200 pt-4 dark:border-gray-700">
+              {/* Botones fijos en la parte inferior */}
+              <div className="flex items-center justify-between gap-2 border-t border-gray-200 px-4 py-4 sm:px-6 dark:border-gray-700 flex-shrink-0 bg-white dark:bg-gray-800">
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
