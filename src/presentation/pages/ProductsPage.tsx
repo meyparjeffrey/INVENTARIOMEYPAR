@@ -1164,7 +1164,7 @@ export function ProductsPage() {
             {(advancedFilters.stockMin !== undefined ||
               advancedFilters.stockMax !== undefined) && (
               <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                Stock: {advancedFilters.stockMin ?? '0'} -{' '}
+                {t('table.stock')}: {advancedFilters.stockMin ?? '0'} -{' '}
                 {advancedFilters.stockMax ?? '∞'}
                 <button
                   onClick={() =>
@@ -1183,7 +1183,7 @@ export function ProductsPage() {
             {(advancedFilters.priceMin !== undefined ||
               advancedFilters.priceMax !== undefined) && (
               <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
-                Precio: {advancedFilters.priceMin ?? '0'}€ -{' '}
+                {t('filters.price')}: {advancedFilters.priceMin ?? '0'}€ -{' '}
                 {advancedFilters.priceMax ?? '∞'}€
                 <button
                   onClick={() =>
@@ -1214,7 +1214,7 @@ export function ProductsPage() {
             )}
             {advancedFilters.aisle && (
               <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-3 py-1 text-xs font-medium text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300">
-                Pasillo: {advancedFilters.aisle}
+                {t('filters.aisle')}: {advancedFilters.aisle}
                 <button
                   onClick={() =>
                     setAdvancedFilters({ ...advancedFilters, aisle: undefined })
@@ -1227,7 +1227,7 @@ export function ProductsPage() {
             )}
             {advancedFilters.shelf && (
               <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-3 py-1 text-xs font-medium text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300">
-                Estante: {advancedFilters.shelf}
+                {t('filters.shelf')}: {advancedFilters.shelf}
                 <button
                   onClick={() =>
                     setAdvancedFilters({ ...advancedFilters, shelf: undefined })
@@ -1240,7 +1240,7 @@ export function ProductsPage() {
             )}
             {advancedFilters.batchStatus && advancedFilters.batchStatus.length > 0 && (
               <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-800 dark:bg-orange-900/30 dark:text-orange-300">
-                Estado lote: {advancedFilters.batchStatus.join(', ')}
+                {t('filters.batchStatus')}: {advancedFilters.batchStatus.join(', ')}
                 <button
                   onClick={() =>
                     setAdvancedFilters({ ...advancedFilters, batchStatus: undefined })
@@ -1254,7 +1254,7 @@ export function ProductsPage() {
             {(advancedFilters.stockMinMin !== undefined ||
               advancedFilters.stockMinMax !== undefined) && (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
-                Stock mín: {advancedFilters.stockMinMin ?? '0'} -{' '}
+                {t('filters.stockMinRange')}: {advancedFilters.stockMinMin ?? '0'} -{' '}
                 {advancedFilters.stockMinMax ?? '∞'}
                 <button
                   onClick={() =>
