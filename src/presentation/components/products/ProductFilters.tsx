@@ -244,10 +244,10 @@ export function ProductFilters({
               onClick={() => setIsOpen(false)}
             />
             <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="fixed right-4 top-1/2 z-50 -translate-y-1/2 w-[500px] max-h-[90vh] rounded-lg border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-800 overflow-y-auto"
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed left-1/2 top-1/2 z-50 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-w-[500px] max-h-[90vh] rounded-lg border border-gray-200 bg-white p-4 sm:p-6 shadow-xl dark:border-gray-700 dark:bg-gray-800 overflow-y-auto"
               onWheel={(e) => {
                 // Prevenir que el scroll se propague a la página detrás
                 e.stopPropagation();
@@ -273,7 +273,7 @@ export function ProductFilters({
                 {/* Filtros guardados */}
                 {savedFilters.length > 0 && (
                   <div className="border-b border-gray-200 pb-4 dark:border-gray-700">
-                    <Label className="mb-2 block">Filtros guardados</Label>
+                    <Label className="mb-2 block">{t('filters.saved.title')}</Label>
                     <div className="flex flex-wrap gap-2">
                       {savedFilters.map((saved) => (
                         <div
@@ -310,7 +310,7 @@ export function ProductFilters({
                   >
                     <option value="">{t('filters.all') || 'Todas'}</option>
                     {loadingCategories ? (
-                      <option disabled>Cargando...</option>
+                      <option disabled>{t('common.loading')}</option>
                     ) : (
                       categories.map((cat) => (
                         <option key={cat} value={cat}>
@@ -324,22 +324,22 @@ export function ProductFilters({
                 {/* Ubicación */}
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <Label htmlFor="filter-aisle">Pasillo</Label>
+                    <Label htmlFor="filter-aisle">{t('filters.aisle')}</Label>
                     <Input
                       id="filter-aisle"
                       value={filters.aisle || ''}
                       onChange={(e) => handleFilterChange('aisle', e.target.value)}
-                      placeholder="Ej: A1, B2..."
+                      placeholder={t('filters.aislePlaceholder')}
                       className="mt-1"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="filter-shelf">Estante</Label>
+                    <Label htmlFor="filter-shelf">{t('filters.shelf')}</Label>
                     <Input
                       id="filter-shelf"
                       value={filters.shelf || ''}
                       onChange={(e) => handleFilterChange('shelf', e.target.value)}
-                      placeholder="Ej: E1, E2..."
+                      placeholder={t('filters.shelfPlaceholder')}
                       className="mt-1"
                     />
                   </div>
@@ -380,7 +380,7 @@ export function ProductFilters({
 
                 {/* Stock mínimo (rango) */}
                 <div>
-                  <Label>Stock mínimo (rango)</Label>
+                  <Label>{t('filters.stockMinRange')}</Label>
                   <div className="mt-1 grid grid-cols-2 gap-2">
                     <div>
                       <Input
@@ -413,7 +413,7 @@ export function ProductFilters({
 
                 {/* Precio */}
                 <div>
-                  <Label>Precio (€)</Label>
+                  <Label>{t('filters.price')}</Label>
                   <div className="mt-1 grid grid-cols-2 gap-2">
                     <div>
                       <Input
@@ -461,7 +461,7 @@ export function ProductFilters({
 
                 {/* Estado de lote */}
                 <div>
-                  <Label>Estado de lote</Label>
+                  <Label>{t('filters.batchStatus')}</Label>
                   <div className="mt-1 flex flex-wrap gap-2">
                     {(['OK', 'DEFECTIVE', 'BLOCKED', 'EXPIRED'] as const).map(
                       (status) => (
@@ -554,8 +554,8 @@ export function ProductFilters({
                         )}
                       >
                         {isShortPeriod(filters.lastModifiedSlider)
-                          ? 'Recientes'
-                          : 'Antiguos'}
+                          ? t('filters.recent')
+                          : t('filters.old')}
                       </span>
                     )}
                   </div>
@@ -595,7 +595,7 @@ export function ProductFilters({
                 {/* Filtros por fecha de creación con slider */}
                 <div className="space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
                   <div className="flex items-center gap-2">
-                    <Label>Fecha de creación</Label>
+                    <Label>{t('products.createdAt')}</Label>
                     {filters.createdAtSlider !== undefined && (
                       <span
                         className={cn(
@@ -606,8 +606,8 @@ export function ProductFilters({
                         )}
                       >
                         {isShortPeriod(filters.createdAtSlider)
-                          ? 'Recientes'
-                          : 'Antiguos'}
+                          ? t('filters.recent')
+                          : t('filters.old')}
                       </span>
                     )}
                   </div>
@@ -630,7 +630,7 @@ export function ProductFilters({
                     className="gap-2"
                   >
                     <Save className="h-4 w-4" />
-                    Guardar
+                    {t('common.save')}
                   </Button>
                 </div>
                 <div className="flex gap-2">
@@ -666,9 +666,9 @@ export function ProductFilters({
               exit={{ opacity: 0, scale: 0.95 }}
               className="fixed left-1/2 top-1/2 z-50 w-96 -translate-x-1/2 -translate-y-1/2 rounded-lg border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-800"
             >
-              <h4 className="mb-4 text-lg font-semibold">Guardar filtros</h4>
+              <h4 className="mb-4 text-lg font-semibold">{t('filters.saved.save')}</h4>
               <Input
-                placeholder="Nombre del filtro..."
+                placeholder={t('filters.saved.namePlaceholder')}
                 value={saveFilterName}
                 onChange={(e) => setSaveFilterName(e.target.value)}
                 onKeyDown={(e) => {
@@ -688,14 +688,14 @@ export function ProductFilters({
                     setSaveFilterName('');
                   }}
                 >
-                  Cancelar
+                  {t('common.cancel')}
                 </Button>
                 <Button
                   size="sm"
                   onClick={handleSaveFilter}
                   disabled={!saveFilterName.trim()}
                 >
-                  Guardar
+                  {t('common.save')}
                 </Button>
               </div>
             </motion.div>
