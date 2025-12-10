@@ -16,6 +16,7 @@ import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
 import { useLanguage } from '../../context/LanguageContext';
 import { supabaseClient } from '@infrastructure/supabase/supabaseClient';
+import { cn } from '../../lib/cn';
 import {
   DateRangeSlider,
   getDateFromSliderValue,
