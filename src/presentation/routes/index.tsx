@@ -1,71 +1,88 @@
-import * as React from "react";
-import { createBrowserRouter, createHashRouter, Navigate, RouteObject } from "react-router-dom";
-import { MainLayout } from "../components/layout/MainLayout";
-import { LoginPage } from "../pages/LoginPage";
-import { ProtectedRoute } from "./ProtectedRoute";
+import * as React from 'react';
+import {
+  createBrowserRouter,
+  createHashRouter,
+  Navigate,
+  RouteObject,
+} from 'react-router-dom';
+import { MainLayout } from '../components/layout/MainLayout';
+import { LoginPage } from '../pages/LoginPage';
+import { ProtectedRoute } from './ProtectedRoute';
 
 // Detectar si estamos en Electron (archivos locales)
-const isElectron = window.location.protocol === "file:";
+const isElectron = window.location.protocol === 'file:';
 
 const ProductsPage = React.lazy(() =>
-  import("../pages/ProductsPage").then((module) => ({ default: module.ProductsPage }))
+  import('../pages/ProductsPage').then((module) => ({ default: module.ProductsPage })),
 );
 
 const ProductNewPage = React.lazy(() =>
-  import("../pages/ProductNewPage").then((module) => ({ default: module.ProductNewPage }))
+  import('../pages/ProductNewPage').then((module) => ({
+    default: module.ProductNewPage,
+  })),
 );
 
 const ProductDuplicatePage = React.lazy(() =>
-  import("../pages/ProductDuplicatePage").then((module) => ({ default: module.ProductDuplicatePage }))
+  import('../pages/ProductDuplicatePage').then((module) => ({
+    default: module.ProductDuplicatePage,
+  })),
 );
 
 const ProductDetailPage = React.lazy(() =>
-  import("../pages/ProductDetailPage").then((module) => ({ default: module.ProductDetailPage }))
+  import('../pages/ProductDetailPage').then((module) => ({
+    default: module.ProductDetailPage,
+  })),
 );
 
 const ProductEditPage = React.lazy(() =>
-  import("../pages/ProductEditPage").then((module) => ({ default: module.ProductEditPage }))
+  import('../pages/ProductEditPage').then((module) => ({
+    default: module.ProductEditPage,
+  })),
 );
 
 const ProductHistoryPage = React.lazy(() =>
-  import("../pages/ProductHistoryPage").then((module) => ({ default: module.ProductHistoryPage }))
+  import('../pages/ProductHistoryPage').then((module) => ({
+    default: module.ProductHistoryPage,
+  })),
 );
 
 const ProfilePage = React.lazy(() =>
-  import("../pages/ProfilePage").then((module) => ({ default: module.ProfilePage }))
+  import('../pages/ProfilePage').then((module) => ({ default: module.ProfilePage })),
 );
 
 const SettingsPage = React.lazy(() =>
-  import("../pages/SettingsPage").then((module) => ({ default: module.SettingsPage }))
+  import('../pages/SettingsPage').then((module) => ({ default: module.SettingsPage })),
 );
 
 const AdminPage = React.lazy(() =>
-  import("../pages/AdminPage").then((module) => ({ default: module.AdminPage }))
+  import('../pages/AdminPage').then((module) => ({ default: module.AdminPage })),
 );
 
 const MovementsPage = React.lazy(() =>
-  import("../pages/MovementsPage").then((module) => ({ default: module.MovementsPage }))
+  import('../pages/MovementsPage').then((module) => ({ default: module.MovementsPage })),
 );
 
 const AlarmsPage = React.lazy(() =>
-  import("../pages/AlarmsPage").then((module) => ({ default: module.AlarmsPage }))
+  import('../pages/AlarmsPage').then((module) => ({ default: module.AlarmsPage })),
 );
 
 const ScannerPage = React.lazy(() =>
-  import("../pages/ScannerPage").then((module) => ({ default: module.ScannerPage }))
+  import('../pages/ScannerPage').then((module) => ({ default: module.ScannerPage })),
 );
 
 const BatchesPage = React.lazy(() =>
-  import("../pages/BatchesPage").then((module) => ({ default: module.BatchesPage }))
+  import('../pages/BatchesPage').then((module) => ({ default: module.BatchesPage })),
 );
 
 const SearchResultsPage = React.lazy(() =>
-  import("../pages/SearchResultsPage").then((module) => ({ default: module.SearchResultsPage }))
+  import('../pages/SearchResultsPage').then((module) => ({
+    default: module.SearchResultsPage,
+  })),
 );
 
 // Lazy load de páginas
 const DashboardPage = React.lazy(() =>
-  import("../pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
+  import('../pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
 );
 
 // Placeholders para otras páginas
@@ -80,12 +97,12 @@ const PlaceholderPage = ({ title }: { title: string }) => (
 
 const routes: RouteObject[] = [
   {
-    path: "/",
-    element: <Navigate to="/login" replace />
+    path: '/',
+    element: <Navigate to="/login" replace />,
   },
   {
-    path: "/login",
-    element: <LoginPage />
+    path: '/login',
+    element: <LoginPage />,
   },
   {
     element: (
@@ -95,7 +112,7 @@ const routes: RouteObject[] = [
     ),
     children: [
       {
-        path: "/dashboard",
+        path: '/dashboard',
         element: (
           <React.Suspense
             fallback={
@@ -106,10 +123,10 @@ const routes: RouteObject[] = [
           >
             <DashboardPage />
           </React.Suspense>
-        )
+        ),
       },
       {
-        path: "/products",
+        path: '/products',
         element: (
           <React.Suspense
             fallback={
@@ -120,10 +137,10 @@ const routes: RouteObject[] = [
           >
             <ProductsPage />
           </React.Suspense>
-        )
+        ),
       },
       {
-        path: "/products/new",
+        path: '/products/new',
         element: (
           <React.Suspense
             fallback={
@@ -134,10 +151,10 @@ const routes: RouteObject[] = [
           >
             <ProductNewPage />
           </React.Suspense>
-        )
+        ),
       },
       {
-        path: "/products/duplicate/:id",
+        path: '/products/duplicate/:id',
         element: (
           <React.Suspense
             fallback={
@@ -148,10 +165,10 @@ const routes: RouteObject[] = [
           >
             <ProductDuplicatePage />
           </React.Suspense>
-        )
+        ),
       },
       {
-        path: "/products/:id",
+        path: '/products/:id',
         element: (
           <React.Suspense
             fallback={
@@ -162,10 +179,10 @@ const routes: RouteObject[] = [
           >
             <ProductDetailPage />
           </React.Suspense>
-        )
+        ),
       },
       {
-        path: "/products/:id/edit",
+        path: '/products/:id/edit',
         element: (
           <React.Suspense
             fallback={
@@ -176,10 +193,10 @@ const routes: RouteObject[] = [
           >
             <ProductEditPage />
           </React.Suspense>
-        )
+        ),
       },
       {
-        path: "/products/:id/history",
+        path: '/products/:id/history',
         element: (
           <React.Suspense
             fallback={
@@ -190,10 +207,10 @@ const routes: RouteObject[] = [
           >
             <ProductHistoryPage />
           </React.Suspense>
-        )
+        ),
       },
       {
-        path: "/products/search",
+        path: '/products/search',
         element: (
           <React.Suspense
             fallback={
@@ -204,10 +221,10 @@ const routes: RouteObject[] = [
           >
             <SearchResultsPage />
           </React.Suspense>
-        )
+        ),
       },
       {
-        path: "/batches",
+        path: '/batches',
         element: (
           <React.Suspense
             fallback={
@@ -218,10 +235,10 @@ const routes: RouteObject[] = [
           >
             <BatchesPage />
           </React.Suspense>
-        )
+        ),
       },
       {
-        path: "/movements",
+        path: '/movements',
         element: (
           <React.Suspense
             fallback={
@@ -232,10 +249,10 @@ const routes: RouteObject[] = [
           >
             <MovementsPage />
           </React.Suspense>
-        )
+        ),
       },
       {
-        path: "/alerts",
+        path: '/alerts',
         element: (
           <React.Suspense
             fallback={
@@ -246,10 +263,10 @@ const routes: RouteObject[] = [
           >
             <AlarmsPage />
           </React.Suspense>
-        )
+        ),
       },
       {
-        path: "/scanner",
+        path: '/scanner',
         element: (
           <React.Suspense
             fallback={
@@ -260,18 +277,14 @@ const routes: RouteObject[] = [
           >
             <ScannerPage />
           </React.Suspense>
-        )
+        ),
       },
       {
-        path: "/chat",
-        element: <PlaceholderPage title="Chat" />
+        path: '/reports',
+        element: <PlaceholderPage title="Reportes" />,
       },
       {
-        path: "/reports",
-        element: <PlaceholderPage title="Reportes" />
-      },
-      {
-        path: "/profile",
+        path: '/profile',
         element: (
           <React.Suspense
             fallback={
@@ -282,10 +295,10 @@ const routes: RouteObject[] = [
           >
             <ProfilePage />
           </React.Suspense>
-        )
+        ),
       },
       {
-        path: "/settings",
+        path: '/settings',
         element: (
           <React.Suspense
             fallback={
@@ -296,10 +309,10 @@ const routes: RouteObject[] = [
           >
             <SettingsPage />
           </React.Suspense>
-        )
+        ),
       },
       {
-        path: "/admin",
+        path: '/admin',
         element: (
           <React.Suspense
             fallback={
@@ -310,25 +323,24 @@ const routes: RouteObject[] = [
           >
             <AdminPage />
           </React.Suspense>
-        )
-      }
-    ]
-  }
+        ),
+      },
+    ],
+  },
 ];
 
 // Usar HashRouter en Electron (archivos locales) y BrowserRouter en desarrollo web
 // Forzar ruta inicial a /login
 const routerConfig = {
-  basename: "/",
+  basename: '/',
   // Forzar que la ruta inicial sea /login
-  ...(isElectron ? {} : { window: window })
+  ...(isElectron ? {} : { window: window }),
 };
 
-export const router = isElectron 
+export const router = isElectron
   ? createHashRouter(routes, {
       ...routerConfig,
       // En Electron, forzar hash inicial a /login
-      window: typeof window !== "undefined" ? window : undefined
+      window: typeof window !== 'undefined' ? window : undefined,
     })
   : createBrowserRouter(routes, routerConfig);
-

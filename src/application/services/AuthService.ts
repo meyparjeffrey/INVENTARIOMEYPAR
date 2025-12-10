@@ -1,13 +1,9 @@
-import type {
-  PermissionKey,
-  UserProfile,
-  UserSettings
-} from "@domain/entities";
-import type { UserRepository } from "@domain/repositories/UserRepository";
-import { Logger } from "@infrastructure/logging/logger";
-import { SupabaseUserRepository } from "@infrastructure/repositories/SupabaseUserRepository";
-import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
-import type { Session } from "@supabase/supabase-js";
+import type { PermissionKey, UserProfile, UserSettings } from '@domain/entities';
+import type { UserRepository } from '@domain/repositories/UserRepository';
+import { Logger } from '@infrastructure/logging/logger';
+import { SupabaseUserRepository } from '@infrastructure/repositories/SupabaseUserRepository';
+import { supabaseClient } from '@infrastructure/supabase/supabaseClient';
+import type { Session } from '@supabase/supabase-js';
 
 export interface LoginParams {
   email: string;
@@ -22,79 +18,74 @@ export interface AuthContext {
   permissions: PermissionKey[];
 }
 
-const ROLE_DEFAULT_PERMISSIONS: Record<UserProfile["role"], PermissionKey[]> = {
+const ROLE_DEFAULT_PERMISSIONS: Record<UserProfile['role'], PermissionKey[]> = {
   ADMIN: [
-    "products.view",
-    "products.create",
-    "products.edit",
-    "products.delete",
-    "products.import",
-    "batches.view",
-    "batches.create",
-    "batches.edit",
-    "batches.mark_defective",
-    "batches.block",
-    "movements.view",
-    "movements.create_in",
-    "movements.create_out",
-    "movements.adjust",
-    "scanner.use",
-    "scanner.camera",
-    "scanner.bulk_mode",
-    "reports.view",
-    "reports.export_excel",
-    "reports.export_pdf",
-    "reports.schedule",
-    "ai.chat",
-    "ai.suggestions_view",
-    "ai.suggestions_accept",
-    "chat.view",
-    "chat.send",
-    "suppliers.view",
-    "suppliers.manage",
-    "admin.users",
-    "admin.permissions",
-    "admin.settings",
-    "admin.audit",
-    "admin.backup"
+    'products.view',
+    'products.create',
+    'products.edit',
+    'products.delete',
+    'products.import',
+    'batches.view',
+    'batches.create',
+    'batches.edit',
+    'batches.mark_defective',
+    'batches.block',
+    'movements.view',
+    'movements.create_in',
+    'movements.create_out',
+    'movements.adjust',
+    'scanner.use',
+    'scanner.camera',
+    'scanner.bulk_mode',
+    'reports.view',
+    'reports.export_excel',
+    'reports.export_pdf',
+    'reports.schedule',
+    'ai.chat',
+    'ai.suggestions_view',
+    'ai.suggestions_accept',
+    'suppliers.view',
+    'suppliers.manage',
+    'admin.users',
+    'admin.permissions',
+    'admin.settings',
+    'admin.audit',
+    'admin.backup',
   ],
   WAREHOUSE: [
-    "products.view",
-    "products.create",
-    "products.edit",
-    "batches.view",
-    "batches.create",
-    "batches.edit",
-    "batches.mark_defective",
-    "movements.view",
-    "movements.create_in",
-    "movements.create_out",
-    "scanner.use",
-    "scanner.camera",
-    "reports.view",
-    "reports.export_excel",
-    "ai.chat",
-    "ai.suggestions_view",
-    "ai.suggestions_accept",
-    "chat.view",
-    "chat.send",
-    "suppliers.view"
+    'products.view',
+    'products.create',
+    'products.edit',
+    'batches.view',
+    'batches.create',
+    'batches.edit',
+    'batches.mark_defective',
+    'movements.view',
+    'movements.create_in',
+    'movements.create_out',
+    'scanner.use',
+    'scanner.camera',
+    'reports.view',
+    'reports.export_excel',
+    'ai.chat',
+    'ai.suggestions_view',
+    'ai.suggestions_accept',
+    'suppliers.view',
   ],
   VIEWER: [
-    "products.view",
-    "batches.view",
-    "movements.view",
-    "reports.view",
-    "ai.chat",
-    "ai.suggestions_view",
-    "chat.view",
-    "suppliers.view"
-  ]
+    'products.view',
+    'batches.view',
+    'movements.view',
+    'reports.view',
+    'ai.chat',
+    'ai.suggestions_view',
+    'suppliers.view',
+  ],
 };
 
 export class AuthService {
   constructor(
-    private readonly userRepository: UserRepository = new SupabaseUserRepository()
+    private readonly userRepository: UserRepository = new SupabaseUserRepository(),
   ) {}
 
   /**
@@ -103,22 +94,22 @@ export class AuthService {
   async login({
     email,
     password,
-    rememberSession = true
+    rememberSession = true,
   }: LoginParams): Promise<AuthContext> {
     const { data, error } = await supabaseClient.auth.signInWithPassword({
       email,
-      password
+      password,
     });
 
     if (error || !data.session || !data.user) {
-      Logger.warn("[auth] Falló el login", error);
-      throw error ?? new Error("No se pudo iniciar sesión");
+      Logger.warn('[auth] Falló el login', error);
+      throw error ?? new Error('No se pudo iniciar sesión');
     }
 
     if (!rememberSession) {
       await supabaseClient.auth.setSession({
         access_token: data.session.access_token,
-        refresh_token: ""
+        refresh_token: '',
       });
     }
 
@@ -131,7 +122,7 @@ export class AuthService {
   async logout(): Promise<void> {
     const { error } = await supabaseClient.auth.signOut();
     if (error) {
-      Logger.error("[auth] Falló el logout", error);
+      Logger.error('[auth] Falló el logout', error);
       throw error;
     }
   }
@@ -142,7 +133,7 @@ export class AuthService {
   async getCurrentSession(): Promise<Session | null> {
     const { data, error } = await supabaseClient.auth.getSession();
     if (error) {
-      Logger.error("[auth] Error recuperando sesión", error);
+      Logger.error('[auth] Error recuperando sesión', error);
       throw error;
     }
 
@@ -161,32 +152,27 @@ export class AuthService {
     return this.buildContext(session, session.user.id);
   }
 
-  private async buildContext(
-    session: Session,
-    userId: string
-  ): Promise<AuthContext> {
+  private async buildContext(session: Session, userId: string): Promise<AuthContext> {
     const profile = await this.userRepository.getProfileById(userId);
     if (!profile) {
-      throw new Error("Perfil de usuario no encontrado");
+      throw new Error('Perfil de usuario no encontrado');
     }
 
     const settings = await this.userRepository.getSettings(userId);
-    const explicitPermissions = await this.userRepository.listPermissions(
-      userId
-    );
+    const explicitPermissions = await this.userRepository.listPermissions(userId);
     const permissions = this.mergePermissions(profile.role, explicitPermissions);
 
     return {
       session,
       profile,
       settings,
-      permissions
+      permissions,
     };
   }
 
   private mergePermissions(
-    role: UserProfile["role"],
-    overrides: Awaited<ReturnType<UserRepository["listPermissions"]>>
+    role: UserProfile['role'],
+    overrides: Awaited<ReturnType<UserRepository['listPermissions']>>,
   ): PermissionKey[] {
     const granted = new Set<PermissionKey>(ROLE_DEFAULT_PERMISSIONS[role]);
 

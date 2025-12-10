@@ -1,7 +1,7 @@
-import type { MovementType } from "./InventoryMovement";
-import type { Nullable, Timestamp, UUID } from "./common";
+import type { MovementType } from './InventoryMovement';
+import type { Nullable, Timestamp, UUID } from './common';
 
-export type UserRole = "ADMIN" | "WAREHOUSE" | "VIEWER";
+export type UserRole = 'ADMIN' | 'WAREHOUSE' | 'VIEWER';
 
 export interface UserProfile {
   id: UUID;
@@ -15,13 +15,13 @@ export interface UserProfile {
   updatedAt: Timestamp;
 }
 
-export type LanguageCode = "es-ES" | "ca-ES";
+export type LanguageCode = 'es-ES' | 'ca-ES';
 
-export type ThemeMode = "light" | "dark" | "system";
+export type ThemeMode = 'light' | 'dark' | 'system';
 
-export type AvatarSize = "xs" | "sm" | "md" | "lg" | "xl" | "custom";
-export type AvatarShape = "circle" | "square" | "rounded";
-export type AvatarShadowIntensity = "none" | "sm" | "md" | "lg";
+export type AvatarSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | 'custom';
+export type AvatarShape = 'circle' | 'square' | 'rounded';
+export type AvatarShadowIntensity = 'none' | 'sm' | 'md' | 'lg';
 
 export interface UserSettings {
   userId: UUID;
@@ -49,41 +49,39 @@ export interface UserSettings {
 }
 
 export const PERMISSION_KEYS = [
-  "products.create",
-  "products.edit",
-  "products.delete",
-  "products.view",
-  "products.import",
-  "batches.create",
-  "batches.edit",
-  "batches.mark_defective",
-  "batches.block",
-  "batches.view",
-  "movements.create",
-  "movements.create_in",
-  "movements.create_out",
-  "movements.adjust",
-  "movements.view",
-  "reports.view",
-  "reports.export_excel",
-  "reports.export_pdf",
-  "reports.schedule",
-  "scanner.use",
-  "scanner.camera",
-  "scanner.bulk_mode",
-  "chat.send",
-  "chat.view",
-  "ai.chat",
-  "ai.use",
-  "ai.suggestions_view",
-  "ai.suggestions_accept",
-  "suppliers.view",
-  "suppliers.manage",
-  "admin.users",
-  "admin.permissions",
-  "admin.settings",
-  "admin.audit",
-  "admin.backup",
+  'products.create',
+  'products.edit',
+  'products.delete',
+  'products.view',
+  'products.import',
+  'batches.create',
+  'batches.edit',
+  'batches.mark_defective',
+  'batches.block',
+  'batches.view',
+  'movements.create',
+  'movements.create_in',
+  'movements.create_out',
+  'movements.adjust',
+  'movements.view',
+  'reports.view',
+  'reports.export_excel',
+  'reports.export_pdf',
+  'reports.schedule',
+  'scanner.use',
+  'scanner.camera',
+  'scanner.bulk_mode',
+  'ai.chat',
+  'ai.use',
+  'ai.suggestions_view',
+  'ai.suggestions_accept',
+  'suppliers.view',
+  'suppliers.manage',
+  'admin.users',
+  'admin.permissions',
+  'admin.settings',
+  'admin.audit',
+  'admin.backup',
 ] as const;
 
 export type PermissionKey = (typeof PERMISSION_KEYS)[number];
@@ -106,4 +104,3 @@ export interface UserLoginEvent {
   success: boolean;
   failureReason?: Nullable<string>;
 }
-

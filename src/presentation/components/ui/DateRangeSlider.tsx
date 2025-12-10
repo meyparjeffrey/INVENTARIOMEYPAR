@@ -1,15 +1,15 @@
 /**
  * Componente de slider para seleccionar rangos de fecha.
- * 
+ *
  * Permite seleccionar períodos predefinidos mediante una barra deslizante:
  * 1 semana, 15 días, 1 mes, 3 meses, 6 meses, 1 año, más de 1 año
- * 
+ *
  * @module @presentation/components/ui/DateRangeSlider
  */
 
-import * as React from "react";
-import { Label } from "./Label";
-import { cn } from "../../lib/cn";
+import * as React from 'react';
+import { Label } from './Label';
+import { cn } from '../../lib/cn';
 
 export interface DateRangeOption {
   label: string;
@@ -18,13 +18,13 @@ export interface DateRangeOption {
 }
 
 export const DATE_RANGE_OPTIONS: DateRangeOption[] = [
-  { label: "1 semana", days: 7, value: 0 },
-  { label: "15 días", days: 15, value: 1 },
-  { label: "1 mes", days: 30, value: 2 },
-  { label: "3 meses", days: 90, value: 3 },
-  { label: "6 meses", days: 180, value: 4 },
-  { label: "1 año", days: 365, value: 5 },
-  { label: "Más de 1 año", days: 730, value: 6 } // 2 años como "más de 1 año"
+  { label: '1 semana', days: 7, value: 0 },
+  { label: '15 días', days: 15, value: 1 },
+  { label: '1 mes', days: 30, value: 2 },
+  { label: '3 meses', days: 90, value: 3 },
+  { label: '6 meses', days: 180, value: 4 },
+  { label: '1 año', days: 365, value: 5 },
+  { label: 'Más de 1 año', days: 730, value: 6 }, // 2 años como "más de 1 año"
 ];
 
 interface DateRangeSliderProps {
@@ -36,20 +36,24 @@ interface DateRangeSliderProps {
 
 /**
  * Slider para seleccionar rango de fechas.
- * 
+ *
  * @param {DateRangeSliderProps} props - Propiedades del componente
  * @param {number | undefined} props.value - Valor actual del slider (0-6)
  * @param {(value: number | undefined) => void} props.onChange - Callback al cambiar el valor
  * @param {string} [props.label] - Etiqueta del slider
  * @param {string} [props.className] - Clases CSS adicionales
  */
-export function DateRangeSlider({ value, onChange, label, className }: DateRangeSliderProps) {
-  const [localValue, setLocalValue] = React.useState<number>(value ?? 0);
+export function DateRangeSlider({
+  value,
+  onChange,
+  label,
+  className,
+}: DateRangeSliderProps) {
+  // No inicializar con 0 si value es undefined - mantener undefined hasta que el usuario seleccione
+  const [localValue, setLocalValue] = React.useState<number | undefined>(value);
 
   React.useEffect(() => {
-    if (value !== undefined) {
-      setLocalValue(value);
-    }
+    setLocalValue(value);
   }, [value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,16 +63,19 @@ export function DateRangeSlider({ value, onChange, label, className }: DateRange
   };
 
   const handleClear = () => {
-    setLocalValue(0);
+    setLocalValue(undefined);
     onChange(undefined);
   };
 
-  const selectedOption = DATE_RANGE_OPTIONS.find(opt => opt.value === localValue) || DATE_RANGE_OPTIONS[0];
+  // Si no hay valor seleccionado, usar 0 como valor visual pero no aplicarlo
+  const displayValue = localValue ?? 0;
+  const selectedOption =
+    DATE_RANGE_OPTIONS.find((opt) => opt.value === displayValue) || DATE_RANGE_OPTIONS[0];
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn('space-y-2', className)}>
       {label && <Label>{label}</Label>}
-      
+
       <div className="relative">
         {/* Slider */}
         <input
@@ -76,26 +83,27 @@ export function DateRangeSlider({ value, onChange, label, className }: DateRange
           min="0"
           max="6"
           step="1"
-          value={localValue}
+          value={displayValue}
           onChange={handleChange}
           className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-gray-700 accent-primary-500"
           style={{
             background: `linear-gradient(to right, 
               rgb(59 130 246) 0%, 
-              rgb(59 130 246) ${(localValue / 6) * 100}%, 
-              rgb(229 231 235) ${(localValue / 6) * 100}%, 
-              rgb(229 231 235) 100%)`
+              rgb(59 130 246) ${(displayValue / 6) * 100}%, 
+              rgb(229 231 235) ${(displayValue / 6) * 100}%, 
+              rgb(229 231 235) 100%)`,
           }}
         />
-        
+
         {/* Etiquetas de valores */}
         <div className="flex justify-between mt-1 text-xs text-gray-500 dark:text-gray-400">
           {DATE_RANGE_OPTIONS.map((option) => (
             <span
               key={option.value}
               className={cn(
-                "cursor-pointer transition-colors",
-                localValue === option.value && "font-semibold text-primary-600 dark:text-primary-400"
+                'cursor-pointer transition-colors',
+                localValue === option.value &&
+                  'font-semibold text-primary-600 dark:text-primary-400',
               )}
               onClick={() => {
                 setLocalValue(option.value);
@@ -110,10 +118,17 @@ export function DateRangeSlider({ value, onChange, label, className }: DateRange
 
       {/* Valor seleccionado y botón limpiar */}
       <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {selectedOption.label}
+        <span
+          className={cn(
+            'text-sm font-medium',
+            localValue === undefined
+              ? 'text-gray-400 dark:text-gray-500 italic'
+              : 'text-gray-700 dark:text-gray-300',
+          )}
+        >
+          {localValue === undefined ? 'No seleccionado' : selectedOption.label}
         </span>
-        {value !== undefined && (
+        {localValue !== undefined && (
           <button
             type="button"
             onClick={handleClear}
@@ -129,39 +144,38 @@ export function DateRangeSlider({ value, onChange, label, className }: DateRange
 
 /**
  * Obtiene la fecha desde (hace N días) basada en el valor del slider.
- * 
+ *
  * @param {number} sliderValue - Valor del slider (0-6)
  * @returns {string} Fecha en formato ISO (YYYY-MM-DD)
  */
 export function getDateFromSliderValue(sliderValue: number): string {
-  const option = DATE_RANGE_OPTIONS.find(opt => opt.value === sliderValue);
-  if (!option) return new Date().toISOString().split("T")[0];
-  
+  const option = DATE_RANGE_OPTIONS.find((opt) => opt.value === sliderValue);
+  if (!option) return new Date().toISOString().split('T')[0];
+
   const date = new Date();
   date.setDate(date.getDate() - option.days);
-  return date.toISOString().split("T")[0];
+  return date.toISOString().split('T')[0];
 }
 
 /**
  * Obtiene el valor del slider basado en una fecha.
- * 
+ *
  * @param {string} dateFrom - Fecha en formato ISO (YYYY-MM-DD)
  * @returns {number | undefined} Valor del slider o undefined si no coincide
  */
 export function getSliderValueFromDate(dateFrom: string | undefined): number | undefined {
   if (!dateFrom) return undefined;
-  
+
   const date = new Date(dateFrom);
   const now = new Date();
   const daysDiff = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-  
+
   // Encontrar la opción más cercana
   for (let i = DATE_RANGE_OPTIONS.length - 1; i >= 0; i--) {
     if (daysDiff >= DATE_RANGE_OPTIONS[i].days) {
       return DATE_RANGE_OPTIONS[i].value;
     }
   }
-  
+
   return 0; // Por defecto, 1 semana
 }
-

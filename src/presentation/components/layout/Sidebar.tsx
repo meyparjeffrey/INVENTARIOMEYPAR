@@ -4,21 +4,20 @@ import {
   FileText,
   Layers,
   LayoutDashboard,
-  MessageSquare,
   Package,
   ScanLine,
   Settings,
-  Users
-} from "lucide-react";
-import * as React from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import type { PermissionKey } from "@domain/entities";
-import { useAuth } from "../../context/AuthContext";
-import { useLanguage } from "../../context/LanguageContext";
-import { useTheme } from "../../context/ThemeContext";
-import { cn } from "../../lib/cn";
-import { Logo } from "../ui/Logo";
-import { SupabaseUserRepository } from "@infrastructure/repositories/SupabaseUserRepository";
+  Users,
+} from 'lucide-react';
+import * as React from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import type { PermissionKey } from '@domain/entities';
+import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
+import { useTheme } from '../../context/ThemeContext';
+import { cn } from '../../lib/cn';
+import { Logo } from '../ui/Logo';
+import { SupabaseUserRepository } from '@infrastructure/repositories/SupabaseUserRepository';
 
 interface NavItem {
   path: string;
@@ -29,16 +28,40 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { path: "/dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
-  { path: "/products", labelKey: "nav.products", icon: Package, permission: "products.view" },
-  { path: "/batches", labelKey: "nav.batches", icon: Layers, permission: "batches.view" },
-  { path: "/movements", labelKey: "nav.movements", icon: ArrowLeftRight, permission: "movements.view" },
-  { path: "/alerts", labelKey: "nav.alerts", icon: AlertTriangle, permission: "products.view" },
-  { path: "/scanner", labelKey: "nav.scanner", icon: ScanLine, permission: "scanner.use" },
-  { path: "/chat", labelKey: "nav.chat", icon: MessageSquare, permission: "chat.view" },
-  { path: "/reports", labelKey: "nav.reports", icon: FileText, permission: "reports.view" },
-  { path: "/settings", labelKey: "nav.settings", icon: Settings },
-  { path: "/admin", labelKey: "nav.admin", icon: Users, adminOnly: true }
+  { path: '/dashboard', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  {
+    path: '/products',
+    labelKey: 'nav.products',
+    icon: Package,
+    permission: 'products.view',
+  },
+  { path: '/batches', labelKey: 'nav.batches', icon: Layers, permission: 'batches.view' },
+  {
+    path: '/movements',
+    labelKey: 'nav.movements',
+    icon: ArrowLeftRight,
+    permission: 'movements.view',
+  },
+  {
+    path: '/alerts',
+    labelKey: 'nav.alerts',
+    icon: AlertTriangle,
+    permission: 'products.view',
+  },
+  {
+    path: '/scanner',
+    labelKey: 'nav.scanner',
+    icon: ScanLine,
+    permission: 'scanner.use',
+  },
+  {
+    path: '/reports',
+    labelKey: 'nav.reports',
+    icon: FileText,
+    permission: 'reports.view',
+  },
+  { path: '/settings', labelKey: 'nav.settings', icon: Settings },
+  { path: '/admin', labelKey: 'nav.admin', icon: Users, adminOnly: true },
 ];
 
 /**
@@ -64,23 +87,23 @@ export function Sidebar() {
   const handleToggleCollapse = React.useCallback(async () => {
     const newCollapsed = !collapsed;
     setCollapsed(newCollapsed);
-    
+
     // Guardar en settings si hay usuario autenticado
     if (authContext?.profile.id) {
       try {
         await userRepository.updateSettings(authContext.profile.id, {
-          sidebarCollapsed: newCollapsed
+          sidebarCollapsed: newCollapsed,
         });
         await refreshContext();
       } catch (error) {
         // Silenciar errores, no es crítico
-        console.warn("No se pudo guardar el estado del sidebar:", error);
+        console.warn('No se pudo guardar el estado del sidebar:', error);
       }
     }
   }, [collapsed, authContext?.profile.id, userRepository, refreshContext]);
 
   const canAccess = (item: NavItem): boolean => {
-    if (item.adminOnly && authContext?.profile.role !== "ADMIN") {
+    if (item.adminOnly && authContext?.profile.role !== 'ADMIN') {
       return false;
     }
     if (item.permission) {
@@ -94,20 +117,22 @@ export function Sidebar() {
   return (
     <aside
       className={cn(
-        "flex h-screen flex-col bg-gray-800 text-white transition-all duration-300",
-        collapsed ? "w-16" : "w-64"
+        'flex h-screen flex-col bg-gray-800 text-white transition-all duration-300',
+        collapsed ? 'w-16' : 'w-64',
       )}
     >
       {/* Logo */}
-      <div className={cn(
-        "flex h-16 items-center justify-center border-b px-2",
-        effectiveTheme === "dark" 
-          ? "border-gray-700 bg-gray-800/95" 
-          : "border-gray-200 bg-gray-50"
-      )}>
-        <Logo 
-          className={collapsed ? "h-8 max-w-8" : "h-10 max-w-48"} 
-          color={effectiveTheme === "dark" ? "white" : "black"}
+      <div
+        className={cn(
+          'flex h-16 items-center justify-center border-b px-2',
+          effectiveTheme === 'dark'
+            ? 'border-gray-700 bg-gray-800/95'
+            : 'border-gray-200 bg-gray-50',
+        )}
+      >
+        <Logo
+          className={collapsed ? 'h-8 max-w-8' : 'h-10 max-w-48'}
+          color={effectiveTheme === 'dark' ? 'white' : 'black'}
         />
       </div>
 
@@ -116,23 +141,27 @@ export function Sidebar() {
         <ul className="space-y-1">
           {visibleItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.path || location.pathname.startsWith(`${item.path}/`);
+            const isActive =
+              location.pathname === item.path ||
+              location.pathname.startsWith(`${item.path}/`);
 
             return (
               <li key={item.path}>
                 <button
                   onClick={() => navigate(item.path)}
                   className={cn(
-                    "flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all duration-200",
+                    'flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left transition-all duration-200',
                     isActive
-                      ? "bg-primary-600 text-white shadow-md"
-                      : "text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-sm hover:scale-[1.02]",
-                    collapsed && "justify-center"
+                      ? 'bg-primary-600 text-white shadow-md'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white hover:shadow-sm hover:scale-[1.02]',
+                    collapsed && 'justify-center',
                   )}
                   title={collapsed ? t(item.labelKey) : undefined}
                 >
                   <Icon className="h-5 w-5 flex-shrink-0 transition-transform duration-200 group-hover:scale-110" />
-                  {!collapsed && <span className="text-sm font-medium">{t(item.labelKey)}</span>}
+                  {!collapsed && (
+                    <span className="text-sm font-medium">{t(item.labelKey)}</span>
+                  )}
                 </button>
               </li>
             );
@@ -145,7 +174,11 @@ export function Sidebar() {
         <button
           onClick={handleToggleCollapse}
           className="flex w-full items-center justify-center rounded-lg px-3 py-2 text-gray-300 transition-all duration-200 hover:bg-gray-700 hover:scale-105 active:scale-95"
-          title={collapsed ? t("sidebar.expand") || "Expandir" : t("sidebar.collapse") || "Colapsar"}
+          title={
+            collapsed
+              ? t('sidebar.expand') || 'Expandir'
+              : t('sidebar.collapse') || 'Colapsar'
+          }
         >
           {collapsed ? (
             <ArrowLeftRight className="h-5 w-5 rotate-90 transition-transform duration-200" />
@@ -157,4 +190,3 @@ export function Sidebar() {
     </aside>
   );
 }
-
