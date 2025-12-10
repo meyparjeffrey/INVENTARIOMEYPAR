@@ -1238,9 +1238,9 @@ export function ProductsPage() {
                 </button>
               </span>
             )}
-            {advancedFilters.createdAtFrom && (
+            {(advancedFilters.createdAtFrom || advancedFilters.createdAtTo) && (
               <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-800 dark:bg-violet-900/30 dark:text-violet-300">
-                Creado:{' '}
+                {t('products.createdAt') || 'Creado'}:{' '}
                 {advancedFilters.createdAtSlider !== undefined
                   ? DATE_RANGE_OPTIONS.find(
                       (opt) => opt.value === advancedFilters.createdAtSlider,
@@ -1261,9 +1261,9 @@ export function ProductsPage() {
                 </button>
               </span>
             )}
-            {advancedFilters.dateFrom && (
+            {(advancedFilters.dateFrom || advancedFilters.dateTo) && (
               <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-800 dark:bg-pink-900/30 dark:text-pink-300">
-                Modificado:{' '}
+                {t('filters.lastModified') || 'Modificado'}:{' '}
                 {advancedFilters.lastModifiedSlider !== undefined
                   ? DATE_RANGE_OPTIONS.find(
                       (opt) => opt.value === advancedFilters.lastModifiedSlider,

@@ -180,19 +180,39 @@ export function isShortPeriod(sliderValue: number): boolean {
  * @param {string} dateFrom - Fecha en formato ISO (YYYY-MM-DD)
  * @returns {number | undefined} Valor del slider o undefined si no coincide
  */
-export function getSliderValueFromDate(dateFrom: string | undefined): number | undefined {
-  if (!dateFrom) return undefined;
-
-  const date = new Date(dateFrom);
+export function getSliderValueFromDate(
+  dateFrom: string | undefined,
+  dateTo?: string | undefined,
+): number | undefined {
   const now = new Date();
-  const daysDiff = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  // Encontrar la opción más cercana
-  for (let i = DATE_RANGE_OPTIONS.length - 1; i >= 0; i--) {
-    if (daysDiff >= DATE_RANGE_OPTIONS[i].days) {
-      return DATE_RANGE_OPTIONS[i].value;
+  // Si hay dateTo, verificar si es un período corto (recientes)
+  if (dateTo) {
+    const endDate = new Date(dateTo);
+    const daysDiffTo = Math.floor(
+      (today.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    // Períodos cortos: 1 semana o 15 días
+    if (daysDiffTo <= DATE_RANGE_OPTIONS[0].days) return 0; // 1 semana
+    if (daysDiffTo <= DATE_RANGE_OPTIONS[1].days) return 1; // 15 días
+  }
+
+  // Si hay dateFrom, verificar si es un período largo (antiguos)
+  if (dateFrom) {
+    const startDate = new Date(dateFrom);
+    const daysDiffFrom = Math.floor(
+      (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
+    // Encontrar la opción más cercana para períodos largos
+    for (let i = DATE_RANGE_OPTIONS.length - 1; i >= 0; i--) {
+      if (daysDiffFrom >= DATE_RANGE_OPTIONS[i].days) {
+        return DATE_RANGE_OPTIONS[i].value;
+      }
     }
   }
 
-  return 0; // Por defecto, 1 semana
+  return undefined;
 }

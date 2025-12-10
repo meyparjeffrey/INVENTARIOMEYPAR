@@ -78,8 +78,35 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
   // Sincronizar estado local cuando se abren los filtros o cambian los filtros externos
   React.useEffect(() => {
     if (isOpen) {
-      // Al abrir, inicializar con los filtros actuales
-      setLocalFilters(filters);
+      // Al abrir, inicializar con los filtros actuales y sincronizar sliders
+      const syncedFilters = { ...filters };
+
+      // Sincronizar slider de modificación si hay fechas pero no slider
+      if (
+        (filters.dateFrom || filters.dateTo) &&
+        filters.lastModifiedSlider === undefined
+      ) {
+        const sliderValue = getSliderValueFromDate(filters.dateFrom, filters.dateTo);
+        if (sliderValue !== undefined) {
+          syncedFilters.lastModifiedSlider = sliderValue;
+        }
+      }
+
+      // Sincronizar slider de creación si hay fechas pero no slider
+      if (
+        (filters.createdAtFrom || filters.createdAtTo) &&
+        filters.createdAtSlider === undefined
+      ) {
+        const sliderValue = getSliderValueFromDate(
+          filters.createdAtFrom,
+          filters.createdAtTo,
+        );
+        if (sliderValue !== undefined) {
+          syncedFilters.createdAtSlider = sliderValue;
+        }
+      }
+
+      setLocalFilters(syncedFilters);
     }
   }, [isOpen, filters]);
 
@@ -159,7 +186,38 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
 
   // Aplicar filtros (solo cuando se hace clic en "Aplicar")
   const handleApply = () => {
-    onFiltersChange(localFilters);
+    // Asegurar que los sliders estén sincronizados antes de aplicar
+    const filtersToApply = { ...localFilters };
+
+    // Sincronizar slider de modificación si hay fechas pero no slider
+    if (
+      (filtersToApply.dateFrom || filtersToApply.dateTo) &&
+      filtersToApply.lastModifiedSlider === undefined
+    ) {
+      const sliderValue = getSliderValueFromDate(
+        filtersToApply.dateFrom,
+        filtersToApply.dateTo,
+      );
+      if (sliderValue !== undefined) {
+        filtersToApply.lastModifiedSlider = sliderValue;
+      }
+    }
+
+    // Sincronizar slider de creación si hay fechas pero no slider
+    if (
+      (filtersToApply.createdAtFrom || filtersToApply.createdAtTo) &&
+      filtersToApply.createdAtSlider === undefined
+    ) {
+      const sliderValue = getSliderValueFromDate(
+        filtersToApply.createdAtFrom,
+        filtersToApply.createdAtTo,
+      );
+      if (sliderValue !== undefined) {
+        filtersToApply.createdAtSlider = sliderValue;
+      }
+    }
+
+    onFiltersChange(filtersToApply);
     setIsOpen(false);
   };
 
