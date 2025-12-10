@@ -276,11 +276,33 @@ export class SupabaseProductRepository
       (filters?.batchStatus && filters.batchStatus.length > 0);
 
     if (needsClientFiltering) {
-      // Obtener todos los productos que cumplan los filtros básicos (sin paginación)
-      const { data: allData, error: allError } = await query;
-      this.handleError('listar productos', allError);
+      // Obtener TODOS los productos que cumplan los filtros básicos (sin paginación)
+      // Supabase tiene un límite por defecto de 1000 registros, así que necesitamos leer en lotes
+      const BATCH_SIZE = 1000;
+      let allProducts: Product[] = [];
+      let currentBatch = 0;
+      let hasMore = true;
 
-      let allProducts = (allData ?? []).map(mapProduct);
+      while (hasMore) {
+        const fromBatch = currentBatch * BATCH_SIZE;
+        const toBatch = fromBatch + BATCH_SIZE - 1;
+
+        const { data: batchData, error: batchError } = await query.range(
+          fromBatch,
+          toBatch,
+        );
+        this.handleError('listar productos', batchError);
+
+        const batchProducts = (batchData ?? []).map(mapProduct);
+        allProducts = [...allProducts, ...batchProducts];
+
+        // Si recibimos menos productos que el tamaño del lote, no hay más
+        if (batchProducts.length < BATCH_SIZE) {
+          hasMore = false;
+        } else {
+          currentBatch++;
+        }
+      }
 
       // Filtrar por stock bajo
       if (filters?.lowStock) {
