@@ -1,21 +1,42 @@
-import { motion } from "framer-motion";
-import { ArrowLeft, Package, Box, MapPin, DollarSign, Info, AlertTriangle, Edit, Layers } from "lucide-react";
-import * as React from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
-import { useProducts } from "../hooks/useProducts";
-import { Button } from "../components/ui/Button";
-import { cn } from "../lib/cn";
+import { motion } from 'framer-motion';
+import {
+  ArrowLeft,
+  Package,
+  Box,
+  MapPin,
+  DollarSign,
+  Info,
+  AlertTriangle,
+  Edit,
+  Layers,
+} from 'lucide-react';
+import * as React from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { useProducts } from '../hooks/useProducts';
+import { Button } from '../components/ui/Button';
+import { cn } from '../lib/cn';
+import type { Product } from '@domain/entities';
 
 /**
  * Página de detalle de producto con información completa.
  */
 export function ProductDetailPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams<{ id: string }>();
   const { authContext } = useAuth();
   const { getById, loading, error } = useProducts();
-  const [product, setProduct] = React.useState<any>(null);
+  const [product, setProduct] = React.useState<Product | null>(null);
+
+  // Determinar la ruta de retorno según el estado de navegación
+  const getBackPath = () => {
+    const state = location.state as { from?: string } | null;
+    if (state?.from === 'alarms') {
+      return '/alerts';
+    }
+    return '/products';
+  };
 
   React.useEffect(() => {
     if (id) {
@@ -23,7 +44,7 @@ export function ProductDetailPage() {
     }
   }, [id, getById]);
 
-  const canEdit = authContext?.permissions?.includes("products.edit") ?? false;
+  const canEdit = authContext?.permissions?.includes('products.edit') ?? false;
 
   if (loading) {
     return (
@@ -38,15 +59,15 @@ export function ProductDetailPage() {
       <div className="flex h-64 flex-col items-center justify-center">
         <AlertTriangle className="mb-4 h-12 w-12 text-red-500" />
         <p className="text-lg font-medium text-gray-900 dark:text-gray-50">
-          {error || "Producto no encontrado"}
+          {error || 'Producto no encontrado'}
         </p>
         <Button
           variant="secondary"
-          onClick={() => navigate("/products")}
+          onClick={() => navigate(getBackPath())}
           className="mt-4"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Volver a Productos
+          Volver
         </Button>
       </div>
     );
@@ -63,11 +84,7 @@ export function ProductDetailPage() {
         className="flex items-center justify-between"
       >
         <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/products")}
-          >
+          <Button variant="ghost" size="sm" onClick={() => navigate(getBackPath())}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Volver
           </Button>
@@ -107,39 +124,57 @@ export function ProductDetailPage() {
           </div>
           <dl className="space-y-3">
             <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Código</dt>
-              <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">{product.code}</dd>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Código
+              </dt>
+              <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">
+                {product.code}
+              </dd>
             </div>
             {product.barcode && (
               <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Código de Barras</dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">{product.barcode}</dd>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Código de Barras
+                </dt>
+                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">
+                  {product.barcode}
+                </dd>
               </div>
             )}
             {product.description && (
               <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Descripción</dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">{product.description}</dd>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Descripción
+                </dt>
+                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">
+                  {product.description}
+                </dd>
               </div>
             )}
             {product.category && (
               <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Categoría</dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">{product.category}</dd>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Categoría
+                </dt>
+                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">
+                  {product.category}
+                </dd>
               </div>
             )}
             <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Estado</dt>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Estado
+              </dt>
               <dd className="mt-1">
                 <span
                   className={cn(
-                    "inline-flex items-center rounded-full px-2 py-1 text-xs font-medium",
+                    'inline-flex items-center rounded-full px-2 py-1 text-xs font-medium',
                     product.isActive
-                      ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200"
-                      : "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200"
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'
+                      : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200',
                   )}
                 >
-                  {product.isActive ? "Activo" : "Inactivo"}
+                  {product.isActive ? 'Activo' : 'Inactivo'}
                 </span>
                 {product.isBatchTracked && (
                   <span className="ml-2 inline-flex items-center rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900 dark:text-blue-200">
@@ -169,24 +204,36 @@ export function ProductDetailPage() {
           </div>
           <dl className="space-y-3">
             <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Stock Actual</dt>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Stock Actual
+              </dt>
               <dd
                 className={cn(
-                  "mt-1 text-lg font-semibold",
-                  isLowStock ? "text-amber-600 dark:text-amber-400" : "text-gray-900 dark:text-gray-50"
+                  'mt-1 text-lg font-semibold',
+                  isLowStock
+                    ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-gray-900 dark:text-gray-50',
                 )}
               >
-                {product.stockCurrent} {product.unitOfMeasure || "unidades"}
+                {product.stockCurrent} {product.unitOfMeasure || 'unidades'}
               </dd>
             </div>
             <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Stock Mínimo</dt>
-              <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">{product.stockMin}</dd>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Stock Mínimo
+              </dt>
+              <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">
+                {product.stockMin}
+              </dd>
             </div>
             {product.stockMax && (
               <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Stock Máximo</dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">{product.stockMax}</dd>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Stock Máximo
+                </dt>
+                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">
+                  {product.stockMax}
+                </dd>
               </div>
             )}
             {isLowStock && (
@@ -202,7 +249,9 @@ export function ProductDetailPage() {
             <div className="mt-4 border-t border-gray-200 pt-3 dark:border-gray-700">
               <div className="mb-2 flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-gray-400" />
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Ubicación</dt>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Ubicación
+                </dt>
               </div>
               <dd className="text-sm text-gray-900 dark:text-gray-50">
                 Pasillo: {product.aisle} | Estante: {product.shelf}
@@ -223,18 +272,24 @@ export function ProductDetailPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400">
               <DollarSign className="h-5 w-5" />
             </div>
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">Precios</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
+              Precios
+            </h2>
           </div>
           <dl className="space-y-3">
             <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Precio de Coste</dt>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Precio de Coste
+              </dt>
               <dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-50">
                 €{Number(product.costPrice).toFixed(2)}
               </dd>
             </div>
             {product.salePrice && (
               <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Precio de Venta</dt>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Precio de Venta
+                </dt>
                 <dd className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-50">
                   €{Number(product.salePrice).toFixed(2)}
                 </dd>
@@ -242,13 +297,19 @@ export function ProductDetailPage() {
             )}
             {product.supplierCode && (
               <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Código de Proveedor</dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">{product.supplierCode}</dd>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Código de Proveedor
+                </dt>
+                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">
+                  {product.supplierCode}
+                </dd>
               </div>
             )}
             {product.purchaseUrl && (
               <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">URL de Compra</dt>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  URL de Compra
+                </dt>
                 <dd className="mt-1">
                   <a
                     href={product.purchaseUrl}
@@ -282,48 +343,67 @@ export function ProductDetailPage() {
           <dl className="space-y-3">
             {product.unitOfMeasure && (
               <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Unidad de Medida</dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">{product.unitOfMeasure}</dd>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Unidad de Medida
+                </dt>
+                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">
+                  {product.unitOfMeasure}
+                </dd>
               </div>
             )}
             {product.weightKg && (
               <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Peso</dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">{product.weightKg} kg</dd>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Peso
+                </dt>
+                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">
+                  {product.weightKg} kg
+                </dd>
               </div>
             )}
             {product.dimensionsCm && (
               <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Dimensiones</dt>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Dimensiones
+                </dt>
                 <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">
-                  {product.dimensionsCm.length} × {product.dimensionsCm.width} × {product.dimensionsCm.height} cm
+                  {product.dimensionsCm.length} × {product.dimensionsCm.width} ×{' '}
+                  {product.dimensionsCm.height} cm
                 </dd>
               </div>
             )}
             {product.notes && (
               <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Notas</dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50 whitespace-pre-wrap">{product.notes}</dd>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Notas
+                </dt>
+                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50 whitespace-pre-wrap">
+                  {product.notes}
+                </dd>
               </div>
             )}
             <div>
-              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Creado</dt>
+              <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                Creado
+              </dt>
               <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">
-                {new Date(product.createdAt).toLocaleDateString("es-ES", {
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric"
+                {new Date(product.createdAt).toLocaleDateString('es-ES', {
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
                 })}
               </dd>
             </div>
             {product.updatedAt && product.updatedAt !== product.createdAt && (
               <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Última actualización</dt>
+                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                  Última actualización
+                </dt>
                 <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">
-                  {new Date(product.updatedAt).toLocaleDateString("es-ES", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric"
+                  {new Date(product.updatedAt).toLocaleDateString('es-ES', {
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
                   })}
                 </dd>
               </div>
@@ -340,13 +420,15 @@ export function ProductDetailPage() {
           transition={{ delay: 0.5 }}
           className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
         >
-          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">Imagen del Producto</h2>
+          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
+            Imagen del Producto
+          </h2>
           <img
             src={product.imageUrl}
             alt={product.name}
             className="max-h-96 rounded-lg object-contain"
             onError={(e) => {
-              (e.target as HTMLImageElement).style.display = "none";
+              (e.target as HTMLImageElement).style.display = 'none';
             }}
           />
         </motion.div>
@@ -354,4 +436,3 @@ export function ProductDetailPage() {
     </div>
   );
 }
-
