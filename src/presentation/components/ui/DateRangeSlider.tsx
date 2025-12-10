@@ -98,20 +98,24 @@ export function DateRangeSlider({
         {/* Etiquetas de valores */}
         <div className="flex justify-between mt-1 text-xs text-gray-500 dark:text-gray-400">
           {DATE_RANGE_OPTIONS.map((option) => (
-            <span
+            <button
               key={option.value}
+              type="button"
               className={cn(
-                'cursor-pointer transition-colors',
+                'cursor-pointer transition-colors hover:text-primary-600 dark:hover:text-primary-400 px-1 py-0.5 rounded',
                 localValue === option.value &&
-                  'font-semibold text-primary-600 dark:text-primary-400',
+                  'font-semibold text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-primary-900/30',
               )}
-              onClick={() => {
-                setLocalValue(option.value);
-                onChange(option.value);
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const newValue = option.value;
+                setLocalValue(newValue);
+                onChange(newValue);
               }}
             >
               {option.label}
-            </span>
+            </button>
           ))}
         </div>
       </div>
@@ -155,6 +159,19 @@ export function getDateFromSliderValue(sliderValue: number): string {
   const date = new Date();
   date.setDate(date.getDate() - option.days);
   return date.toISOString().split('T')[0];
+}
+
+/**
+ * Determina si un período es "corto" (para mostrar productos recientes) o "largo" (para mostrar productos antiguos).
+ * Períodos cortos: 1 semana, 15 días → productos recientes
+ * Períodos largos: 1 mes o más → productos antiguos/no modificados
+ *
+ * @param {number} sliderValue - Valor del slider (0-6)
+ * @returns {boolean} true si es período corto (recientes), false si es largo (antiguos)
+ */
+export function isShortPeriod(sliderValue: number): boolean {
+  // Períodos cortos: 0 (1 semana) y 1 (15 días)
+  return sliderValue <= 1;
 }
 
 /**
