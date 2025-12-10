@@ -153,23 +153,33 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
 
   // Sincronizar slider de modificación con dateFrom (solo en estado local)
   React.useEffect(() => {
-    if (localFilters.dateFrom && !localFilters.lastModifiedSlider) {
-      const sliderValue = getSliderValueFromDate(localFilters.dateFrom);
+    if (localFilters.dateFrom && localFilters.lastModifiedSlider === undefined) {
+      const sliderValue = getSliderValueFromDate(
+        localFilters.dateFrom,
+        localFilters.dateTo,
+      );
       if (sliderValue !== undefined) {
         setLocalFilters((prev) => ({ ...prev, lastModifiedSlider: sliderValue }));
       }
     }
-  }, [localFilters.dateFrom, localFilters.lastModifiedSlider]);
+  }, [localFilters.dateFrom, localFilters.dateTo, localFilters.lastModifiedSlider]);
 
   // Sincronizar slider de creación con createdAtFrom (solo en estado local)
   React.useEffect(() => {
-    if (localFilters.createdAtFrom && !localFilters.createdAtSlider) {
-      const sliderValue = getSliderValueFromDate(localFilters.createdAtFrom);
+    if (localFilters.createdAtFrom && localFilters.createdAtSlider === undefined) {
+      const sliderValue = getSliderValueFromDate(
+        localFilters.createdAtFrom,
+        localFilters.createdAtTo,
+      );
       if (sliderValue !== undefined) {
         setLocalFilters((prev) => ({ ...prev, createdAtSlider: sliderValue }));
       }
     }
-  }, [localFilters.createdAtFrom, localFilters.createdAtSlider]);
+  }, [
+    localFilters.createdAtFrom,
+    localFilters.createdAtTo,
+    localFilters.createdAtSlider,
+  ]);
 
   // Contar filtros activos aplicados (para el badge del botón)
   const activeFiltersCount = Object.values(filters).filter(
@@ -240,13 +250,19 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
   ) => {
     if (value === undefined) {
       if (type === 'modified') {
-        handleFilterChange('lastModifiedSlider', undefined);
-        handleFilterChange('dateFrom', undefined);
-        handleFilterChange('dateTo', undefined);
+        setLocalFilters({
+          ...localFilters,
+          lastModifiedSlider: undefined,
+          dateFrom: undefined,
+          dateTo: undefined,
+        });
       } else {
-        handleFilterChange('createdAtSlider', undefined);
-        handleFilterChange('createdAtFrom', undefined);
-        handleFilterChange('createdAtTo', undefined);
+        setLocalFilters({
+          ...localFilters,
+          createdAtSlider: undefined,
+          createdAtFrom: undefined,
+          createdAtTo: undefined,
+        });
       }
       return;
     }
@@ -258,27 +274,41 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
     // - Períodos cortos (1 semana, 15 días): mostrar productos RECIENTES (dateFrom = fecha límite, dateTo = hoy)
     // - Períodos largos (1 mes+): mostrar productos ANTIGUOS (dateFrom = undefined, dateTo = fecha límite)
     if (type === 'modified') {
-      handleFilterChange('lastModifiedSlider', value);
       if (isShort) {
         // Período corto: productos modificados RECIENTEMENTE (desde dateFrom hasta hoy)
-        handleFilterChange('dateFrom', dateFrom);
-        handleFilterChange('dateTo', new Date().toISOString().split('T')[0]);
+        setLocalFilters({
+          ...localFilters,
+          lastModifiedSlider: value,
+          dateFrom,
+          dateTo: new Date().toISOString().split('T')[0],
+        });
       } else {
         // Período largo: productos NO modificados (hasta dateFrom)
-        handleFilterChange('dateFrom', undefined);
-        handleFilterChange('dateTo', dateFrom);
+        setLocalFilters({
+          ...localFilters,
+          lastModifiedSlider: value,
+          dateFrom: undefined,
+          dateTo: dateFrom,
+        });
       }
     } else {
       // Misma lógica para creación
-      handleFilterChange('createdAtSlider', value);
       if (isShort) {
         // Período corto: productos creados RECIENTEMENTE (desde dateFrom hasta hoy)
-        handleFilterChange('createdAtFrom', dateFrom);
-        handleFilterChange('createdAtTo', new Date().toISOString().split('T')[0]);
+        setLocalFilters({
+          ...localFilters,
+          createdAtSlider: value,
+          createdAtFrom: dateFrom,
+          createdAtTo: new Date().toISOString().split('T')[0],
+        });
       } else {
         // Período largo: productos creados hace mucho (hasta dateFrom)
-        handleFilterChange('createdAtFrom', undefined);
-        handleFilterChange('createdAtTo', dateFrom);
+        setLocalFilters({
+          ...localFilters,
+          createdAtSlider: value,
+          createdAtFrom: undefined,
+          createdAtTo: dateFrom,
+        });
       }
     }
   };

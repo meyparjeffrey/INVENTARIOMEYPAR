@@ -192,38 +192,56 @@ export function getSliderValueFromDate(
   if (dateTo && dateFrom) {
     const startDate = new Date(dateFrom);
     const endDate = new Date(dateTo);
-    const daysDiff = Math.floor(
+    const daysDiff = Math.round(
       (endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
     );
 
     // Buscar la opción que más se acerque a la duración del período
     // Para períodos cortos, comparamos la duración del período
+    // Permitir un margen de ±2 días para compensar diferencias de cálculo
     for (let i = 0; i <= 1; i++) {
       // Solo períodos cortos: 1 semana (7 días) y 15 días
-      if (Math.abs(daysDiff - DATE_RANGE_OPTIONS[i].days) <= 1) {
+      if (Math.abs(daysDiff - DATE_RANGE_OPTIONS[i].days) <= 2) {
         return DATE_RANGE_OPTIONS[i].value;
       }
     }
     // Si no coincide exactamente, usar el más cercano
-    if (daysDiff <= DATE_RANGE_OPTIONS[0].days) return 0; // 1 semana
-    if (daysDiff <= DATE_RANGE_OPTIONS[1].days) return 1; // 15 días
+    if (daysDiff <= (DATE_RANGE_OPTIONS[0].days + DATE_RANGE_OPTIONS[1].days) / 2) {
+      return 0; // 1 semana
+    }
+    return 1; // 15 días
   }
 
   // Si solo hay dateTo (sin dateFrom), es un período largo (antiguos)
   // dateTo es la fecha límite (hasta cuándo no se ha modificado)
   if (dateTo && !dateFrom) {
     const endDate = new Date(dateTo);
-    const daysDiff = Math.floor(
+    const daysDiff = Math.round(
       (today.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24),
     );
 
     // Encontrar la opción más cercana para períodos largos
+    // Permitir un margen de ±5 días para períodos largos
     for (let i = DATE_RANGE_OPTIONS.length - 1; i >= 2; i--) {
       // Solo períodos largos: desde 1 mes en adelante
-      if (daysDiff >= DATE_RANGE_OPTIONS[i].days) {
+      if (Math.abs(daysDiff - DATE_RANGE_OPTIONS[i].days) <= 5) {
         return DATE_RANGE_OPTIONS[i].value;
       }
     }
+
+    // Si no coincide exactamente, buscar el más cercano
+    let closestIndex = 2; // Por defecto 1 mes
+    let minDiff = Math.abs(daysDiff - DATE_RANGE_OPTIONS[2].days);
+
+    for (let i = 3; i < DATE_RANGE_OPTIONS.length; i++) {
+      const diff = Math.abs(daysDiff - DATE_RANGE_OPTIONS[i].days);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestIndex = i;
+      }
+    }
+
+    return DATE_RANGE_OPTIONS[closestIndex].value;
   }
 
   return undefined;
