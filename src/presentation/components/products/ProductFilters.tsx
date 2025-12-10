@@ -56,7 +56,6 @@ interface SavedFilter {
 interface ProductFiltersProps {
   filters: ProductFiltersState;
   onFiltersChange: (filters: ProductFiltersState) => void;
-  onClear: () => void;
 }
 
 const STORAGE_KEY = 'product_filters_saved';
@@ -64,11 +63,7 @@ const STORAGE_KEY = 'product_filters_saved';
 /**
  * Componente de filtros avanzados para productos.
  */
-export function ProductFilters({
-  filters,
-  onFiltersChange,
-  onClear,
-}: ProductFiltersProps) {
+export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps) {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = React.useState(false);
   const [categories, setCategories] = React.useState<string[]>([]);
@@ -76,6 +71,17 @@ export function ProductFilters({
   const [savedFilters, setSavedFilters] = React.useState<SavedFilter[]>([]);
   const [showSaveDialog, setShowSaveDialog] = React.useState(false);
   const [saveFilterName, setSaveFilterName] = React.useState('');
+
+  // Estado local de filtros (solo se aplica cuando se hace clic en "Aplicar")
+  const [localFilters, setLocalFilters] = React.useState<ProductFiltersState>(filters);
+
+  // Sincronizar estado local cuando se abren los filtros o cambian los filtros externos
+  React.useEffect(() => {
+    if (isOpen) {
+      // Al abrir, inicializar con los filtros actuales
+      setLocalFilters(filters);
+    }
+  }, [isOpen, filters]);
 
   // Cargar categorías disponibles
   React.useEffect(() => {
@@ -117,36 +123,50 @@ export function ProductFilters({
     }
   }, []);
 
-  // Sincronizar slider de modificación con dateFrom
+  // Sincronizar slider de modificación con dateFrom (solo en estado local)
   React.useEffect(() => {
-    if (filters.dateFrom && !filters.lastModifiedSlider) {
-      const sliderValue = getSliderValueFromDate(filters.dateFrom);
+    if (localFilters.dateFrom && !localFilters.lastModifiedSlider) {
+      const sliderValue = getSliderValueFromDate(localFilters.dateFrom);
       if (sliderValue !== undefined) {
-        onFiltersChange({ ...filters, lastModifiedSlider: sliderValue });
+        setLocalFilters((prev) => ({ ...prev, lastModifiedSlider: sliderValue }));
       }
     }
-  }, [filters.dateFrom]);
+  }, [localFilters.dateFrom, localFilters.lastModifiedSlider]);
 
-  // Sincronizar slider de creación con createdAtFrom
+  // Sincronizar slider de creación con createdAtFrom (solo en estado local)
   React.useEffect(() => {
-    if (filters.createdAtFrom && !filters.createdAtSlider) {
-      const sliderValue = getSliderValueFromDate(filters.createdAtFrom);
+    if (localFilters.createdAtFrom && !localFilters.createdAtSlider) {
+      const sliderValue = getSliderValueFromDate(localFilters.createdAtFrom);
       if (sliderValue !== undefined) {
-        onFiltersChange({ ...filters, createdAtSlider: sliderValue });
+        setLocalFilters((prev) => ({ ...prev, createdAtSlider: sliderValue }));
       }
     }
-  }, [filters.createdAtFrom]);
+  }, [localFilters.createdAtFrom, localFilters.createdAtSlider]);
 
+  // Contar filtros activos aplicados (para el badge del botón)
   const activeFiltersCount = Object.values(filters).filter(
     (v) =>
       v !== undefined && v !== '' && v !== false && (!Array.isArray(v) || v.length > 0),
   ).length;
 
+  // Cambiar filtros en estado local (sin aplicar todavía)
   const handleFilterChange = (key: keyof ProductFiltersState, value: unknown) => {
-    onFiltersChange({
-      ...filters,
+    setLocalFilters({
+      ...localFilters,
       [key]: value === '' ? undefined : value,
     });
+  };
+
+  // Aplicar filtros (solo cuando se hace clic en "Aplicar")
+  const handleApply = () => {
+    onFiltersChange(localFilters);
+    setIsOpen(false);
+  };
+
+  // Cerrar sin aplicar (restaurar estado local a los filtros actuales)
+  const handleClose = () => {
+    setLocalFilters(filters); // Restaurar a los filtros actuales
+    setIsOpen(false);
   };
 
   const handleSliderChange = (
@@ -204,7 +224,7 @@ export function ProductFilters({
     const newFilter: SavedFilter = {
       id: Date.now().toString(),
       name: saveFilterName.trim(),
-      filters: { ...filters },
+      filters: { ...localFilters },
     };
 
     const updated = [...savedFilters, newFilter];
@@ -215,7 +235,7 @@ export function ProductFilters({
   };
 
   const handleLoadFilter = (savedFilter: SavedFilter) => {
-    onFiltersChange(savedFilter.filters);
+    setLocalFilters(savedFilter.filters);
   };
 
   const handleDeleteFilter = (id: string) => {
@@ -239,10 +259,7 @@ export function ProductFilters({
       <AnimatePresence>
         {isOpen && (
           <>
-            <div
-              className="fixed inset-0 z-40 bg-black/20"
-              onClick={() => setIsOpen(false)}
-            />
+            <div className="fixed inset-0 z-40 bg-black/20" onClick={handleClose} />
             <motion.div
               initial={{ opacity: 0, scale: 0.95, x: '-50%', y: '-50%' }}
               animate={{ opacity: 1, scale: 1, x: '-50%', y: '-50%' }}
@@ -263,7 +280,7 @@ export function ProductFilters({
                   {t('filters.title') || 'Filtros Avanzados'}
                 </h3>
                 <button
-                  onClick={() => setIsOpen(false)}
+                  onClick={handleClose}
                   className="rounded-lg p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
                 >
                   <X className="h-4 w-4" />
@@ -307,7 +324,7 @@ export function ProductFilters({
                     <Label htmlFor="filter-category">{t('table.category')}</Label>
                     <select
                       id="filter-category"
-                      value={filters.category || ''}
+                      value={localFilters.category || ''}
                       onChange={(e) => handleFilterChange('category', e.target.value)}
                       className="mt-1 block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                     >
@@ -330,7 +347,7 @@ export function ProductFilters({
                       <Label htmlFor="filter-aisle">{t('filters.aisle')}</Label>
                       <Input
                         id="filter-aisle"
-                        value={filters.aisle || ''}
+                        value={localFilters.aisle || ''}
                         onChange={(e) => handleFilterChange('aisle', e.target.value)}
                         placeholder={t('filters.aislePlaceholder')}
                         className="mt-1"
@@ -340,7 +357,7 @@ export function ProductFilters({
                       <Label htmlFor="filter-shelf">{t('filters.shelf')}</Label>
                       <Input
                         id="filter-shelf"
-                        value={filters.shelf || ''}
+                        value={localFilters.shelf || ''}
                         onChange={(e) => handleFilterChange('shelf', e.target.value)}
                         placeholder={t('filters.shelfPlaceholder')}
                         className="mt-1"
@@ -356,7 +373,7 @@ export function ProductFilters({
                         <Input
                           type="number"
                           placeholder={t('filters.min') || 'Mín'}
-                          value={filters.stockMin || ''}
+                          value={localFilters.stockMin || ''}
                           onChange={(e) =>
                             handleFilterChange(
                               'stockMin',
@@ -369,7 +386,7 @@ export function ProductFilters({
                         <Input
                           type="number"
                           placeholder={t('filters.max') || 'Máx'}
-                          value={filters.stockMax || ''}
+                          value={localFilters.stockMax || ''}
                           onChange={(e) =>
                             handleFilterChange(
                               'stockMax',
@@ -389,7 +406,7 @@ export function ProductFilters({
                         <Input
                           type="number"
                           placeholder={t('filters.min') || 'Mín'}
-                          value={filters.stockMinMin || ''}
+                          value={localFilters.stockMinMin || ''}
                           onChange={(e) =>
                             handleFilterChange(
                               'stockMinMin',
@@ -402,7 +419,7 @@ export function ProductFilters({
                         <Input
                           type="number"
                           placeholder={t('filters.max') || 'Máx'}
-                          value={filters.stockMinMax || ''}
+                          value={localFilters.stockMinMax || ''}
                           onChange={(e) =>
                             handleFilterChange(
                               'stockMinMax',
@@ -423,7 +440,7 @@ export function ProductFilters({
                           type="number"
                           step="0.01"
                           placeholder={t('filters.min') || 'Mín'}
-                          value={filters.priceMin || ''}
+                          value={localFilters.priceMin || ''}
                           onChange={(e) =>
                             handleFilterChange(
                               'priceMin',
@@ -437,7 +454,7 @@ export function ProductFilters({
                           type="number"
                           step="0.01"
                           placeholder={t('filters.max') || 'Máx'}
-                          value={filters.priceMax || ''}
+                          value={localFilters.priceMax || ''}
                           onChange={(e) =>
                             handleFilterChange(
                               'priceMax',
@@ -454,7 +471,7 @@ export function ProductFilters({
                     <Label htmlFor="filter-supplier">{t('table.supplierCode')}</Label>
                     <Input
                       id="filter-supplier"
-                      value={filters.supplierCode || ''}
+                      value={localFilters.supplierCode || ''}
                       onChange={(e) => handleFilterChange('supplierCode', e.target.value)}
                       placeholder={
                         t('filters.supplierCodePlaceholder') || 'Buscar por código...'
@@ -471,9 +488,11 @@ export function ProductFilters({
                           <label key={status} className="flex items-center gap-2">
                             <input
                               type="checkbox"
-                              checked={filters.batchStatus?.includes(status) || false}
+                              checked={
+                                localFilters.batchStatus?.includes(status) || false
+                              }
                               onChange={(e) => {
-                                const current = filters.batchStatus || [];
+                                const current = localFilters.batchStatus || [];
                                 const updated = e.target.checked
                                   ? [...current, status]
                                   : current.filter((s) => s !== status);
@@ -498,7 +517,7 @@ export function ProductFilters({
                     <label className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={filters.isBatchTracked || false}
+                        checked={localFilters.isBatchTracked || false}
                         onChange={(e) =>
                           handleFilterChange(
                             'isBatchTracked',
@@ -514,7 +533,7 @@ export function ProductFilters({
                     <label className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={filters.lowStock || false}
+                        checked={localFilters.lowStock || false}
                         onChange={(e) =>
                           handleFilterChange('lowStock', e.target.checked || undefined)
                         }
@@ -527,7 +546,7 @@ export function ProductFilters({
                     <label className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={filters.stockNearMinimum || false}
+                        checked={localFilters.stockNearMinimum || false}
                         onChange={(e) =>
                           handleFilterChange(
                             'stockNearMinimum',
@@ -547,16 +566,16 @@ export function ProductFilters({
                   <div className="space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
                     <div className="flex items-center gap-2">
                       <Label>{t('filters.lastModified') || 'Última modificación'}</Label>
-                      {filters.lastModifiedSlider !== undefined && (
+                      {localFilters.lastModifiedSlider !== undefined && (
                         <span
                           className={cn(
                             'rounded-full px-2 py-0.5 text-xs font-medium',
-                            isShortPeriod(filters.lastModifiedSlider)
+                            isShortPeriod(localFilters.lastModifiedSlider)
                               ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                               : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
                           )}
                         >
-                          {isShortPeriod(filters.lastModifiedSlider)
+                          {isShortPeriod(localFilters.lastModifiedSlider)
                             ? t('filters.recent')
                             : t('filters.old')}
                         </span>
@@ -564,7 +583,7 @@ export function ProductFilters({
                     </div>
 
                     <DateRangeSlider
-                      value={filters.lastModifiedSlider}
+                      value={localFilters.lastModifiedSlider}
                       onChange={(value) => handleSliderChange('modified', value)}
                       label=""
                     />
@@ -575,7 +594,7 @@ export function ProductFilters({
                         {t('filters.modificationType') || 'Tipus de modificació'}
                       </Label>
                       <select
-                        value={filters.lastModifiedType || 'both'}
+                        value={localFilters.lastModifiedType || 'both'}
                         onChange={(e) =>
                           handleFilterChange(
                             'lastModifiedType',
@@ -599,16 +618,16 @@ export function ProductFilters({
                   <div className="space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
                     <div className="flex items-center gap-2">
                       <Label>{t('products.createdAt')}</Label>
-                      {filters.createdAtSlider !== undefined && (
+                      {localFilters.createdAtSlider !== undefined && (
                         <span
                           className={cn(
                             'rounded-full px-2 py-0.5 text-xs font-medium',
-                            isShortPeriod(filters.createdAtSlider)
+                            isShortPeriod(localFilters.createdAtSlider)
                               ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                               : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
                           )}
                         >
-                          {isShortPeriod(filters.createdAtSlider)
+                          {isShortPeriod(localFilters.createdAtSlider)
                             ? t('filters.recent')
                             : t('filters.old')}
                         </span>
@@ -616,7 +635,7 @@ export function ProductFilters({
                     </div>
 
                     <DateRangeSlider
-                      value={filters.createdAtSlider}
+                      value={localFilters.createdAtSlider}
                       onChange={(value) => handleSliderChange('created', value)}
                       label=""
                     />
@@ -641,12 +660,14 @@ export function ProductFilters({
                   <Button
                     variant="secondary"
                     size="sm"
-                    onClick={onClear}
+                    onClick={() => {
+                      setLocalFilters({});
+                    }}
                     disabled={activeFiltersCount === 0}
                   >
                     {t('filters.clear') || 'Netejar'}
                   </Button>
-                  <Button size="sm" onClick={() => setIsOpen(false)}>
+                  <Button size="sm" onClick={handleApply}>
                     {t('filters.apply') || 'Aplicar'}
                   </Button>
                 </div>
