@@ -247,7 +247,15 @@ export function ProductFilters({
               initial={{ opacity: 0, y: -10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -10 }}
-              className="absolute right-0 top-full z-50 mt-2 w-[500px] max-h-[90vh] rounded-lg border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-800 overflow-y-auto"
+              className="fixed right-4 top-1/2 z-50 -translate-y-1/2 w-[500px] max-h-[90vh] rounded-lg border border-gray-200 bg-white p-6 shadow-xl dark:border-gray-700 dark:bg-gray-800 overflow-y-auto"
+              onWheel={(e) => {
+                // Prevenir que el scroll se propague a la página detrás
+                e.stopPropagation();
+              }}
+              onClick={(e) => {
+                // Prevenir que los clicks se propaguen al overlay
+                e.stopPropagation();
+              }}
             >
               <div className="mb-4 flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
@@ -534,7 +542,23 @@ export function ProductFilters({
 
                 {/* Filtros por fecha de modificación con slider */}
                 <div className="space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
-                  <Label>{t('filters.lastModified') || 'Última modificación'}</Label>
+                  <div className="flex items-center gap-2">
+                    <Label>{t('filters.lastModified') || 'Última modificación'}</Label>
+                    {filters.lastModifiedSlider !== undefined && (
+                      <span
+                        className={cn(
+                          'rounded-full px-2 py-0.5 text-xs font-medium',
+                          isShortPeriod(filters.lastModifiedSlider)
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+                        )}
+                      >
+                        {isShortPeriod(filters.lastModifiedSlider)
+                          ? 'Recientes'
+                          : 'Antiguos'}
+                      </span>
+                    )}
+                  </div>
 
                   <DateRangeSlider
                     value={filters.lastModifiedSlider}
@@ -570,7 +594,23 @@ export function ProductFilters({
 
                 {/* Filtros por fecha de creación con slider */}
                 <div className="space-y-3 border-t border-gray-200 pt-4 dark:border-gray-700">
-                  <Label>Fecha de creación</Label>
+                  <div className="flex items-center gap-2">
+                    <Label>Fecha de creación</Label>
+                    {filters.createdAtSlider !== undefined && (
+                      <span
+                        className={cn(
+                          'rounded-full px-2 py-0.5 text-xs font-medium',
+                          isShortPeriod(filters.createdAtSlider)
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                            : 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-300',
+                        )}
+                      >
+                        {isShortPeriod(filters.createdAtSlider)
+                          ? 'Recientes'
+                          : 'Antiguos'}
+                      </span>
+                    )}
+                  </div>
 
                   <DateRangeSlider
                     value={filters.createdAtSlider}

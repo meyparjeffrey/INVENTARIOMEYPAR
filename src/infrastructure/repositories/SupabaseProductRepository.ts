@@ -94,7 +94,9 @@ const parseDimensions = (raw: string | null) => {
 
 const mapProduct = (row: ProductRow): Product => ({
   id: row.id,
-  code: row.code,
+  // Si code está vacío o es "-", usar notes como código
+  code:
+    row.code && row.code.trim() !== '' && row.code !== '-' ? row.code : row.notes || '-',
   barcode: row.barcode,
   name: row.name,
   description: row.description,
@@ -253,16 +255,16 @@ export class SupabaseProductRepository
 
     // Filtros por fecha de modificación
     // Lógica:
-    // - Si hay dateFrom Y dateTo: productos modificados en el rango (recientes, período corto)
-    // - Si solo hay dateTo: productos modificados ANTES de esta fecha (antiguos, período largo)
-    if (filters?.dateFrom && filters?.dateTo) {
+    // - Si hay lastModifiedFrom Y lastModifiedTo: productos modificados en el rango (recientes, período corto)
+    // - Si solo hay lastModifiedTo: productos modificados ANTES de esta fecha (antiguos, período largo)
+    if (filters?.lastModifiedFrom && filters?.lastModifiedTo) {
       // Período corto: productos modificados RECIENTEMENTE (en el rango)
       query = query
-        .gte('updated_at', filters.dateFrom + 'T00:00:00.000Z')
-        .lte('updated_at', filters.dateTo + 'T23:59:59.999Z');
-    } else if (filters?.dateTo && !filters?.dateFrom) {
+        .gte('updated_at', filters.lastModifiedFrom + 'T00:00:00.000Z')
+        .lte('updated_at', filters.lastModifiedTo + 'T23:59:59.999Z');
+    } else if (filters?.lastModifiedTo && !filters?.lastModifiedFrom) {
       // Período largo: productos modificados ANTES de esta fecha (antiguos, no modificados)
-      query = query.lte('updated_at', filters.dateTo + 'T23:59:59.999Z');
+      query = query.lte('updated_at', filters.lastModifiedTo + 'T23:59:59.999Z');
     }
 
     // Para filtros que requieren comparación entre columnas o consultas complejas,
