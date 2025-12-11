@@ -36,6 +36,14 @@ export interface Product {
   updatedAt: Timestamp; // Fecha de modificación
   createdBy?: Nullable<UUID>;
   updatedBy?: Nullable<UUID>; // Usuario que hizo la modificación
+  createdByProfile?: {
+    firstName: string | null;
+    lastName: string | null;
+  };
+  updatedByProfile?: {
+    firstName: string | null;
+    lastName: string | null;
+  };
 }
 
 export type BatchStatus =

@@ -41,6 +41,14 @@ type ProductRow = {
   updated_at: string; // Fecha de modificación
   created_by: string | null;
   updated_by: string | null; // Usuario que hizo la modificación
+  created_by_profile?: {
+    first_name: string | null;
+    last_name: string | null;
+  } | { first_name: string | null; last_name: string | null }[];
+  updated_by_profile?: {
+    first_name: string | null;
+    last_name: string | null;
+  } | { first_name: string | null; last_name: string | null }[];
 };
 
 type BatchRow = {
@@ -122,6 +130,28 @@ const mapProduct = (row: ProductRow): Product => ({
   updatedAt: row.updated_at, // Fecha de modificación
   createdBy: row.created_by,
   updatedBy: row.updated_by, // Usuario que hizo la modificación
+  createdByProfile: row.created_by_profile
+    ? Array.isArray(row.created_by_profile)
+      ? {
+        firstName: row.created_by_profile[0]?.first_name ?? null,
+        lastName: row.created_by_profile[0]?.last_name ?? null,
+      }
+      : {
+        firstName: row.created_by_profile.first_name ?? null,
+        lastName: row.created_by_profile.last_name ?? null,
+      }
+    : undefined,
+  updatedByProfile: row.updated_by_profile
+    ? Array.isArray(row.updated_by_profile)
+      ? {
+        firstName: row.updated_by_profile[0]?.first_name ?? null,
+        lastName: row.updated_by_profile[0]?.last_name ?? null,
+      }
+      : {
+        firstName: row.updated_by_profile.first_name ?? null,
+        lastName: row.updated_by_profile.last_name ?? null,
+      }
+    : undefined,
 });
 
 const mapBatch = (row: BatchRow): ProductBatch => ({
@@ -166,13 +196,18 @@ const mapDefect = (row: DefectRow): BatchDefectReport => ({
 
 export class SupabaseProductRepository
   extends BaseSupabaseRepository
-  implements ProductRepository
-{
+  implements ProductRepository {
   async list(filters?: ProductFilters, pagination?: PaginationParams) {
     const { page, pageSize, from, to } = buildPagination(pagination);
     let query = this.client
       .from('products')
-      .select('*', { count: 'exact' })
+      .select(
+        `*,
+        created_by_profile:profiles!products_created_by_fkey(first_name, last_name),
+        updated_by_profile:profiles!products_updated_by_fkey(first_name, last_name)
+      `,
+        { count: 'exact' },
+      )
       .order('name', { ascending: true });
 
     if (!filters?.includeInactive) {
@@ -394,7 +429,13 @@ export class SupabaseProductRepository
 
       let query = this.client
         .from('products')
-        .select('*', { count: 'exact' })
+        .select(
+          `*,
+          created_by_profile:profiles!products_created_by_fkey(first_name, last_name),
+          updated_by_profile:profiles!products_updated_by_fkey(first_name, last_name)
+        `,
+          { count: 'exact' },
+        )
         .order('name', { ascending: true })
         .range(from, to);
 
@@ -509,7 +550,12 @@ export class SupabaseProductRepository
   async findById(id: string) {
     const { data, error } = await this.client
       .from('products')
-      .select('*')
+      .select(
+        `*,
+        created_by_profile:profiles!products_created_by_fkey(first_name, last_name),
+        updated_by_profile:profiles!products_updated_by_fkey(first_name, last_name)
+      `,
+      )
       .eq('id', id)
       .maybeSingle();
 
@@ -520,7 +566,12 @@ export class SupabaseProductRepository
   async findByCodeOrBarcode(term: string) {
     const { data, error } = await this.client
       .from('products')
-      .select('*')
+      .select(
+        `*,
+        created_by_profile:profiles!products_created_by_fkey(first_name, last_name),
+        updated_by_profile:profiles!products_updated_by_fkey(first_name, last_name)
+      `,
+      )
       .or(`code.eq.${term},barcode.eq.${term}`)
       .maybeSingle();
 

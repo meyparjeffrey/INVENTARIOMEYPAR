@@ -4,9 +4,17 @@
     "moduleResolution": "NodeNext",
     "module": "NodeNext",
     "outDir": "dist/main",
-    "types": ["node"]
+    "types": [
+      "node"
+    ]
   },
-  "include": ["src/main/**/*", "scripts/**/*"],
-  "exclude": ["src/presentation", "node_modules"]
+  "include": [
+    "src/main/**/*",
+    "scripts/**/*"
+  ],
+  "exclude": [
+    "src/presentation",
+    "node_modules",
+    "scripts/test-import.ts"
+  ]
 }
-

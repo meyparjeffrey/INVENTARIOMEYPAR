@@ -92,8 +92,9 @@ export function ProductsPage() {
         visible: true,
         order: 10,
       },
-      { id: 'status', label: t('table.status'), visible: true, order: 11 },
-      { id: 'actions', label: t('table.actions'), visible: true, order: 12 },
+      { id: 'user', label: t('table.user') || 'Usuario', visible: true, order: 11 },
+      { id: 'status', label: t('table.status'), visible: true, order: 12 },
+      { id: 'actions', label: t('table.actions'), visible: true, order: 13 },
     ],
     [t],
   );
@@ -687,16 +688,16 @@ export function ProductsPage() {
         // Si includeFilters es true, aplicar los filtros actuales
         const filtersToApply: ProductFiltersState | undefined = includeFilters
           ? {
-              includeInactive: showInactive,
-              lowStock: showLowStock || advancedFilters.lowStock || undefined,
-              category: advancedFilters.category,
-              isBatchTracked: advancedFilters.isBatchTracked,
-              stockMin: advancedFilters.stockMin,
-              stockMax: advancedFilters.stockMax,
-              priceMin: advancedFilters.priceMin,
-              priceMax: advancedFilters.priceMax,
-              supplierCode: advancedFilters.supplierCode,
-            }
+            includeInactive: showInactive,
+            lowStock: showLowStock || advancedFilters.lowStock || undefined,
+            category: advancedFilters.category,
+            isBatchTracked: advancedFilters.isBatchTracked,
+            stockMin: advancedFilters.stockMin,
+            stockMax: advancedFilters.stockMax,
+            priceMin: advancedFilters.priceMin,
+            priceMax: advancedFilters.priceMax,
+            supplierCode: advancedFilters.supplierCode,
+          }
           : undefined;
 
         // Obtener TODOS los productos (sin paginación)
@@ -901,6 +902,8 @@ export function ProductsPage() {
   const canCreate = authContext?.permissions?.includes('products.create') ?? false;
   const canView = authContext?.permissions?.includes('products.view') ?? false;
   const canEdit = authContext?.permissions?.includes('products.edit') ?? false;
+  // Solo ADMIN puede eliminar productos
+  const canDelete = canEdit && authContext?.profile?.role === 'ADMIN';
   const canCreateMovement =
     authContext?.permissions?.includes('movements.create') ?? false;
 
@@ -1072,278 +1075,278 @@ export function ProductsPage() {
           showInactive ||
           showLowStock ||
           Object.keys(advancedFilters).length > 0) && (
-          <div className="flex flex-wrap items-center gap-2">
-            {searchTerm && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-3 py-1 text-xs font-medium text-primary-800 dark:bg-primary-900/30 dark:text-primary-300">
-                {t('products.search')}: &quot;{searchTerm}&quot;
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="ml-1 rounded-full hover:bg-primary-200 dark:hover:bg-primary-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {showLowStock && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
-                {t('products.lowStockOnly')}
-                <button
-                  onClick={() => setShowLowStock(false)}
-                  className="ml-1 rounded-full hover:bg-amber-200 dark:hover:bg-amber-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {showInactive && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800 dark:bg-gray-800 dark:text-gray-300">
-                {t('products.includeInactive')}
-                <button
-                  onClick={() => setShowInactive(false)}
-                  className="ml-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {advancedFilters.category && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                {t('table.category')}: {advancedFilters.category}
-                <button
-                  onClick={() =>
-                    setAdvancedFilters({ ...advancedFilters, category: undefined })
-                  }
-                  className="ml-1 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {advancedFilters.isBatchTracked && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
-                {t('filters.batchTracked') || 'Solo con lotes'}
-                <button
-                  onClick={() =>
-                    setAdvancedFilters({ ...advancedFilters, isBatchTracked: undefined })
-                  }
-                  className="ml-1 rounded-full hover:bg-purple-200 dark:hover:bg-purple-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {advancedFilters.lowStock && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-300">
-                {t('products.lowStockOnly')}
-                <button
-                  onClick={() =>
-                    setAdvancedFilters({ ...advancedFilters, lowStock: undefined })
-                  }
-                  className="ml-1 rounded-full hover:bg-red-200 dark:hover:bg-red-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {advancedFilters.stockNearMinimum && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
-                {t('filters.stockNearMinimum') || 'Productos al 15% del stock mínimo'}
-                <button
-                  onClick={() =>
-                    setAdvancedFilters({
-                      ...advancedFilters,
-                      stockNearMinimum: undefined,
-                    })
-                  }
-                  className="ml-1 rounded-full hover:bg-yellow-200 dark:hover:bg-yellow-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {(advancedFilters.stockMin !== undefined ||
-              advancedFilters.stockMax !== undefined) && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300">
-                {t('table.stock')}: {advancedFilters.stockMin ?? '0'} -{' '}
-                {advancedFilters.stockMax ?? '∞'}
-                <button
-                  onClick={() =>
-                    setAdvancedFilters({
-                      ...advancedFilters,
-                      stockMin: undefined,
-                      stockMax: undefined,
-                    })
-                  }
-                  className="ml-1 rounded-full hover:bg-green-200 dark:hover:bg-green-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {(advancedFilters.priceMin !== undefined ||
-              advancedFilters.priceMax !== undefined) && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
-                {t('filters.price')}: {advancedFilters.priceMin ?? '0'}€ -{' '}
-                {advancedFilters.priceMax ?? '∞'}€
-                <button
-                  onClick={() =>
-                    setAdvancedFilters({
-                      ...advancedFilters,
-                      priceMin: undefined,
-                      priceMax: undefined,
-                    })
-                  }
-                  className="ml-1 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {advancedFilters.supplierCode && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-3 py-1 text-xs font-medium text-teal-800 dark:bg-teal-900/30 dark:text-teal-300">
-                {t('table.supplierCode')}: {advancedFilters.supplierCode}
-                <button
-                  onClick={() =>
-                    setAdvancedFilters({ ...advancedFilters, supplierCode: undefined })
-                  }
-                  className="ml-1 rounded-full hover:bg-teal-200 dark:hover:bg-teal-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {advancedFilters.aisle && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-3 py-1 text-xs font-medium text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300">
-                {t('filters.aisle')}: {advancedFilters.aisle}
-                <button
-                  onClick={() =>
-                    setAdvancedFilters({ ...advancedFilters, aisle: undefined })
-                  }
-                  className="ml-1 rounded-full hover:bg-cyan-200 dark:hover:bg-cyan-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {advancedFilters.shelf && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-3 py-1 text-xs font-medium text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300">
-                {t('filters.shelf')}: {advancedFilters.shelf}
-                <button
-                  onClick={() =>
-                    setAdvancedFilters({ ...advancedFilters, shelf: undefined })
-                  }
-                  className="ml-1 rounded-full hover:bg-cyan-200 dark:hover:bg-cyan-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {advancedFilters.batchStatus && advancedFilters.batchStatus.length > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-800 dark:bg-orange-900/30 dark:text-orange-300">
-                {t('filters.batchStatus')}: {advancedFilters.batchStatus.join(', ')}
-                <button
-                  onClick={() =>
-                    setAdvancedFilters({ ...advancedFilters, batchStatus: undefined })
-                  }
-                  className="ml-1 rounded-full hover:bg-orange-200 dark:hover:bg-orange-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {(advancedFilters.stockMinMin !== undefined ||
-              advancedFilters.stockMinMax !== undefined) && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
-                {t('filters.stockMinRange')}: {advancedFilters.stockMinMin ?? '0'} -{' '}
-                {advancedFilters.stockMinMax ?? '∞'}
-                <button
-                  onClick={() =>
-                    setAdvancedFilters({
-                      ...advancedFilters,
-                      stockMinMin: undefined,
-                      stockMinMax: undefined,
-                    })
-                  }
-                  className="ml-1 rounded-full hover:bg-emerald-200 dark:hover:bg-emerald-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {(advancedFilters.createdAtFrom || advancedFilters.createdAtTo) && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-800 dark:bg-violet-900/30 dark:text-violet-300">
-                {t('products.createdAt') || 'Creado'}:{' '}
-                {(() => {
-                  if (advancedFilters.createdAtSlider !== undefined) {
-                    return (
-                      DATE_RANGE_OPTIONS.find(
-                        (opt) => opt.value === advancedFilters.createdAtSlider,
-                      )?.label || 'Personalizado'
+            <div className="flex flex-wrap items-center gap-2">
+              {searchTerm && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-primary-100 px-3 py-1 text-xs font-medium text-primary-800 dark:bg-primary-900/30 dark:text-primary-300">
+                  {t('products.search')}: &quot;{searchTerm}&quot;
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="ml-1 rounded-full hover:bg-primary-200 dark:hover:bg-primary-800"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {showLowStock && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                  {t('products.lowStockOnly')}
+                  <button
+                    onClick={() => setShowLowStock(false)}
+                    className="ml-1 rounded-full hover:bg-amber-200 dark:hover:bg-amber-800"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {showInactive && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-800 dark:bg-gray-800 dark:text-gray-300">
+                  {t('products.includeInactive')}
+                  <button
+                    onClick={() => setShowInactive(false)}
+                    className="ml-1 rounded-full hover:bg-gray-200 dark:hover:bg-gray-700"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {advancedFilters.category && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                  {t('table.category')}: {advancedFilters.category}
+                  <button
+                    onClick={() =>
+                      setAdvancedFilters({ ...advancedFilters, category: undefined })
+                    }
+                    className="ml-1 rounded-full hover:bg-blue-200 dark:hover:bg-blue-800"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {advancedFilters.isBatchTracked && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-3 py-1 text-xs font-medium text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                  {t('filters.batchTracked') || 'Solo con lotes'}
+                  <button
+                    onClick={() =>
+                      setAdvancedFilters({ ...advancedFilters, isBatchTracked: undefined })
+                    }
+                    className="ml-1 rounded-full hover:bg-purple-200 dark:hover:bg-purple-800"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {advancedFilters.lowStock && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-xs font-medium text-red-800 dark:bg-red-900/30 dark:text-red-300">
+                  {t('products.lowStockOnly')}
+                  <button
+                    onClick={() =>
+                      setAdvancedFilters({ ...advancedFilters, lowStock: undefined })
+                    }
+                    className="ml-1 rounded-full hover:bg-red-200 dark:hover:bg-red-800"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {advancedFilters.stockNearMinimum && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-3 py-1 text-xs font-medium text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300">
+                  {t('filters.stockNearMinimum') || 'Productos al 15% del stock mínimo'}
+                  <button
+                    onClick={() =>
+                      setAdvancedFilters({
+                        ...advancedFilters,
+                        stockNearMinimum: undefined,
+                      })
+                    }
+                    className="ml-1 rounded-full hover:bg-yellow-200 dark:hover:bg-yellow-800"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {(advancedFilters.stockMin !== undefined ||
+                advancedFilters.stockMax !== undefined) && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                    {t('table.stock')}: {advancedFilters.stockMin ?? '0'} -{' '}
+                    {advancedFilters.stockMax ?? '∞'}
+                    <button
+                      onClick={() =>
+                        setAdvancedFilters({
+                          ...advancedFilters,
+                          stockMin: undefined,
+                          stockMax: undefined,
+                        })
+                      }
+                      className="ml-1 rounded-full hover:bg-green-200 dark:hover:bg-green-800"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+              {(advancedFilters.priceMin !== undefined ||
+                advancedFilters.priceMax !== undefined) && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-3 py-1 text-xs font-medium text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
+                    {t('filters.price')}: {advancedFilters.priceMin ?? '0'}€ -{' '}
+                    {advancedFilters.priceMax ?? '∞'}€
+                    <button
+                      onClick={() =>
+                        setAdvancedFilters({
+                          ...advancedFilters,
+                          priceMin: undefined,
+                          priceMax: undefined,
+                        })
+                      }
+                      className="ml-1 rounded-full hover:bg-indigo-200 dark:hover:bg-indigo-800"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+              {advancedFilters.supplierCode && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-teal-100 px-3 py-1 text-xs font-medium text-teal-800 dark:bg-teal-900/30 dark:text-teal-300">
+                  {t('table.supplierCode')}: {advancedFilters.supplierCode}
+                  <button
+                    onClick={() =>
+                      setAdvancedFilters({ ...advancedFilters, supplierCode: undefined })
+                    }
+                    className="ml-1 rounded-full hover:bg-teal-200 dark:hover:bg-teal-800"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {advancedFilters.aisle && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-3 py-1 text-xs font-medium text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300">
+                  {t('filters.aisle')}: {advancedFilters.aisle}
+                  <button
+                    onClick={() =>
+                      setAdvancedFilters({ ...advancedFilters, aisle: undefined })
+                    }
+                    className="ml-1 rounded-full hover:bg-cyan-200 dark:hover:bg-cyan-800"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {advancedFilters.shelf && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-cyan-100 px-3 py-1 text-xs font-medium text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-300">
+                  {t('filters.shelf')}: {advancedFilters.shelf}
+                  <button
+                    onClick={() =>
+                      setAdvancedFilters({ ...advancedFilters, shelf: undefined })
+                    }
+                    className="ml-1 rounded-full hover:bg-cyan-200 dark:hover:bg-cyan-800"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {advancedFilters.batchStatus && advancedFilters.batchStatus.length > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-xs font-medium text-orange-800 dark:bg-orange-900/30 dark:text-orange-300">
+                  {t('filters.batchStatus')}: {advancedFilters.batchStatus.join(', ')}
+                  <button
+                    onClick={() =>
+                      setAdvancedFilters({ ...advancedFilters, batchStatus: undefined })
+                    }
+                    className="ml-1 rounded-full hover:bg-orange-200 dark:hover:bg-orange-800"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {(advancedFilters.stockMinMin !== undefined ||
+                advancedFilters.stockMinMax !== undefined) && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-3 py-1 text-xs font-medium text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">
+                    {t('filters.stockMinRange')}: {advancedFilters.stockMinMin ?? '0'} -{' '}
+                    {advancedFilters.stockMinMax ?? '∞'}
+                    <button
+                      onClick={() =>
+                        setAdvancedFilters({
+                          ...advancedFilters,
+                          stockMinMin: undefined,
+                          stockMinMax: undefined,
+                        })
+                      }
+                      className="ml-1 rounded-full hover:bg-emerald-200 dark:hover:bg-emerald-800"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
+              {(advancedFilters.createdAtFrom || advancedFilters.createdAtTo) && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-3 py-1 text-xs font-medium text-violet-800 dark:bg-violet-900/30 dark:text-violet-300">
+                  {t('products.createdAt') || 'Creado'}:{' '}
+                  {(() => {
+                    if (advancedFilters.createdAtSlider !== undefined) {
+                      return (
+                        DATE_RANGE_OPTIONS.find(
+                          (opt) => opt.value === advancedFilters.createdAtSlider,
+                        )?.label || 'Personalizado'
+                      );
+                    }
+                    // Si no hay slider, intentar calcularlo desde las fechas
+                    const sliderValue = getSliderValueFromDate(
+                      advancedFilters.createdAtFrom,
+                      advancedFilters.createdAtTo,
                     );
-                  }
-                  // Si no hay slider, intentar calcularlo desde las fechas
-                  const sliderValue = getSliderValueFromDate(
-                    advancedFilters.createdAtFrom,
-                    advancedFilters.createdAtTo,
-                  );
-                  return sliderValue !== undefined
-                    ? DATE_RANGE_OPTIONS.find((opt) => opt.value === sliderValue)
+                    return sliderValue !== undefined
+                      ? DATE_RANGE_OPTIONS.find((opt) => opt.value === sliderValue)
                         ?.label || 'Personalizado'
-                    : 'Personalizado';
-                })()}
-                <button
-                  onClick={() =>
-                    setAdvancedFilters({
-                      ...advancedFilters,
-                      createdAtFrom: undefined,
-                      createdAtTo: undefined,
-                      createdAtSlider: undefined,
-                    })
-                  }
-                  className="ml-1 rounded-full hover:bg-violet-200 dark:hover:bg-violet-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-            {(advancedFilters.dateFrom || advancedFilters.dateTo) && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-800 dark:bg-pink-900/30 dark:text-pink-300">
-                {t('filters.lastModified') || 'Modificado'}:{' '}
-                {(() => {
-                  if (advancedFilters.lastModifiedSlider !== undefined) {
-                    return (
-                      DATE_RANGE_OPTIONS.find(
-                        (opt) => opt.value === advancedFilters.lastModifiedSlider,
-                      )?.label || 'Personalizado'
+                      : 'Personalizado';
+                  })()}
+                  <button
+                    onClick={() =>
+                      setAdvancedFilters({
+                        ...advancedFilters,
+                        createdAtFrom: undefined,
+                        createdAtTo: undefined,
+                        createdAtSlider: undefined,
+                      })
+                    }
+                    className="ml-1 rounded-full hover:bg-violet-200 dark:hover:bg-violet-800"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+              {(advancedFilters.dateFrom || advancedFilters.dateTo) && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-pink-100 px-3 py-1 text-xs font-medium text-pink-800 dark:bg-pink-900/30 dark:text-pink-300">
+                  {t('filters.lastModified') || 'Modificado'}:{' '}
+                  {(() => {
+                    if (advancedFilters.lastModifiedSlider !== undefined) {
+                      return (
+                        DATE_RANGE_OPTIONS.find(
+                          (opt) => opt.value === advancedFilters.lastModifiedSlider,
+                        )?.label || 'Personalizado'
+                      );
+                    }
+                    // Si no hay slider, intentar calcularlo desde las fechas
+                    const sliderValue = getSliderValueFromDate(
+                      advancedFilters.dateFrom,
+                      advancedFilters.dateTo,
                     );
-                  }
-                  // Si no hay slider, intentar calcularlo desde las fechas
-                  const sliderValue = getSliderValueFromDate(
-                    advancedFilters.dateFrom,
-                    advancedFilters.dateTo,
-                  );
-                  return sliderValue !== undefined
-                    ? DATE_RANGE_OPTIONS.find((opt) => opt.value === sliderValue)
+                    return sliderValue !== undefined
+                      ? DATE_RANGE_OPTIONS.find((opt) => opt.value === sliderValue)
                         ?.label || 'Personalizado'
-                    : 'Personalizado';
-                })()}
-                <button
-                  onClick={() =>
-                    setAdvancedFilters({
-                      ...advancedFilters,
-                      dateFrom: undefined,
-                      dateTo: undefined,
-                      lastModifiedSlider: undefined,
-                    })
-                  }
-                  className="ml-1 rounded-full hover:bg-pink-200 dark:hover:bg-pink-800"
-                >
-                  <X className="h-3 w-3" />
-                </button>
-              </span>
-            )}
-          </div>
-        )}
+                      : 'Personalizado';
+                  })()}
+                  <button
+                    onClick={() =>
+                      setAdvancedFilters({
+                        ...advancedFilters,
+                        dateFrom: undefined,
+                        dateTo: undefined,
+                        lastModifiedSlider: undefined,
+                      })
+                    }
+                    className="ml-1 rounded-full hover:bg-pink-200 dark:hover:bg-pink-800"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              )}
+            </div>
+          )}
       </div>
 
       {/* Barra de acciones masivas */}
@@ -1383,7 +1386,7 @@ export function ProductsPage() {
           onActivate={canEdit ? handleBulkActivate : undefined}
           onDeactivate={canEdit ? handleBulkDeactivate : undefined}
           onExport={canView ? handleBulkExport : undefined}
-          onDelete={canEdit ? handleBulkDelete : undefined}
+          onDelete={canDelete ? handleBulkDelete : undefined}
           isAllSelected={selectedProductIds.length === pagination.total}
         />
       )}
@@ -1413,7 +1416,7 @@ export function ProductsPage() {
           onView={canView ? handleView : undefined}
           onEdit={canEdit ? handleEdit : undefined}
           onMovement={canCreateMovement ? handleMovement : undefined}
-          onDelete={canEdit ? handleDelete : undefined}
+          onDelete={canDelete ? handleDelete : undefined}
           onDuplicate={canCreate ? handleDuplicate : undefined}
           onHistory={canView ? handleHistory : undefined}
           onExport={canView ? handleExportProduct : undefined}
@@ -1427,7 +1430,7 @@ export function ProductsPage() {
           onView={canView ? handleView : undefined}
           onEdit={canEdit ? handleEdit : undefined}
           onMovement={canCreateMovement ? handleMovement : undefined}
-          onDelete={canEdit ? handleDelete : undefined}
+          onDelete={canDelete ? handleDelete : undefined}
           onDuplicate={canCreate ? handleDuplicate : undefined}
           onHistory={canView ? handleHistory : undefined}
           onExport={canView ? handleExportProduct : undefined}
@@ -1580,10 +1583,10 @@ export function ProductsPage() {
         message={
           selectedProductsWithStock.count > 0
             ? t('actions.confirmDeleteBulkWithStock', {
-                count: selectedProductIds.length,
-                withStockCount: selectedProductsWithStock.count,
-                totalStock: selectedProductsWithStock.totalStock,
-              })
+              count: selectedProductIds.length,
+              withStockCount: selectedProductsWithStock.count,
+              totalStock: selectedProductsWithStock.totalStock,
+            })
             : t('actions.confirmDeleteBulk', { count: selectedProductIds.length })
         }
         confirmText={t('actions.delete')}

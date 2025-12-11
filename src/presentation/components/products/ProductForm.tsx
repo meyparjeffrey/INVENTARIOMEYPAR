@@ -12,14 +12,14 @@ import { cn } from "../../lib/cn";
 import { useBatches } from "../../hooks/useBatches";
 
 // Componentes memoizados fuera del componente principal para evitar re-renders
-const FieldWrapper = React.memo(({ 
-  children, 
-  error, 
+const FieldWrapper = React.memo(({
+  children,
+  error,
   touched,
-  className 
-}: { 
-  children: React.ReactNode; 
-  error?: string; 
+  className
+}: {
+  children: React.ReactNode;
+  error?: string;
   touched?: boolean;
   className?: string;
 }) => (
@@ -42,14 +42,14 @@ const FieldWrapper = React.memo(({
 ));
 FieldWrapper.displayName = "FieldWrapper";
 
-const SectionCard = React.memo(({ 
-  icon: Icon, 
-  title, 
-  children, 
-  delay = 0 
-}: { 
-  icon: React.ElementType; 
-  title: string; 
+const SectionCard = React.memo(({
+  icon: Icon,
+  title,
+  children,
+  delay = 0
+}: {
+  icon: React.ElementType;
+  title: string;
   children: React.ReactNode;
   delay?: number;
 }) => (
@@ -61,7 +61,7 @@ const SectionCard = React.memo(({
   >
     {/* Efecto de brillo en hover */}
     <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-blue-500/0 to-blue-500/0 opacity-0 transition-opacity duration-500 group-hover:from-blue-500/5 group-hover:via-transparent group-hover:to-blue-500/5 group-hover:opacity-100" />
-    
+
     <div className="relative">
       <div className="mb-4 flex items-center gap-3">
         <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600 transition-colors duration-300 group-hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:group-hover:bg-blue-900/50">
@@ -80,6 +80,7 @@ interface ProductFormProps {
   onSubmit: (data: CreateProductInput | UpdateProductInput) => Promise<void>;
   onCancel: () => void;
   loading?: boolean;
+  canEditCode?: boolean; // Solo ADMIN puede editar código en modo edición
 }
 
 /**
@@ -102,7 +103,7 @@ interface ProductFormProps {
  *   loading={isUpdating}
  * />
  */
-export function ProductForm({ product, onSubmit, onCancel, loading = false }: ProductFormProps) {
+export function ProductForm({ product, onSubmit, onCancel, loading = false, canEditCode = false }: ProductFormProps) {
   const { t } = useLanguage();
   const { batchCodeExists } = useBatches();
   const isEditing = !!product;
@@ -170,12 +171,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
       }
     }
 
-    if (!formData.aisle.trim()) {
-      newErrors.aisle = t("validation.aisle.required");
-    }
-    if (!formData.shelf.trim()) {
-      newErrors.shelf = t("validation.shelf.required");
-    }
+
 
     const costPrice = Number(formData.costPrice);
     if (isNaN(costPrice) || costPrice < 0) {
@@ -224,7 +220,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
 
     // Validar y obtener errores
     const newErrors: Record<string, string> = {};
-    
+
     if (!formData.code.trim()) {
       newErrors.code = t("validation.code.required");
     } else if (formData.code.trim().length < 3) {
@@ -256,12 +252,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
       }
     }
 
-    if (!formData.aisle.trim()) {
-      newErrors.aisle = t("validation.aisle.required");
-    }
-    if (!formData.shelf.trim()) {
-      newErrors.shelf = t("validation.shelf.required");
-    }
+
 
     const costPrice = Number(formData.costPrice);
     if (isNaN(costPrice) || costPrice < 0) {
@@ -302,16 +293,16 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
     }
 
     setErrors(newErrors);
-    
+
     if (Object.keys(newErrors).length > 0) {
       // Hacer scroll al primer campo con error
       const firstErrorField = Object.keys(newErrors)[0];
       if (firstErrorField) {
         // Usar setTimeout para asegurar que el DOM se haya actualizado
         setTimeout(() => {
-          const errorElement = document.querySelector(`[name="${firstErrorField}"]`) || 
-                              document.querySelector(`#${firstErrorField}`) ||
-                              document.querySelector(`[data-field="${firstErrorField}"]`);
+          const errorElement = document.querySelector(`[name="${firstErrorField}"]`) ||
+            document.querySelector(`#${firstErrorField}`) ||
+            document.querySelector(`[data-field="${firstErrorField}"]`);
           if (errorElement) {
             errorElement.scrollIntoView({ behavior: "smooth", block: "center" });
             (errorElement as HTMLElement).focus();
@@ -324,10 +315,10 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
     const dimensionsCm =
       formData.dimensionsLength || formData.dimensionsWidth || formData.dimensionsHeight
         ? {
-            length: Number(formData.dimensionsLength) || 0,
-            width: Number(formData.dimensionsWidth) || 0,
-            height: Number(formData.dimensionsHeight) || 0
-          }
+          length: Number(formData.dimensionsLength) || 0,
+          width: Number(formData.dimensionsWidth) || 0,
+          height: Number(formData.dimensionsHeight) || 0
+        }
         : null;
 
     const submitData: CreateProductInput | UpdateProductInput = {
@@ -374,7 +365,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
       }
       value = formatted;
     }
-    
+
     setFormData((prev) => ({ ...prev, [field]: value }));
     // Solo limpiar error si existe, sin validar
     setErrors((prev) => {
@@ -430,15 +421,15 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
                 value={formData.code}
                 onChange={(e) => handleChange("code", e.target.value)}
                 onBlur={() => handleBlur("code")}
-                disabled={isEditing}
+                disabled={isEditing && !canEditCode}
                 autoComplete="off"
                 className={cn(
                   "transition-all duration-200",
                   errors.code && touchedFields.has("code")
                     ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                     : touchedFields.has("code") && !errors.code && formData.code
-                    ? "border-green-500 focus:border-green-500 focus:ring-green-500"
-                    : "focus:border-blue-500 focus:ring-blue-500"
+                      ? "border-green-500 focus:border-green-500 focus:ring-green-500"
+                      : "focus:border-blue-500 focus:ring-blue-500"
                 )}
               />
             </FieldWrapper>
@@ -502,7 +493,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
                   // Generar código único L-XXXXX
                   let attempt = 1;
                   let newCode = `L-${String(attempt).padStart(5, "0")}`;
-                  
+
                   while (await batchCodeExists(newCode)) {
                     attempt++;
                     newCode = `L-${String(attempt).padStart(5, "0")}`;
@@ -512,7 +503,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
                       break;
                     }
                   }
-                  
+
                   handleChange("batchCode", newCode);
                 }}
                 className="gap-2"
@@ -550,8 +541,8 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
                 errors.name && touchedFields.has("name")
                   ? "border-red-500 focus:border-red-500 focus:ring-red-500"
                   : touchedFields.has("name") && !errors.name && formData.name
-                  ? "border-green-500 focus:border-green-500 focus:ring-green-500"
-                  : "focus:border-primary-500 focus:ring-primary-500"
+                    ? "border-green-500 focus:border-green-500 focus:ring-green-500"
+                    : "focus:border-primary-500 focus:ring-primary-500"
               )}
             />
           </FieldWrapper>
@@ -645,7 +636,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <FieldWrapper error={errors.aisle} touched={touchedFields.has("aisle")}>
             <Label htmlFor="aisle">
-              {t("form.aisle")} <span className="text-red-500">*</span>
+              {t("form.aisle")}
             </Label>
             <Input
               id="aisle"
@@ -663,7 +654,7 @@ export function ProductForm({ product, onSubmit, onCancel, loading = false }: Pr
 
           <FieldWrapper error={errors.shelf} touched={touchedFields.has("shelf")}>
             <Label htmlFor="shelf">
-              {t("form.shelf")} <span className="text-red-500">*</span>
+              {t("form.shelf")}
             </Label>
             <Input
               id="shelf"

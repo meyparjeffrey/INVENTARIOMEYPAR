@@ -222,8 +222,9 @@ export const ProductTable = React.memo(
           { id: 'salePrice', order: 8 },
           { id: 'createdAt', order: 9 },
           { id: 'updatedAt', order: 10 },
-          { id: 'status', order: 11 },
-          { id: 'actions', order: 12 },
+          { id: 'user', order: 11 },
+          { id: 'status', order: 12 },
+          { id: 'actions', order: 13 },
         ];
       }
       return visibleColumns
@@ -419,6 +420,12 @@ export const ProductTable = React.memo(
                           sortField: 'updatedAt' as SortField,
                           align: 'left',
                         };
+                      case 'user':
+                        return {
+                          label: t('table.user') || 'Usuario',
+                          sortField: null,
+                          align: 'left',
+                        };
                       case 'status':
                         return {
                           label: t('table.status'),
@@ -458,9 +465,9 @@ export const ProductTable = React.memo(
                         onClick={
                           config.sortField
                             ? (e) => {
-                                e.stopPropagation();
-                                handleSort(config.sortField!);
-                              }
+                              e.stopPropagation();
+                              handleSort(config.sortField!);
+                            }
                             : undefined
                         }
                       >
@@ -483,7 +490,7 @@ export const ProductTable = React.memo(
                           config.align === 'center' && 'text-center',
                           config.align === 'left' && 'text-left',
                           config.sortField &&
-                            'hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
+                          'hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
                         )}
                       >
                         {headerContent}
@@ -500,7 +507,7 @@ export const ProductTable = React.memo(
                         config.align === 'center' && 'text-center',
                         config.align === 'left' && 'text-left',
                         config.sortField &&
-                          'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
+                        'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
                       )}
                       style={columnWidth ? { width: `${columnWidth}px` } : undefined}
                       onClick={
@@ -562,10 +569,10 @@ export const ProductTable = React.memo(
                       // Aplicar el ancho a todas las celdas de esta columna
                       const cellStyle = columnWidth
                         ? {
-                            width: `${columnWidth}px`,
-                            minWidth: `${columnWidth}px`,
-                            maxWidth: `${columnWidth}px`,
-                          }
+                          width: `${columnWidth}px`,
+                          minWidth: `${columnWidth}px`,
+                          maxWidth: `${columnWidth}px`,
+                        }
                         : undefined;
 
                       const renderCell = () => {
@@ -671,8 +678,8 @@ export const ProductTable = React.memo(
                                       'font-medium',
                                       isLowStock && 'text-red-600 dark:text-red-400',
                                       !isLowStock &&
-                                        product.stockCurrent <= stockMinRef * 1.15 &&
-                                        'text-yellow-600 dark:text-yellow-400',
+                                      product.stockCurrent <= stockMinRef * 1.15 &&
+                                      'text-yellow-600 dark:text-yellow-400',
                                     )}
                                   >
                                     {product.stockCurrent}
@@ -788,6 +795,21 @@ export const ProductTable = React.memo(
                                 })}
                               </td>
                             );
+                          case 'user': {
+                            const userProfile = product.createdByProfile;
+                            const userName = userProfile
+                              ? `${userProfile.firstName || ''} ${userProfile.lastName || ''}`.trim()
+                              : '-';
+                            return (
+                              <td
+                                key="user"
+                                className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400"
+                                style={cellStyle}
+                              >
+                                {userName}
+                              </td>
+                            );
+                          }
                           case 'status':
                             return (
                               <td
@@ -870,123 +892,123 @@ export const ProductTable = React.memo(
                             onExport ||
                             onMovement ||
                             onToggleActive) && (
-                            <div className="relative">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  setActionMenuOpen(
-                                    actionMenuOpen === product.id ? null : product.id,
-                                  )
-                                }
-                                title="Más acciones"
-                                className={cn(
-                                  'transition-all duration-200',
-                                  isHovered ? 'opacity-100' : 'opacity-70',
-                                  'hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700',
-                                )}
-                              >
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
+                              <div className="relative">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() =>
+                                    setActionMenuOpen(
+                                      actionMenuOpen === product.id ? null : product.id,
+                                    )
+                                  }
+                                  title="Más acciones"
+                                  className={cn(
+                                    'transition-all duration-200',
+                                    isHovered ? 'opacity-100' : 'opacity-70',
+                                    'hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700',
+                                  )}
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
 
-                              {actionMenuOpen === product.id && (
-                                <>
-                                  <div
-                                    className="fixed inset-0 z-10"
-                                    onClick={() => setActionMenuOpen(null)}
-                                  />
-                                  <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                                    <div className="py-1">
-                                      {onMovement && (
-                                        <button
-                                          onClick={() => {
-                                            onMovement(product);
-                                            setActionMenuOpen(null);
-                                          }}
-                                          className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                                        >
-                                          <MoreVertical className="h-4 w-4" />
-                                          {t('actions.movement')}
-                                        </button>
-                                      )}
-                                      {onDuplicate && (
-                                        <button
-                                          onClick={() => {
-                                            onDuplicate(product);
-                                            setActionMenuOpen(null);
-                                          }}
-                                          className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                                        >
-                                          <Copy className="h-4 w-4" />
-                                          {t('actions.duplicate')}
-                                        </button>
-                                      )}
-                                      {onHistory && (
-                                        <button
-                                          onClick={() => {
-                                            onHistory(product);
-                                            setActionMenuOpen(null);
-                                          }}
-                                          className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                                        >
-                                          <History className="h-4 w-4" />
-                                          {t('actions.history')}
-                                        </button>
-                                      )}
-                                      {onExport && (
-                                        <button
-                                          onClick={() => {
-                                            onExport(product);
-                                            setActionMenuOpen(null);
-                                          }}
-                                          className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                                        >
-                                          <DownloadIcon className="h-4 w-4" />
-                                          {t('actions.export')}
-                                        </button>
-                                      )}
-                                      {onToggleActive && (
-                                        <button
-                                          onClick={() => {
-                                            onToggleActive(product);
-                                            setActionMenuOpen(null);
-                                          }}
-                                          className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                                        >
-                                          {product.isActive ? (
-                                            <>
-                                              <AlertTriangle className="h-4 w-4" />
-                                              {t('actions.deactivate')}
-                                            </>
-                                          ) : (
-                                            <>
-                                              <Package className="h-4 w-4" />
-                                              {t('actions.activate')}
-                                            </>
-                                          )}
-                                        </button>
-                                      )}
-                                      {onDelete && (
-                                        <>
-                                          <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
+                                {actionMenuOpen === product.id && (
+                                  <>
+                                    <div
+                                      className="fixed inset-0 z-10"
+                                      onClick={() => setActionMenuOpen(null)}
+                                    />
+                                    <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                                      <div className="py-1">
+                                        {onMovement && (
                                           <button
                                             onClick={() => {
+                                              onMovement(product);
                                               setActionMenuOpen(null);
-                                              setDeleteConfirm({ isOpen: true, product });
                                             }}
-                                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
                                           >
-                                            <Trash2 className="h-4 w-4" />
-                                            {t('actions.delete')}
+                                            <MoreVertical className="h-4 w-4" />
+                                            {t('actions.movement')}
                                           </button>
-                                        </>
-                                      )}
+                                        )}
+                                        {onDuplicate && (
+                                          <button
+                                            onClick={() => {
+                                              onDuplicate(product);
+                                              setActionMenuOpen(null);
+                                            }}
+                                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                          >
+                                            <Copy className="h-4 w-4" />
+                                            {t('actions.duplicate')}
+                                          </button>
+                                        )}
+                                        {onHistory && (
+                                          <button
+                                            onClick={() => {
+                                              onHistory(product);
+                                              setActionMenuOpen(null);
+                                            }}
+                                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                          >
+                                            <History className="h-4 w-4" />
+                                            {t('actions.history')}
+                                          </button>
+                                        )}
+                                        {onExport && (
+                                          <button
+                                            onClick={() => {
+                                              onExport(product);
+                                              setActionMenuOpen(null);
+                                            }}
+                                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                          >
+                                            <DownloadIcon className="h-4 w-4" />
+                                            {t('actions.export')}
+                                          </button>
+                                        )}
+                                        {onToggleActive && (
+                                          <button
+                                            onClick={() => {
+                                              onToggleActive(product);
+                                              setActionMenuOpen(null);
+                                            }}
+                                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                          >
+                                            {product.isActive ? (
+                                              <>
+                                                <AlertTriangle className="h-4 w-4" />
+                                                {t('actions.deactivate')}
+                                              </>
+                                            ) : (
+                                              <>
+                                                <Package className="h-4 w-4" />
+                                                {t('actions.activate')}
+                                              </>
+                                            )}
+                                          </button>
+                                        )}
+                                        {onDelete && (
+                                          <>
+                                            <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
+                                            <button
+                                              onClick={() => {
+                                                setActionMenuOpen(null);
+                                                setDeleteConfirm({ isOpen: true, product });
+                                              }}
+                                              className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                            >
+                                              <Trash2 className="h-4 w-4" />
+                                              {t('actions.delete')}
+                                            </button>
+                                          </>
+                                        )}
+                                      </div>
                                     </div>
-                                  </div>
-                                </>
-                              )}
-                            </div>
-                          )}
+                                  </>
+                                )}
+                              </div>
+                            )}
                         </div>
                       </td>
                     )}
@@ -1011,9 +1033,9 @@ export const ProductTable = React.memo(
             message={
               deleteConfirm.product.stockCurrent > 0
                 ? t('actions.confirmDeleteWithStock', {
-                    productName: deleteConfirm.product.name,
-                    stock: deleteConfirm.product.stockCurrent,
-                  })
+                  productName: deleteConfirm.product.name,
+                  stock: deleteConfirm.product.stockCurrent,
+                })
                 : t('actions.confirmDelete', { productName: deleteConfirm.product.name })
             }
             confirmText={t('actions.delete')}
@@ -1032,7 +1054,7 @@ export const ProductTable = React.memo(
       prevProps.searchTerm === nextProps.searchTerm &&
       JSON.stringify(prevProps.selectedIds) === JSON.stringify(nextProps.selectedIds) &&
       JSON.stringify(prevProps.visibleColumns) ===
-        JSON.stringify(nextProps.visibleColumns)
+      JSON.stringify(nextProps.visibleColumns)
     );
   },
 );

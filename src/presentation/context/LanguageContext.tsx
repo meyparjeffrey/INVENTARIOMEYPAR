@@ -51,6 +51,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'table.location': 'Ubicación',
     'table.supplierCode': 'Código Proveedor',
     'table.status': 'Estado',
+    'table.user': 'Usuario',
     'table.actions': 'Acciones',
     'table.sortBy': 'Ordenar por',
     'table.tooltip.hover': 'Pasa el mouse sobre un producto para ver más información',
@@ -806,6 +807,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'table.location': 'Ubicació',
     'table.supplierCode': 'Codi Proveïdor',
     'table.status': 'Estat',
+    'table.user': 'Usuari',
     'table.actions': 'Accions',
     // Botons d'acció
     'actions.view': 'Veure detall',

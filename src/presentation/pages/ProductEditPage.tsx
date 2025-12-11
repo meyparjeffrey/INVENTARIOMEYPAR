@@ -4,8 +4,9 @@ import * as React from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
 import { useProducts } from "../hooks/useProducts";
+import { useAuth } from "../context/AuthContext";
 import { ProductForm } from "../components/products/ProductForm";
-import type { UpdateProductInput } from "@domain/repositories/ProductRepository";
+import type { UpdateProductInput, CreateProductInput } from "@domain/repositories/ProductRepository";
 
 /**
  * Página moderna e interactiva para editar un producto existente.
@@ -13,9 +14,13 @@ import type { UpdateProductInput } from "@domain/repositories/ProductRepository"
 export function ProductEditPage() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const { authContext } = useAuth();
   const { getById, update, loading } = useProducts();
   const [product, setProduct] = React.useState<any>(null);
   const [loadingProduct, setLoadingProduct] = React.useState(true);
+
+  // Solo ADMIN puede editar el código del producto
+  const canEditCode = authContext?.profile?.role === 'ADMIN';
 
   React.useEffect(() => {
     if (id) {
@@ -37,7 +42,7 @@ export function ProductEditPage() {
   }, [id, getById, navigate]);
 
   const handleSubmit = React.useCallback(
-    async (data: UpdateProductInput) => {
+    async (data: UpdateProductInput | CreateProductInput) => {
       if (!id) return;
 
       // Obtener el usuario actual desde Supabase
@@ -92,7 +97,7 @@ export function ProductEditPage() {
       >
         {/* Efecto de brillo animado */}
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-purple-500/5 to-transparent opacity-0 transition-opacity duration-1000 hover:opacity-100" />
-        
+
         <div className="relative flex items-center gap-4">
           <motion.div
             initial={{ scale: 0, rotate: -180 }}
@@ -102,7 +107,7 @@ export function ProductEditPage() {
           >
             <Package className="h-8 w-8 text-white" />
           </motion.div>
-          
+
           <div className="flex-1">
             <motion.h1
               initial={{ opacity: 0, x: -20 }}
@@ -133,7 +138,7 @@ export function ProductEditPage() {
         transition={{ duration: 0.4, delay: 0.3 }}
         className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
       >
-        <ProductForm product={product} onSubmit={handleSubmit} onCancel={handleCancel} loading={loading} />
+        <ProductForm product={product} onSubmit={handleSubmit} onCancel={handleCancel} loading={loading} canEditCode={canEditCode} />
       </motion.div>
     </div>
   );
