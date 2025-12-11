@@ -136,7 +136,11 @@
       "deleteAppDataOnUninstall": false,
       "runAfterFinish": true,
       "menuCategory": false,
-      "warningsAsErrors": false
+      "warningsAsErrors": false,
+      "installerLanguages": [
+        "es_ES",
+        "en_US"
+      ]
     }
   }
 }
