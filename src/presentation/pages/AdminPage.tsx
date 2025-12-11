@@ -302,17 +302,24 @@ export function AdminPage() {
           if (!userToDelete) return;
 
           try {
-            // Eliminar perfil (esto debería eliminar también el usuario de auth si hay CASCADE)
-            const { error } = await supabaseClient
-              .from("profiles")
-              .delete()
-              .eq("id", userToDelete.id);
+            // Eliminar usuario mediante Edge Function (elimina de auth.users y profiles)
+            const { data, error } = await supabaseClient.functions.invoke("delete-user", {
+              body: {
+                userId: userToDelete.id
+              },
+              method: "POST"
+            });
 
-            if (error) throw error;
+            if (error) {
+              throw new Error(error.message || "Error al eliminar el usuario");
+            }
 
-            // Nota: Eliminar usuario de auth requiere admin API (service_role_key)
-            // El perfil ya se eliminó, el usuario de auth se puede eliminar manualmente desde Supabase Dashboard
-            // o mediante una Edge Function
+            // Verificar si la respuesta tiene error
+            if (data && typeof data === 'object') {
+              if ('success' in data && data.success === false && 'error' in data) {
+                throw new Error((data as { error: string }).error);
+              }
+            }
 
             loadUsers();
           } catch (error: unknown) {

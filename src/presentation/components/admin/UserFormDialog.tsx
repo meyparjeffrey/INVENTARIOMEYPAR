@@ -152,6 +152,10 @@ export function UserFormDialog({ isOpen, onClose, onSuccess, user }: UserFormDia
 
     setLoading(true);
 
+    // Declarar data fuera del bloque para que esté disponible en todo el scope
+    let data: { success?: boolean; error?: string; userId?: string } | null = null;
+    let createError: { message?: string } | null = null;
+
     try {
       if (isEditing) {
         // Actualizar usuario existente
@@ -169,8 +173,6 @@ export function UserFormDialog({ isOpen, onClose, onSuccess, user }: UserFormDia
         if (updateError) throw updateError;
       } else {
         // Crear nuevo usuario mediante Edge Function
-        let data: { success?: boolean; error?: string; userId?: string } | null = null;
-        let createError: { message?: string } | null = null;
         
         try {
           const response = await supabaseClient.functions.invoke("create-user", {
