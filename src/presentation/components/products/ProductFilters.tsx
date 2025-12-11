@@ -43,6 +43,7 @@ export interface ProductFiltersState {
   createdAtFrom?: string;
   createdAtTo?: string;
   createdAtSlider?: number; // Valor del slider (0-6)
+  warehouse?: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA'; // Almacén
   aisle?: string; // Pasillo
   shelf?: string; // Estante
   batchStatus?: ('OK' | 'DEFECTIVE' | 'BLOCKED' | 'EXPIRED')[]; // Estado de lote
@@ -204,6 +205,8 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
     // Código proveedor
     if (filterState.supplierCode && filterState.supplierCode !== '') count++;
 
+    // Almacén
+    if (filterState.warehouse) count++;
     // Ubicación (pasillo o estante)
     if (filterState.aisle || filterState.shelf) count++;
 
@@ -483,6 +486,61 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
                         ))
                       )}
                     </select>
+                  </div>
+
+                  {/* Almacén */}
+                  <div>
+                    <Label>{t('filters.warehouse') || 'Almacén'}</Label>
+                    <div className="mt-1 space-y-2">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="warehouse-filter"
+                          checked={!localFilters.warehouse}
+                          onChange={() => handleFilterChange('warehouse', undefined)}
+                          className="text-primary-600 focus:ring-primary-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          {t('filters.warehouse.all') || 'Todos'}
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="warehouse-filter"
+                          checked={localFilters.warehouse === 'MEYPAR'}
+                          onChange={() => handleFilterChange('warehouse', 'MEYPAR')}
+                          className="text-primary-600 focus:ring-primary-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          {t('form.warehouse.meypar') || 'MEYPAR'}
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="warehouse-filter"
+                          checked={localFilters.warehouse === 'OLIVA_TORRAS'}
+                          onChange={() => handleFilterChange('warehouse', 'OLIVA_TORRAS')}
+                          className="text-primary-600 focus:ring-primary-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          {t('form.warehouse.olivaTorras') || 'Oliva Torras'}
+                        </span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="warehouse-filter"
+                          checked={localFilters.warehouse === 'FURGONETA'}
+                          onChange={() => handleFilterChange('warehouse', 'FURGONETA')}
+                          className="text-primary-600 focus:ring-primary-500"
+                        />
+                        <span className="text-sm text-gray-700 dark:text-gray-300">
+                          {t('form.warehouse.furgoneta') || 'Furgoneta'}
+                        </span>
+                      </label>
+                    </div>
                   </div>
 
                   {/* Ubicación */}

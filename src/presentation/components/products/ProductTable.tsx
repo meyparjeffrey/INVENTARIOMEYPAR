@@ -13,6 +13,9 @@ import {
   ArrowDown,
   CheckSquare,
   Square,
+  ChevronLeft,
+  ChevronRight,
+  GripHorizontal,
 } from 'lucide-react';
 import * as React from 'react';
 import type { Product } from '@domain/entities';
@@ -31,6 +34,7 @@ type SortField =
   | 'category'
   | 'stockCurrent'
   | 'stockMin'
+  | 'warehouse'
   | 'aisle'
   | 'supplierCode'
   | 'costPrice'
@@ -96,6 +100,91 @@ export const ProductTable = React.memo(
       isOpen: false,
       product: null,
     });
+    const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+    const [canScrollLeft, setCanScrollLeft] = React.useState(false);
+    const [canScrollRight, setCanScrollRight] = React.useState(false);
+    const [isDragging, setIsDragging] = React.useState(false);
+    const dragStartX = React.useRef(0);
+    const scrollStartX = React.useRef(0);
+
+    // Función para verificar el estado del scroll
+    const checkScrollButtons = React.useCallback(() => {
+      if (!scrollContainerRef.current) return;
+      const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+      setCanScrollLeft(scrollLeft > 0);
+      setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
+    }, []);
+
+    // Efecto para verificar el estado del scroll
+    React.useEffect(() => {
+      checkScrollButtons();
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      container.addEventListener('scroll', checkScrollButtons);
+      window.addEventListener('resize', checkScrollButtons);
+
+      return () => {
+        container.removeEventListener('scroll', checkScrollButtons);
+        window.removeEventListener('resize', checkScrollButtons);
+      };
+    }, [checkScrollButtons, products]);
+
+    // Funciones de scroll
+    const scrollLeft = () => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+      }
+    };
+
+    const scrollRight = () => {
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+      }
+    };
+
+    // Funciones de arrastre
+    const handleDragStart = React.useCallback((e: React.MouseEvent) => {
+      if (!scrollContainerRef.current) return;
+      setIsDragging(true);
+      dragStartX.current = e.clientX;
+      scrollStartX.current = scrollContainerRef.current.scrollLeft;
+      e.preventDefault();
+      e.stopPropagation();
+    }, []);
+
+    const handleDragMove = React.useCallback(
+      (e: MouseEvent) => {
+        if (!isDragging || !scrollContainerRef.current) return;
+        const deltaX = e.clientX - dragStartX.current;
+        scrollContainerRef.current.scrollLeft = scrollStartX.current - deltaX;
+      },
+      [isDragging],
+    );
+
+    const handleDragEnd = React.useCallback(() => {
+      setIsDragging(false);
+    }, []);
+
+    // Efecto para manejar eventos globales de arrastre
+    React.useEffect(() => {
+      if (isDragging) {
+        document.addEventListener('mousemove', handleDragMove);
+        document.addEventListener('mouseup', handleDragEnd);
+        document.body.style.cursor = 'grabbing';
+        document.body.style.userSelect = 'none';
+      } else {
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      }
+
+      return () => {
+        document.removeEventListener('mousemove', handleDragMove);
+        document.removeEventListener('mouseup', handleDragEnd);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+    }, [isDragging, handleDragMove, handleDragEnd]);
 
     // Función para ordenar productos
     const sortedProducts = React.useMemo(() => {
@@ -126,10 +215,26 @@ export const ProductTable = React.memo(
             aValue = a.stockMin;
             bValue = b.stockMin;
             break;
-          case 'aisle':
-            aValue = a.aisle.toLowerCase();
-            bValue = b.aisle.toLowerCase();
+          case 'warehouse':
+            aValue = (a.warehouse || '').toLowerCase();
+            bValue = (b.warehouse || '').toLowerCase();
             break;
+          case 'aisle': {
+            // Ordenar por ubicación formateada
+            const getLocationValue = (p: Product) => {
+              if (p.warehouse === 'MEYPAR') {
+                return `${p.aisle}${p.shelf}`.toLowerCase();
+              } else if (p.warehouse === 'OLIVA_TORRAS') {
+                return 'oliva torras';
+              } else if (p.warehouse === 'FURGONETA' && p.locationExtra) {
+                return p.locationExtra.toLowerCase();
+              }
+              return `${p.aisle}${p.shelf}`.toLowerCase();
+            };
+            aValue = getLocationValue(a);
+            bValue = getLocationValue(b);
+            break;
+          }
           case 'supplierCode':
             aValue = (a.supplierCode || '').toLowerCase();
             bValue = (b.supplierCode || '').toLowerCase();
@@ -216,15 +321,16 @@ export const ProductTable = React.memo(
           { id: 'category', order: 2 },
           { id: 'stockCurrent', order: 3 },
           { id: 'stockMin', order: 4 },
-          { id: 'aisle', order: 5 },
-          { id: 'supplierCode', order: 6 },
-          { id: 'costPrice', order: 7 },
-          { id: 'salePrice', order: 8 },
-          { id: 'createdAt', order: 9 },
-          { id: 'updatedAt', order: 10 },
-          { id: 'user', order: 11 },
-          { id: 'status', order: 12 },
-          { id: 'actions', order: 13 },
+          { id: 'warehouse', order: 5 },
+          { id: 'aisle', order: 6 },
+          { id: 'supplierCode', order: 7 },
+          { id: 'costPrice', order: 8 },
+          { id: 'salePrice', order: 9 },
+          { id: 'createdAt', order: 10 },
+          { id: 'updatedAt', order: 11 },
+          { id: 'user', order: 12 },
+          { id: 'status', order: 13 },
+          { id: 'actions', order: 14 },
         ];
       }
       return visibleColumns
@@ -290,8 +396,45 @@ export const ProductTable = React.memo(
 
     return (
       <div className="relative rounded-lg border border-gray-200 dark:border-gray-700">
+        {/* Controles de scroll horizontal */}
+        {canScrollLeft && (
+          <button
+            onClick={scrollLeft}
+            className="absolute left-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white p-2 shadow-lg transition-all hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700"
+            aria-label="Desplazar izquierda"
+          >
+            <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+          </button>
+        )}
+        {canScrollRight && (
+          <button
+            onClick={scrollRight}
+            className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-full bg-white p-2 shadow-lg transition-all hover:bg-gray-100 dark:bg-gray-800 dark:hover:bg-gray-700"
+            aria-label="Desplazar derecha"
+          >
+            <ChevronRight className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+          </button>
+        )}
+
+        {/* Área de arrastre para scroll */}
+        {!canScrollLeft && !canScrollRight ? null : (
+          <div
+            className={cn(
+              'absolute top-0 left-0 right-0 z-10 h-12 cursor-grab transition-opacity hover:opacity-100',
+              isDragging && 'cursor-grabbing opacity-100',
+              !isDragging && 'opacity-0',
+            )}
+            onMouseDown={handleDragStart}
+          >
+            <div className="flex h-full items-center justify-center">
+              <GripHorizontal className="h-4 w-4 text-gray-400" />
+            </div>
+          </div>
+        )}
+
         {/* Scroll horizontal con indicadores */}
         <div
+          ref={scrollContainerRef}
           className="overflow-x-auto"
           style={{
             scrollbarWidth: 'thin',
@@ -384,6 +527,12 @@ export const ProductTable = React.memo(
                           sortField: 'stockMin' as SortField,
                           align: 'right',
                         };
+                      case 'warehouse':
+                        return {
+                          label: t('table.warehouse') || 'Almacén',
+                          sortField: 'warehouse' as SortField,
+                          align: 'left',
+                        };
                       case 'aisle':
                         return {
                           label: t('table.location'),
@@ -465,9 +614,9 @@ export const ProductTable = React.memo(
                         onClick={
                           config.sortField
                             ? (e) => {
-                              e.stopPropagation();
-                              handleSort(config.sortField!);
-                            }
+                                e.stopPropagation();
+                                handleSort(config.sortField!);
+                              }
                             : undefined
                         }
                       >
@@ -490,7 +639,7 @@ export const ProductTable = React.memo(
                           config.align === 'center' && 'text-center',
                           config.align === 'left' && 'text-left',
                           config.sortField &&
-                          'hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
+                            'hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
                         )}
                       >
                         {headerContent}
@@ -507,7 +656,7 @@ export const ProductTable = React.memo(
                         config.align === 'center' && 'text-center',
                         config.align === 'left' && 'text-left',
                         config.sortField &&
-                        'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
+                          'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
                       )}
                       style={columnWidth ? { width: `${columnWidth}px` } : undefined}
                       onClick={
@@ -569,10 +718,10 @@ export const ProductTable = React.memo(
                       // Aplicar el ancho a todas las celdas de esta columna
                       const cellStyle = columnWidth
                         ? {
-                          width: `${columnWidth}px`,
-                          minWidth: `${columnWidth}px`,
-                          maxWidth: `${columnWidth}px`,
-                        }
+                            width: `${columnWidth}px`,
+                            minWidth: `${columnWidth}px`,
+                            maxWidth: `${columnWidth}px`,
+                          }
                         : undefined;
 
                       const renderCell = () => {
@@ -678,8 +827,8 @@ export const ProductTable = React.memo(
                                       'font-medium',
                                       isLowStock && 'text-red-600 dark:text-red-400',
                                       !isLowStock &&
-                                      product.stockCurrent <= stockMinRef * 1.15 &&
-                                      'text-yellow-600 dark:text-yellow-400',
+                                        product.stockCurrent <= stockMinRef * 1.15 &&
+                                        'text-yellow-600 dark:text-yellow-400',
                                     )}
                                   >
                                     {product.stockCurrent}
@@ -709,17 +858,55 @@ export const ProductTable = React.memo(
                                 {product.stockMin}
                               </td>
                             );
-                          case 'aisle':
+                          case 'warehouse': {
+                            const warehouseLabel =
+                              product.warehouse === 'MEYPAR'
+                                ? t('form.warehouse.meypar') || 'MEYPAR'
+                                : product.warehouse === 'OLIVA_TORRAS'
+                                  ? t('form.warehouse.olivaTorras') || 'Oliva Torras'
+                                  : product.warehouse === 'FURGONETA'
+                                    ? t('form.warehouse.furgoneta') || 'Furgoneta'
+                                    : '-';
+                            return (
+                              <td
+                                key="warehouse"
+                                className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400"
+                                style={cellStyle}
+                              >
+                                {warehouseLabel}
+                              </td>
+                            );
+                          }
+                          case 'aisle': {
+                            // Formatear ubicación según el almacén
+                            let locationText = '-';
+                            if (product.warehouse === 'MEYPAR') {
+                              locationText = `${product.aisle}${product.shelf}`;
+                            } else if (product.warehouse === 'OLIVA_TORRAS') {
+                              locationText =
+                                t('form.warehouse.olivaTorras') || 'Oliva Torras';
+                            } else if (
+                              product.warehouse === 'FURGONETA' &&
+                              product.locationExtra
+                            ) {
+                              // Extraer solo el nombre del técnico (sin "Furgoneta")
+                              const match =
+                                product.locationExtra.match(/Furgoneta\s+(.+)/);
+                              locationText = match ? match[1] : product.locationExtra;
+                            } else if (product.aisle && product.shelf) {
+                              // Fallback para productos antiguos sin warehouse
+                              locationText = `${product.aisle}${product.shelf}`;
+                            }
                             return (
                               <td
                                 key="aisle"
                                 className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400"
                                 style={cellStyle}
                               >
-                                {product.aisle} <span className="mx-1">/</span>{' '}
-                                {product.shelf}
+                                {locationText}
                               </td>
                             );
+                          }
                           case 'supplierCode':
                             return (
                               <td
@@ -892,123 +1079,123 @@ export const ProductTable = React.memo(
                             onExport ||
                             onMovement ||
                             onToggleActive) && (
-                              <div className="relative">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() =>
-                                    setActionMenuOpen(
-                                      actionMenuOpen === product.id ? null : product.id,
-                                    )
-                                  }
-                                  title="Más acciones"
-                                  className={cn(
-                                    'transition-all duration-200',
-                                    isHovered ? 'opacity-100' : 'opacity-70',
-                                    'hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700',
-                                  )}
-                                >
-                                  <MoreVertical className="h-4 w-4" />
-                                </Button>
-
-                                {actionMenuOpen === product.id && (
-                                  <>
-                                    <div
-                                      className="fixed inset-0 z-10"
-                                      onClick={() => setActionMenuOpen(null)}
-                                    />
-                                    <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
-                                      <div className="py-1">
-                                        {onMovement && (
-                                          <button
-                                            onClick={() => {
-                                              onMovement(product);
-                                              setActionMenuOpen(null);
-                                            }}
-                                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                                          >
-                                            <MoreVertical className="h-4 w-4" />
-                                            {t('actions.movement')}
-                                          </button>
-                                        )}
-                                        {onDuplicate && (
-                                          <button
-                                            onClick={() => {
-                                              onDuplicate(product);
-                                              setActionMenuOpen(null);
-                                            }}
-                                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                                          >
-                                            <Copy className="h-4 w-4" />
-                                            {t('actions.duplicate')}
-                                          </button>
-                                        )}
-                                        {onHistory && (
-                                          <button
-                                            onClick={() => {
-                                              onHistory(product);
-                                              setActionMenuOpen(null);
-                                            }}
-                                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                                          >
-                                            <History className="h-4 w-4" />
-                                            {t('actions.history')}
-                                          </button>
-                                        )}
-                                        {onExport && (
-                                          <button
-                                            onClick={() => {
-                                              onExport(product);
-                                              setActionMenuOpen(null);
-                                            }}
-                                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                                          >
-                                            <DownloadIcon className="h-4 w-4" />
-                                            {t('actions.export')}
-                                          </button>
-                                        )}
-                                        {onToggleActive && (
-                                          <button
-                                            onClick={() => {
-                                              onToggleActive(product);
-                                              setActionMenuOpen(null);
-                                            }}
-                                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
-                                          >
-                                            {product.isActive ? (
-                                              <>
-                                                <AlertTriangle className="h-4 w-4" />
-                                                {t('actions.deactivate')}
-                                              </>
-                                            ) : (
-                                              <>
-                                                <Package className="h-4 w-4" />
-                                                {t('actions.activate')}
-                                              </>
-                                            )}
-                                          </button>
-                                        )}
-                                        {onDelete && (
-                                          <>
-                                            <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
-                                            <button
-                                              onClick={() => {
-                                                setActionMenuOpen(null);
-                                                setDeleteConfirm({ isOpen: true, product });
-                                              }}
-                                              className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
-                                            >
-                                              <Trash2 className="h-4 w-4" />
-                                              {t('actions.delete')}
-                                            </button>
-                                          </>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </>
+                            <div className="relative">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  setActionMenuOpen(
+                                    actionMenuOpen === product.id ? null : product.id,
+                                  )
+                                }
+                                title="Más acciones"
+                                className={cn(
+                                  'transition-all duration-200',
+                                  isHovered ? 'opacity-100' : 'opacity-70',
+                                  'hover:scale-110 hover:bg-gray-100 dark:hover:bg-gray-700',
                                 )}
-                              </div>
-                            )}
+                              >
+                                <MoreVertical className="h-4 w-4" />
+                              </Button>
+
+                              {actionMenuOpen === product.id && (
+                                <>
+                                  <div
+                                    className="fixed inset-0 z-10"
+                                    onClick={() => setActionMenuOpen(null)}
+                                  />
+                                  <div className="absolute right-0 top-full z-20 mt-1 w-48 rounded-lg border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800">
+                                    <div className="py-1">
+                                      {onMovement && (
+                                        <button
+                                          onClick={() => {
+                                            onMovement(product);
+                                            setActionMenuOpen(null);
+                                          }}
+                                          className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                        >
+                                          <MoreVertical className="h-4 w-4" />
+                                          {t('actions.movement')}
+                                        </button>
+                                      )}
+                                      {onDuplicate && (
+                                        <button
+                                          onClick={() => {
+                                            onDuplicate(product);
+                                            setActionMenuOpen(null);
+                                          }}
+                                          className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                        >
+                                          <Copy className="h-4 w-4" />
+                                          {t('actions.duplicate')}
+                                        </button>
+                                      )}
+                                      {onHistory && (
+                                        <button
+                                          onClick={() => {
+                                            onHistory(product);
+                                            setActionMenuOpen(null);
+                                          }}
+                                          className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                        >
+                                          <History className="h-4 w-4" />
+                                          {t('actions.history')}
+                                        </button>
+                                      )}
+                                      {onExport && (
+                                        <button
+                                          onClick={() => {
+                                            onExport(product);
+                                            setActionMenuOpen(null);
+                                          }}
+                                          className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                        >
+                                          <DownloadIcon className="h-4 w-4" />
+                                          {t('actions.export')}
+                                        </button>
+                                      )}
+                                      {onToggleActive && (
+                                        <button
+                                          onClick={() => {
+                                            onToggleActive(product);
+                                            setActionMenuOpen(null);
+                                          }}
+                                          className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-gray-700 transition hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700"
+                                        >
+                                          {product.isActive ? (
+                                            <>
+                                              <AlertTriangle className="h-4 w-4" />
+                                              {t('actions.deactivate')}
+                                            </>
+                                          ) : (
+                                            <>
+                                              <Package className="h-4 w-4" />
+                                              {t('actions.activate')}
+                                            </>
+                                          )}
+                                        </button>
+                                      )}
+                                      {onDelete && (
+                                        <>
+                                          <div className="my-1 border-t border-gray-200 dark:border-gray-700" />
+                                          <button
+                                            onClick={() => {
+                                              setActionMenuOpen(null);
+                                              setDeleteConfirm({ isOpen: true, product });
+                                            }}
+                                            className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm text-red-600 transition hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                                          >
+                                            <Trash2 className="h-4 w-4" />
+                                            {t('actions.delete')}
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </td>
                     )}
@@ -1033,9 +1220,9 @@ export const ProductTable = React.memo(
             message={
               deleteConfirm.product.stockCurrent > 0
                 ? t('actions.confirmDeleteWithStock', {
-                  productName: deleteConfirm.product.name,
-                  stock: deleteConfirm.product.stockCurrent,
-                })
+                    productName: deleteConfirm.product.name,
+                    stock: deleteConfirm.product.stockCurrent,
+                  })
                 : t('actions.confirmDelete', { productName: deleteConfirm.product.name })
             }
             confirmText={t('actions.delete')}
@@ -1054,7 +1241,7 @@ export const ProductTable = React.memo(
       prevProps.searchTerm === nextProps.searchTerm &&
       JSON.stringify(prevProps.selectedIds) === JSON.stringify(nextProps.selectedIds) &&
       JSON.stringify(prevProps.visibleColumns) ===
-      JSON.stringify(nextProps.visibleColumns)
+        JSON.stringify(nextProps.visibleColumns)
     );
   },
 );

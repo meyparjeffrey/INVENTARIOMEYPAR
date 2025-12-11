@@ -1,6 +1,6 @@
-import type { Nullable, Timestamp, UUID } from "./common";
+import type { Nullable, Timestamp, UUID } from './common';
 
-export type ProductStatus = "ACTIVE" | "INACTIVE";
+export type ProductStatus = 'ACTIVE' | 'INACTIVE';
 
 export interface ProductDimensions {
   length: number;
@@ -21,6 +21,7 @@ export interface Product {
   aisle: string;
   shelf: string;
   locationExtra?: Nullable<string>;
+  warehouse?: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA';
   costPrice: number;
   salePrice?: Nullable<number>;
   purchaseUrl?: Nullable<string>;
@@ -46,12 +47,7 @@ export interface Product {
   };
 }
 
-export type BatchStatus =
-  | "OK"
-  | "DEFECTIVE"
-  | "BLOCKED"
-  | "CONSUMED"
-  | "EXPIRED";
+export type BatchStatus = 'OK' | 'DEFECTIVE' | 'BLOCKED' | 'CONSUMED' | 'EXPIRED';
 
 export interface ProductBatch {
   id: UUID;
@@ -78,22 +74,22 @@ export interface ProductBatch {
 }
 
 export type DefectType =
-  | "DAMAGED"
-  | "EXPIRED"
-  | "WRONG_SPEC"
-  | "CONTAMINATED"
-  | "MISSING_PARTS"
-  | "PACKAGING_ISSUE"
-  | "OTHER";
+  | 'DAMAGED'
+  | 'EXPIRED'
+  | 'WRONG_SPEC'
+  | 'CONTAMINATED'
+  | 'MISSING_PARTS'
+  | 'PACKAGING_ISSUE'
+  | 'OTHER';
 
-export type DefectSeverity = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+export type DefectSeverity = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 
 export type DefectResolutionStatus =
-  | "PENDING"
-  | "IN_REVIEW"
-  | "RESOLVED"
-  | "REJECTED"
-  | "RETURNED_TO_SUPPLIER";
+  | 'PENDING'
+  | 'IN_REVIEW'
+  | 'RESOLVED'
+  | 'REJECTED'
+  | 'RETURNED_TO_SUPPLIER';
 
 export interface BatchDefectReport {
   id: UUID;

@@ -1,10 +1,5 @@
-import type {
-  BatchDefectReport,
-  Product,
-  ProductBatch,
-  UUID
-} from "@domain/entities";
-import type { PaginationParams, PaginatedResult } from "./types";
+import type { BatchDefectReport, Product, ProductBatch, UUID } from '@domain/entities';
+import type { PaginationParams, PaginatedResult } from './types';
 
 export interface ProductFilters {
   search?: string;
@@ -15,16 +10,17 @@ export interface ProductFilters {
   stockNearMinimum?: boolean; // Filtro para productos con stock <= stock_min * 1.15 (15% sobre mínimo)
   lastModifiedFrom?: string; // Fecha desde (ISO string)
   lastModifiedTo?: string; // Fecha hasta (ISO string)
-  lastModifiedType?: "entries" | "exits" | "both"; // Tipo de modificación: entradas, salidas, ambas
+  lastModifiedType?: 'entries' | 'exits' | 'both'; // Tipo de modificación: entradas, salidas, ambas
   stockMin?: number; // Stock mínimo (filtro por rango)
   stockMax?: number; // Stock máximo (filtro por rango)
   priceMin?: number; // Precio mínimo (filtro por rango de cost_price)
   priceMax?: number; // Precio máximo (filtro por rango de cost_price)
   supplierCode?: string; // Código de proveedor
+  warehouse?: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA'; // Filtro por almacén
   // Nuevos filtros
   aisle?: string; // Pasillo (ubicación)
   shelf?: string; // Estante (ubicación)
-  batchStatus?: ("OK" | "DEFECTIVE" | "BLOCKED" | "EXPIRED")[]; // Estado de lote
+  batchStatus?: ('OK' | 'DEFECTIVE' | 'BLOCKED' | 'EXPIRED')[]; // Estado de lote
   stockMinMin?: number; // Stock mínimo mínimo (filtro por rango de stock_min)
   stockMinMax?: number; // Stock mínimo máximo (filtro por rango de stock_min)
   createdAtFrom?: string; // Fecha de creación desde (ISO string)
@@ -32,7 +28,7 @@ export interface ProductFilters {
 }
 
 export interface BatchFilters {
-  status?: ProductBatch["status"][];
+  status?: ProductBatch['status'][];
   expiryBefore?: string;
   expiryAfter?: string;
   onlyAvailable?: boolean;
@@ -48,7 +44,7 @@ export interface CreateBatchInput {
   quantityAvailable: number;
   quantityReserved?: number;
   defectiveQty?: number;
-  status?: ProductBatch["status"];
+  status?: ProductBatch['status'];
   blockedReason?: string | null;
   qualityScore?: number;
   receivedAt?: string;
@@ -67,7 +63,7 @@ export interface UpdateBatchInput {
   quantityAvailable?: number;
   quantityReserved?: number;
   defectiveQty?: number;
-  status?: ProductBatch["status"];
+  status?: ProductBatch['status'];
   blockedReason?: string | null;
   qualityScore?: number;
   receivedAt?: string;
@@ -90,6 +86,7 @@ export interface CreateProductInput {
   aisle: string;
   shelf: string;
   locationExtra?: string | null;
+  warehouse?: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA';
   costPrice: number;
   salePrice?: string | null;
   purchaseUrl?: string | null;
@@ -99,7 +96,7 @@ export interface CreateProductInput {
   isBatchTracked: boolean;
   unitOfMeasure?: string | null;
   weightKg?: number | null;
-  dimensionsCm?: Product["dimensionsCm"];
+  dimensionsCm?: Product['dimensionsCm'];
   notes?: string | null;
   createdBy: UUID;
 }
@@ -116,6 +113,7 @@ export interface UpdateProductInput {
   aisle?: string;
   shelf?: string;
   locationExtra?: string | null;
+  warehouse?: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA';
   costPrice?: number;
   salePrice?: number | null;
   purchaseUrl?: string | null;
@@ -125,7 +123,7 @@ export interface UpdateProductInput {
   isBatchTracked?: boolean;
   unitOfMeasure?: string | null;
   weightKg?: number | null;
-  dimensionsCm?: Product["dimensionsCm"];
+  dimensionsCm?: Product['dimensionsCm'];
   notes?: string | null;
   updatedBy: UUID;
 }
@@ -136,7 +134,7 @@ export interface ProductRepository {
    */
   list(
     filters?: ProductFilters,
-    pagination?: PaginationParams
+    pagination?: PaginationParams,
   ): Promise<PaginatedResult<Product>>;
 
   /**
@@ -179,7 +177,7 @@ export interface ProductRepository {
    */
   listBatches(
     filters?: BatchFilters,
-    pagination?: PaginationParams
+    pagination?: PaginationParams,
   ): Promise<PaginatedResult<ProductBatch>>;
 
   /**
@@ -207,8 +205,8 @@ export interface ProductRepository {
    */
   updateBatchStatus(
     batchId: UUID,
-    status: ProductBatch["status"],
-    reason?: string
+    status: ProductBatch['status'],
+    reason?: string,
   ): Promise<ProductBatch>;
 
   /**
@@ -216,4 +214,3 @@ export interface ProductRepository {
    */
   getDefectReports(batchId: UUID): Promise<BatchDefectReport[]>;
 }
-

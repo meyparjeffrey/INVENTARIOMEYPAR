@@ -26,6 +26,7 @@ type ProductRow = {
   aisle: string;
   shelf: string;
   location_extra: string | null;
+  warehouse: string | null;
   cost_price: number;
   sale_price: number | null;
   purchase_url: string | null;
@@ -41,14 +42,18 @@ type ProductRow = {
   updated_at: string; // Fecha de modificación
   created_by: string | null;
   updated_by: string | null; // Usuario que hizo la modificación
-  created_by_profile?: {
-    first_name: string | null;
-    last_name: string | null;
-  } | { first_name: string | null; last_name: string | null }[];
-  updated_by_profile?: {
-    first_name: string | null;
-    last_name: string | null;
-  } | { first_name: string | null; last_name: string | null }[];
+  created_by_profile?:
+    | {
+        first_name: string | null;
+        last_name: string | null;
+      }
+    | { first_name: string | null; last_name: string | null }[];
+  updated_by_profile?:
+    | {
+        first_name: string | null;
+        last_name: string | null;
+      }
+    | { first_name: string | null; last_name: string | null }[];
 };
 
 type BatchRow = {
@@ -115,6 +120,7 @@ const mapProduct = (row: ProductRow): Product => ({
   aisle: row.aisle,
   shelf: row.shelf,
   locationExtra: row.location_extra,
+  warehouse: (row.warehouse as 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA') || undefined,
   costPrice: row.cost_price,
   salePrice: row.sale_price,
   purchaseUrl: row.purchase_url,
@@ -133,24 +139,24 @@ const mapProduct = (row: ProductRow): Product => ({
   createdByProfile: row.created_by_profile
     ? Array.isArray(row.created_by_profile)
       ? {
-        firstName: row.created_by_profile[0]?.first_name ?? null,
-        lastName: row.created_by_profile[0]?.last_name ?? null,
-      }
+          firstName: row.created_by_profile[0]?.first_name ?? null,
+          lastName: row.created_by_profile[0]?.last_name ?? null,
+        }
       : {
-        firstName: row.created_by_profile.first_name ?? null,
-        lastName: row.created_by_profile.last_name ?? null,
-      }
+          firstName: row.created_by_profile.first_name ?? null,
+          lastName: row.created_by_profile.last_name ?? null,
+        }
     : undefined,
   updatedByProfile: row.updated_by_profile
     ? Array.isArray(row.updated_by_profile)
       ? {
-        firstName: row.updated_by_profile[0]?.first_name ?? null,
-        lastName: row.updated_by_profile[0]?.last_name ?? null,
-      }
+          firstName: row.updated_by_profile[0]?.first_name ?? null,
+          lastName: row.updated_by_profile[0]?.last_name ?? null,
+        }
       : {
-        firstName: row.updated_by_profile.first_name ?? null,
-        lastName: row.updated_by_profile.last_name ?? null,
-      }
+          firstName: row.updated_by_profile.first_name ?? null,
+          lastName: row.updated_by_profile.last_name ?? null,
+        }
     : undefined,
 });
 
@@ -196,7 +202,8 @@ const mapDefect = (row: DefectRow): BatchDefectReport => ({
 
 export class SupabaseProductRepository
   extends BaseSupabaseRepository
-  implements ProductRepository {
+  implements ProductRepository
+{
   async list(filters?: ProductFilters, pagination?: PaginationParams) {
     const { page, pageSize, from, to } = buildPagination(pagination);
     let query = this.client
@@ -241,6 +248,11 @@ export class SupabaseProductRepository
     // Filtro por código de proveedor
     if (filters?.supplierCode) {
       query = query.ilike('supplier_code', `%${filters.supplierCode}%`);
+    }
+
+    // Filtro por almacén
+    if (filters?.warehouse) {
+      query = query.eq('warehouse', filters.warehouse);
     }
 
     // Filtros por ubicación
@@ -472,6 +484,11 @@ export class SupabaseProductRepository
         query = query.ilike('supplier_code', `%${filters.supplierCode}%`);
       }
 
+      // Filtro por almacén
+      if (filters?.warehouse) {
+        query = query.eq('warehouse', filters.warehouse);
+      }
+
       // Filtros por ubicación
       if (filters?.aisle) {
         query = query.ilike('aisle', `%${filters.aisle}%`);
@@ -631,6 +648,7 @@ export class SupabaseProductRepository
       aisle: input.aisle,
       shelf: input.shelf,
       location_extra: input.locationExtra ?? null,
+      warehouse: input.warehouse ?? null,
       cost_price: input.costPrice,
       sale_price: input.salePrice ?? null,
       purchase_url: input.purchaseUrl ?? null,
@@ -669,6 +687,7 @@ export class SupabaseProductRepository
     if (input.aisle !== undefined) row.aisle = input.aisle;
     if (input.shelf !== undefined) row.shelf = input.shelf;
     if (input.locationExtra !== undefined) row.location_extra = input.locationExtra;
+    if (input.warehouse !== undefined) row.warehouse = input.warehouse;
     if (input.costPrice !== undefined) row.cost_price = input.costPrice;
     if (input.salePrice !== undefined) row.sale_price = input.salePrice;
     if (input.purchaseUrl !== undefined) row.purchase_url = input.purchaseUrl;
