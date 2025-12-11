@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Shield, Settings, FileText, Search, Plus, Edit, Trash2, MoreVertical, CheckCircle2, XCircle, Upload } from "lucide-react";
+import { Users, Shield, Settings, FileText, Search, Plus, Edit, Trash2, CheckCircle2, XCircle, Upload } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { useLanguage } from "../context/LanguageContext";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
@@ -10,10 +10,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import type { UserProfile } from "@domain/entities";
 import { highlightText } from "../utils/highlightText";
 import { ImportProductsDialog } from "../components/admin/ImportProductsDialog";
+import { UserFormDialog } from "../components/admin/UserFormDialog";
+import { ConfirmDialog } from "../components/ui/ConfirmDialog";
 
 type Tab = "users" | "permissions" | "settings" | "audit" | "import";
 
-interface UserRow extends UserProfile {
+export interface UserRow extends UserProfile {
   email?: string;
   lastLogin?: string;
 }
@@ -28,6 +30,9 @@ export function AdminPage() {
   const [searchQuery, setSearchQuery] = React.useState("");
   const [selectedUser, setSelectedUser] = React.useState<UserRow | null>(null);
   const [importDialogOpen, setImportDialogOpen] = React.useState(false);
+  const [userFormOpen, setUserFormOpen] = React.useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false);
+  const [userToDelete, setUserToDelete] = React.useState<UserRow | null>(null);
 
   // Verificar que solo ADMIN puede acceder
   React.useEffect(() => {
@@ -46,6 +51,7 @@ export function AdminPage() {
     if (activeTab === "users" && authContext?.profile.role === "ADMIN") {
       loadUsers();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, authContext]);
 
   const loadUsers = async () => {
@@ -59,13 +65,35 @@ export function AdminPage() {
 
       if (profilesError) throw profilesError;
 
-      // Obtener emails de auth.users (solo si tenemos acceso)
+      // Obtener emails
+      const currentUserEmail = authContext?.session?.user?.email;
+      let emailMap: Record<string, string> = {};
+
+      // 1. Intentar usar la función SQL get_user_emails()
+      try {
+        const { data: sqlEmails, error: sqlError } = await supabaseClient.rpc("get_user_emails");
+        if (!sqlError && sqlEmails) {
+          sqlEmails.forEach((row: { user_id: string; email: string }) => {
+            emailMap[row.user_id] = row.email;
+          });
+        }
+      } catch (sqlFunctionError) {
+        console.debug("[AdminPage] SQL function get_user_emails no disponible:", sqlFunctionError);
+      }
+      // 2. Al menos guardar el email del usuario actual
+      if (currentUserEmail && authContext?.profile.id) {
+        emailMap[authContext.profile.id] = currentUserEmail;
+      }
+
       const usersWithEmail: UserRow[] = await Promise.all(
         (profiles || []).map(async (profile) => {
-          // Obtener email desde auth.users (solo disponible en server-side, aquí usamos undefined)
-          // En producción, esto debería hacerse desde el backend
+          // Obtener email del mapa o del usuario actual
+          let email: string | undefined = emailMap[profile.id];
+          if (!email && profile.id === authContext?.profile.id) {
+            email = currentUserEmail;
+          }
           
-          // Obtener último login
+          // Obtener último login desde user_login_events
           const { data: loginEvents } = await supabaseClient
             .from("user_login_events")
             .select("login_at")
@@ -74,6 +102,9 @@ export function AdminPage() {
             .order("login_at", { ascending: false })
             .limit(1)
             .maybeSingle();
+
+          // Si no hay eventos de login, usar updated_at de profiles como fallback
+          const lastAccess = loginEvents?.login_at || profile.updated_at;
 
           return {
             id: profile.id,
@@ -85,8 +116,8 @@ export function AdminPage() {
             isActive: profile.is_active,
             createdAt: profile.created_at,
             updatedAt: profile.updated_at,
-            email: undefined, // No disponible desde el cliente
-            lastLogin: loginEvents?.login_at
+            email,
+            lastLogin: lastAccess
           };
         })
       );
@@ -177,7 +208,18 @@ export function AdminPage() {
                 loading={loading}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
-                onRefresh={loadUsers}
+                onNewUser={() => {
+                  setSelectedUser(null);
+                  setUserFormOpen(true);
+                }}
+                onEditUser={(user) => {
+                  setSelectedUser(user);
+                  setUserFormOpen(true);
+                }}
+                onDeleteUser={(user) => {
+                  setUserToDelete(user);
+                  setDeleteConfirmOpen(true);
+                }}
                 t={t}
               />
             </motion.div>
@@ -235,6 +277,59 @@ export function AdminPage() {
 
       {/* Import Dialog */}
       <ImportProductsDialog isOpen={importDialogOpen} onClose={() => setImportDialogOpen(false)} />
+
+      {/* User Form Dialog */}
+      <UserFormDialog
+        isOpen={userFormOpen}
+        onClose={() => {
+          setUserFormOpen(false);
+          setSelectedUser(null);
+        }}
+        onSuccess={() => {
+          loadUsers();
+        }}
+        user={selectedUser}
+      />
+
+      {/* Delete Confirm Dialog */}
+      <ConfirmDialog
+        isOpen={deleteConfirmOpen}
+        onClose={() => {
+          setDeleteConfirmOpen(false);
+          setUserToDelete(null);
+        }}
+        onConfirm={async () => {
+          if (!userToDelete) return;
+
+          try {
+            // Eliminar perfil (esto debería eliminar también el usuario de auth si hay CASCADE)
+            const { error } = await supabaseClient
+              .from("profiles")
+              .delete()
+              .eq("id", userToDelete.id);
+
+            if (error) throw error;
+
+            // Nota: Eliminar usuario de auth requiere admin API (service_role_key)
+            // El perfil ya se eliminó, el usuario de auth se puede eliminar manualmente desde Supabase Dashboard
+            // o mediante una Edge Function
+
+            loadUsers();
+          } catch (error: unknown) {
+            console.error("[AdminPage] Error eliminando usuario:", error);
+            const errorMessage = error instanceof Error ? error.message : "Error al eliminar el usuario";
+            alert(errorMessage);
+          }
+        }}
+        title={t("admin.users.delete") || "Eliminar Usuario"}
+        message={
+          userToDelete
+            ? `¿Estás seguro de eliminar a ${userToDelete.firstName} ${userToDelete.lastName}? Esta acción no se puede deshacer.`
+            : ""
+        }
+        confirmText={t("common.delete") || "Eliminar"}
+        cancelText={t("common.cancel") || "Cancelar"}
+      />
     </div>
   );
 }
@@ -287,14 +382,18 @@ function UsersTab({
   loading,
   searchQuery,
   onSearchChange,
-  onRefresh,
+  onNewUser,
+  onEditUser,
+  onDeleteUser,
   t
 }: {
   users: UserRow[];
   loading: boolean;
   searchQuery: string;
   onSearchChange: (query: string) => void;
-  onRefresh: () => void;
+  onNewUser: () => void;
+  onEditUser: (user: UserRow) => void;
+  onDeleteUser: (user: UserRow) => void;
   t: (key: string) => string;
 }) {
   return (
@@ -311,7 +410,7 @@ function UsersTab({
             className="pl-10"
           />
         </div>
-        <Button onClick={onRefresh} variant="primary">
+        <Button onClick={onNewUser} variant="primary">
           <Plus className="mr-2 h-4 w-4" />
           {t("admin.users.new")}
         </Button>
@@ -329,8 +428,8 @@ function UsersTab({
           </p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
-          <table className="w-full">
+        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
+          <table className="w-full min-w-[900px]">
             <thead className="bg-gray-50 dark:bg-gray-900">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -404,27 +503,43 @@ function UsersTab({
                     )}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                    {user.lastLogin
-                      ? new Date(user.lastLogin).toLocaleDateString()
-                      : "-"}
+                    {user.lastLogin ? (
+                      <div className="flex flex-col">
+                        <span>
+                          {new Date(user.lastLogin).toLocaleDateString("es-ES", {
+                            year: "numeric",
+                            month: "2-digit",
+                            day: "2-digit"
+                          })}
+                        </span>
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          {new Date(user.lastLogin).toLocaleTimeString("es-ES", {
+                            hour: "2-digit",
+                            minute: "2-digit"
+                          })}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-gray-400 dark:text-gray-500 italic">
+                        {t("admin.users.never") || "Nunca"}
+                      </span>
+                    )}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-right text-sm font-medium">
                     <div className="flex items-center justify-end space-x-2">
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          // TODO: Implementar edición
-                        }}
+                        onClick={() => onEditUser(user)}
+                        title={t("common.edit") || "Editar"}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          // TODO: Implementar eliminación
-                        }}
+                        onClick={() => onDeleteUser(user)}
+                        title={t("common.delete") || "Eliminar"}
                       >
                         <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                       </Button>
