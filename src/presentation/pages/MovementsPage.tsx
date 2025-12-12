@@ -61,8 +61,6 @@ export function MovementsPage() {
   const [isAdjustmentOpen, setIsAdjustmentOpen] = React.useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = React.useState(false);
   const [isHelpModalOpen, setIsHelpModalOpen] = React.useState(false);
-  const [isExportDialogOpen, setIsExportDialogOpen] = React.useState(false);
-  const [isHelpModalOpen, setIsHelpModalOpen] = React.useState(false);
 
   const {
     movements,
@@ -98,23 +96,25 @@ export function MovementsPage() {
   // Búsqueda con debounce
   React.useEffect(() => {
     const timeoutId = setTimeout(() => {
-      setFilters((prevFilters) => ({
-        ...prevFilters,
+      setFilters({
+        ...filters,
         search: searchTerm.trim() || undefined,
-      }));
+      });
     }, 300);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, setFilters]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
 
   // Actualizar ordenación cuando cambia
   React.useEffect(() => {
-    setFilters((prevFilters) => ({
-      ...prevFilters,
+    setFilters({
+      ...filters,
       orderBy,
       orderDirection,
-    }));
-  }, [orderBy, orderDirection, setFilters]);
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderBy, orderDirection]);
 
   const handleViewProduct = (productId: string) => {
     navigate(`/products/${productId}`);
@@ -127,17 +127,14 @@ export function MovementsPage() {
 
   // Handlers para abrir modales con tipo preseleccionado
   const handleOpenEntry = () => {
-    setPreselectedMovementType('IN');
     setIsEntryOpen(true);
   };
 
   const handleOpenExit = () => {
-    setPreselectedMovementType('OUT');
     setIsExitOpen(true);
   };
 
   const handleOpenAdjustment = () => {
-    setPreselectedMovementType('ADJUSTMENT');
     setIsAdjustmentOpen(true);
   };
 
@@ -167,27 +164,30 @@ export function MovementsPage() {
     setIsAdjustmentOpen(false);
   };
 
-  const handleExportExcel = (exportType: 'ALL' | 'IN' | 'OUT' | 'ADJUSTMENT' | 'TRANSFER' | 'CHANGES' = 'ALL') => {
+  const handleExportExcel = (
+    exportType: 'ALL' | 'IN' | 'OUT' | 'ADJUSTMENT' | 'TRANSFER' | 'CHANGES' = 'ALL',
+  ) => {
     // Filtrar movimientos según el tipo de exportación
     let movementsToExport = movements;
-    
+
     if (exportType === 'IN') {
-      movementsToExport = movements.filter(m => m.movementType === 'IN');
+      movementsToExport = movements.filter((m) => m.movementType === 'IN');
     } else if (exportType === 'OUT') {
-      movementsToExport = movements.filter(m => m.movementType === 'OUT');
+      movementsToExport = movements.filter((m) => m.movementType === 'OUT');
     } else if (exportType === 'ADJUSTMENT') {
-      movementsToExport = movements.filter(m => m.movementType === 'ADJUSTMENT');
+      movementsToExport = movements.filter((m) => m.movementType === 'ADJUSTMENT');
     } else if (exportType === 'TRANSFER') {
-      movementsToExport = movements.filter(m => m.movementType === 'TRANSFER');
+      movementsToExport = movements.filter((m) => m.movementType === 'TRANSFER');
     } else if (exportType === 'CHANGES') {
       // Movimientos que incluyen cambios en nombre, código o ubicación
-      movementsToExport = movements.filter(m => 
-        m.movementType === 'ADJUSTMENT' && 
-        (m.comments?.includes('Nombre:') || 
-         m.comments?.includes('Código:') || 
-         m.comments?.includes('Ubicación') ||
-         m.comments?.includes('Pa illo:') ||
-         m.comments?.includes('E tante:'))
+      movementsToExport = movements.filter(
+        (m) =>
+          m.movementType === 'ADJUSTMENT' &&
+          (m.comments?.includes('Nombre:') ||
+            m.comments?.includes('Código:') ||
+            m.comments?.includes('Ubicación') ||
+            m.comments?.includes('Pa illo:') ||
+            m.comments?.includes('E tante:')),
       );
     }
 
@@ -279,11 +279,18 @@ export function MovementsPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    const exportTypeLabel = exportType === 'ALL' ? 'todos' : 
-                            exportType === 'IN' ? 'entradas' :
-                            exportType === 'OUT' ? 'salidas' :
-                            exportType === 'ADJUSTMENT' ? 'ajustes' :
-                            exportType === 'TRANSFER' ? 'transferencias' : 'cambios';
+    const exportTypeLabel =
+      exportType === 'ALL'
+        ? 'todos'
+        : exportType === 'IN'
+          ? 'entradas'
+          : exportType === 'OUT'
+            ? 'salidas'
+            : exportType === 'ADJUSTMENT'
+              ? 'ajustes'
+              : exportType === 'TRANSFER'
+                ? 'transferencias'
+                : 'cambios';
     link.download = `movimientos_${exportTypeLabel}_${new Date().toISOString().split('T')[0]}.xlsx`;
     document.body.appendChild(link);
     link.click();

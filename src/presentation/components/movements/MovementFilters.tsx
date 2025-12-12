@@ -1,33 +1,41 @@
-import { Filter, X, Calendar, Info } from "lucide-react";
-import * as React from "react";
-import type { MovementFilters as Filters } from "@domain/repositories/InventoryMovementRepository";
-import { Button } from "../ui/Button";
-import { Input } from "../ui/Input";
-import { useLanguage } from "../../context/LanguageContext";
-import { cn } from "../../lib/cn";
+import { Filter, X, Calendar, Info } from 'lucide-react';
+import * as React from 'react';
+import type { MovementFilters as Filters } from '@domain/repositories/InventoryMovementRepository';
+import { Button } from '../ui/Button';
+import { Input } from '../ui/Input';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface MovementFiltersProps {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
 }
 
-type MovementTypeOption = "IN" | "OUT" | "TRANSFER" | "ADJUSTMENT_CODE" | "ADJUSTMENT_NAME" | "ADJUSTMENT_DESCRIPTION";
+type MovementTypeOption =
+  | 'IN'
+  | 'OUT'
+  | 'TRANSFER'
+  | 'ADJUSTMENT_CODE'
+  | 'ADJUSTMENT_NAME'
+  | 'ADJUSTMENT_DESCRIPTION';
 
 /**
  * Componente de filtros para movimientos.
  */
-export function MovementFilters({
-  filters,
-  onFiltersChange
-}: MovementFiltersProps) {
+export function MovementFilters({ filters, onFiltersChange }: MovementFiltersProps) {
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = React.useState(false);
   const [localFilters, setLocalFilters] = React.useState<Filters>(filters);
   const [selectedTypeInfo, setSelectedTypeInfo] = React.useState<string | null>(null);
 
-  // Sincronizar con filtros externos
+  // Sincronizar con filtros externos (solo cuando cambian realmente)
   React.useEffect(() => {
-    setLocalFilters(filters);
+    // Comparar objetos para evitar loops infinitos
+    const filtersStr = JSON.stringify(filters);
+    const localFiltersStr = JSON.stringify(localFilters);
+    if (filtersStr !== localFiltersStr) {
+      setLocalFilters(filters);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters]);
 
   const handleApply = () => {
@@ -43,65 +51,62 @@ export function MovementFilters({
   };
 
   const hasActiveFilters =
-    filters.movementType ||
-    filters.dateFrom ||
-    filters.dateTo ||
-    filters.adjustmentType;
+    filters.movementType || filters.dateFrom || filters.dateTo || filters.adjustmentType;
 
-  const movementTypes: { 
-    value: MovementTypeOption; 
-    label: string; 
+  const movementTypes: {
+    value: MovementTypeOption;
+    label: string;
     description: string;
-    movementType: "IN" | "OUT" | "TRANSFER" | "ADJUSTMENT";
-    adjustmentType?: "CODE" | "NAME" | "DESCRIPTION";
+    movementType: 'IN' | 'OUT' | 'TRANSFER' | 'ADJUSTMENT';
+    adjustmentType?: 'CODE' | 'NAME' | 'DESCRIPTION';
   }[] = [
-    { 
-      value: "IN", 
-      label: "Stock in",
-      description: t("movements.filter.stockInDesc"),
-      movementType: "IN"
+    {
+      value: 'IN',
+      label: 'Stock in',
+      description: t('movements.filter.stockInDesc'),
+      movementType: 'IN',
     },
-    { 
-      value: "OUT", 
-      label: "Stock out",
-      description: t("movements.filter.stockOutDesc"),
-      movementType: "OUT"
+    {
+      value: 'OUT',
+      label: 'Stock out',
+      description: t('movements.filter.stockOutDesc'),
+      movementType: 'OUT',
     },
-    { 
-      value: "TRANSFER", 
-      label: "Ubicación",
-      description: t("movements.filter.locationDesc"),
-      movementType: "TRANSFER"
+    {
+      value: 'TRANSFER',
+      label: 'Ubicación',
+      description: t('movements.filter.locationDesc'),
+      movementType: 'TRANSFER',
     },
-    { 
-      value: "ADJUSTMENT_CODE", 
-      label: "Código",
-      description: t("movements.filter.codeDesc"),
-      movementType: "ADJUSTMENT",
-      adjustmentType: "CODE"
+    {
+      value: 'ADJUSTMENT_CODE',
+      label: 'Código',
+      description: t('movements.filter.codeDesc'),
+      movementType: 'ADJUSTMENT',
+      adjustmentType: 'CODE',
     },
-    { 
-      value: "ADJUSTMENT_NAME", 
-      label: "Nombre",
-      description: t("movements.filter.nameDesc"),
-      movementType: "ADJUSTMENT",
-      adjustmentType: "NAME"
+    {
+      value: 'ADJUSTMENT_NAME',
+      label: 'Nombre',
+      description: t('movements.filter.nameDesc'),
+      movementType: 'ADJUSTMENT',
+      adjustmentType: 'NAME',
     },
-    { 
-      value: "ADJUSTMENT_DESCRIPTION", 
-      label: "Descripción",
-      description: t("movements.filter.descriptionDesc"),
-      movementType: "ADJUSTMENT",
-      adjustmentType: "DESCRIPTION"
-    }
+    {
+      value: 'ADJUSTMENT_DESCRIPTION',
+      label: 'Descripción',
+      description: t('movements.filter.descriptionDesc'),
+      movementType: 'ADJUSTMENT',
+      adjustmentType: 'DESCRIPTION',
+    },
   ];
 
   // Obtener el valor actual del select (combinando movementType y adjustmentType)
   const getCurrentValue = (): string => {
-    if (localFilters.movementType === "ADJUSTMENT" && localFilters.adjustmentType) {
+    if (localFilters.movementType === 'ADJUSTMENT' && localFilters.adjustmentType) {
       return `ADJUSTMENT_${localFilters.adjustmentType}`;
     }
-    return localFilters.movementType || "";
+    return localFilters.movementType || '';
   };
 
   const handleTypeChange = (value: string) => {
@@ -109,18 +114,18 @@ export function MovementFilters({
       setLocalFilters({
         ...localFilters,
         movementType: undefined,
-        adjustmentType: undefined
+        adjustmentType: undefined,
       });
       setSelectedTypeInfo(null);
       return;
     }
 
-    const selected = movementTypes.find(t => t.value === value);
+    const selected = movementTypes.find((t) => t.value === value);
     if (selected) {
       setLocalFilters({
         ...localFilters,
         movementType: selected.movementType,
-        adjustmentType: selected.adjustmentType
+        adjustmentType: selected.adjustmentType,
       });
       setSelectedTypeInfo(selected.description);
     }
@@ -129,35 +134,34 @@ export function MovementFilters({
   return (
     <div className="relative">
       <Button
-        variant={hasActiveFilters ? "primary" : "outline"}
+        variant={hasActiveFilters ? 'primary' : 'outline'}
         size="sm"
         onClick={() => setIsOpen(!isOpen)}
         className="gap-2"
       >
         <Filter className="h-4 w-4" />
-        {t("filters.title")}
+        {t('filters.title')}
         {hasActiveFilters && (
           <span className="rounded-full bg-white/20 px-1.5 text-xs">
-            {[
-              filters.movementType, 
-              filters.dateFrom, 
-              filters.dateTo,
-              filters.adjustmentType
-            ].filter(Boolean).length}
+            {
+              [
+                filters.movementType,
+                filters.dateFrom,
+                filters.dateTo,
+                filters.adjustmentType,
+              ].filter(Boolean).length
+            }
           </span>
         )}
       </Button>
 
       {isOpen && (
         <>
-          <div
-            className="fixed inset-0 z-10"
-            onClick={() => setIsOpen(false)}
-          />
+          <div className="fixed inset-0 z-10" onClick={() => setIsOpen(false)} />
           <div className="absolute left-0 top-full z-20 mt-2 w-96 rounded-lg border border-gray-200 bg-white p-4 shadow-lg dark:border-gray-700 dark:bg-gray-800">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="font-medium text-gray-900 dark:text-gray-50">
-                {t("filters.title")}
+                {t('filters.title')}
               </h3>
               <button
                 onClick={() => setIsOpen(false)}
@@ -172,18 +176,16 @@ export function MovementFilters({
               <div>
                 <div className="mb-1.5 flex items-center gap-2">
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {t("movements.type")}
+                    {t('movements.type')}
                   </label>
-                  <Info 
-                    className="h-4 w-4 text-gray-400 cursor-help"
-                  />
+                  <Info className="h-4 w-4 text-gray-400 cursor-help" />
                 </div>
                 <select
                   value={getCurrentValue()}
                   onChange={(e) => handleTypeChange(e.target.value)}
                   className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-50"
                 >
-                  <option value="">{t("filters.all")}</option>
+                  <option value="">{t('filters.all')}</option>
                   {movementTypes.map((type) => (
                     <option key={type.value} value={type.value}>
                       {type.label}
@@ -203,15 +205,15 @@ export function MovementFilters({
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   <Calendar className="mr-1 inline h-4 w-4" />
-                  {t("movements.dateFrom")}
+                  {t('movements.dateFrom')}
                 </label>
                 <Input
                   type="date"
-                  value={localFilters.dateFrom || ""}
+                  value={localFilters.dateFrom || ''}
                   onChange={(e) =>
                     setLocalFilters({
                       ...localFilters,
-                      dateFrom: e.target.value || undefined
+                      dateFrom: e.target.value || undefined,
                     })
                   }
                 />
@@ -221,15 +223,15 @@ export function MovementFilters({
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   <Calendar className="mr-1 inline h-4 w-4" />
-                  {t("movements.dateTo")}
+                  {t('movements.dateTo')}
                 </label>
                 <Input
                   type="date"
-                  value={localFilters.dateTo || ""}
+                  value={localFilters.dateTo || ''}
                   onChange={(e) =>
                     setLocalFilters({
                       ...localFilters,
-                      dateTo: e.target.value || undefined
+                      dateTo: e.target.value || undefined,
                     })
                   }
                 />
@@ -244,7 +246,7 @@ export function MovementFilters({
                 onClick={handleClear}
                 className="flex-1"
               >
-                {t("filters.clear")}
+                {t('filters.clear')}
               </Button>
               <Button
                 variant="primary"
@@ -252,7 +254,7 @@ export function MovementFilters({
                 onClick={handleApply}
                 className="flex-1"
               >
-                {t("filters.apply")}
+                {t('filters.apply')}
               </Button>
             </div>
           </div>
