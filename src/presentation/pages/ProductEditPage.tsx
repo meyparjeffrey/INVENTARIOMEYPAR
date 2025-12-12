@@ -1,12 +1,16 @@
-import { motion } from "framer-motion";
-import { Package, Sparkles } from "lucide-react";
-import * as React from "react";
-import { useNavigate, useParams } from "react-router-dom";
-import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
-import { useProducts } from "../hooks/useProducts";
-import { useAuth } from "../context/AuthContext";
-import { ProductForm } from "../components/products/ProductForm";
-import type { UpdateProductInput, CreateProductInput } from "@domain/repositories/ProductRepository";
+import { motion } from 'framer-motion';
+import { Package, Sparkles } from 'lucide-react';
+import * as React from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { supabaseClient } from '@infrastructure/supabase/supabaseClient';
+import { useProducts } from '../hooks/useProducts';
+import { useAuth } from '../context/AuthContext';
+import { ProductForm } from '../components/products/ProductForm';
+import type {
+  UpdateProductInput,
+  CreateProductInput,
+} from '@domain/repositories/ProductRepository';
+import type { Product } from '@domain/entities';
 
 /**
  * Página moderna e interactiva para editar un producto existente.
@@ -16,7 +20,7 @@ export function ProductEditPage() {
   const { id } = useParams<{ id: string }>();
   const { authContext } = useAuth();
   const { getById, update, loading } = useProducts();
-  const [product, setProduct] = React.useState<any>(null);
+  const [product, setProduct] = React.useState<Product | null>(null);
   const [loadingProduct, setLoadingProduct] = React.useState(true);
 
   // Solo ADMIN puede editar el código del producto
@@ -29,11 +33,11 @@ export function ProductEditPage() {
           if (p) {
             setProduct(p);
           } else {
-            navigate("/products");
+            navigate('/products');
           }
         })
         .catch(() => {
-          navigate("/products");
+          navigate('/products');
         })
         .finally(() => {
           setLoadingProduct(false);
@@ -48,29 +52,33 @@ export function ProductEditPage() {
       // Obtener el usuario actual desde Supabase
       const {
         data: { user },
-        error: authError
+        error: authError,
       } = await supabaseClient.auth.getUser();
 
       if (authError || !user?.id) {
-        throw new Error("No hay usuario autenticado");
+        throw new Error('No hay usuario autenticado');
       }
 
       const updateData: UpdateProductInput = {
         ...data,
-        updatedBy: user.id
+        updatedBy: user.id,
       };
 
       await update(id, updateData);
-      navigate(`/products/${id}`);
+      // Navegar con state para forzar recarga en ProductDetailPage
+      navigate(`/products/${id}`, {
+        state: { refresh: true },
+        replace: false,
+      });
     },
-    [id, update, navigate]
+    [id, update, navigate],
   );
 
   const handleCancel = React.useCallback(() => {
     if (id) {
       navigate(`/products/${id}`);
     } else {
-      navigate("/products");
+      navigate('/products');
     }
   }, [id, navigate]);
 
@@ -102,7 +110,7 @@ export function ProductEditPage() {
           <motion.div
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
-            transition={{ duration: 0.5, type: "spring" }}
+            transition={{ duration: 0.5, type: 'spring' }}
             className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-purple-500 to-purple-600 shadow-lg shadow-purple-500/30"
           >
             <Package className="h-8 w-8 text-white" />
@@ -124,7 +132,7 @@ export function ProductEditPage() {
               transition={{ duration: 0.4, delay: 0.2 }}
               className="mt-2 text-sm text-gray-600 dark:text-gray-400"
             >
-              Modifica la información del producto. Los campos marcados con{" "}
+              Modifica la información del producto. Los campos marcados con{' '}
               <span className="font-semibold text-red-500">*</span> son obligatorios.
             </motion.p>
           </div>
@@ -138,9 +146,14 @@ export function ProductEditPage() {
         transition={{ duration: 0.4, delay: 0.3 }}
         className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800"
       >
-        <ProductForm product={product} onSubmit={handleSubmit} onCancel={handleCancel} loading={loading} canEditCode={canEditCode} />
+        <ProductForm
+          product={product}
+          onSubmit={handleSubmit}
+          onCancel={handleCancel}
+          loading={loading}
+          canEditCode={canEditCode}
+        />
       </motion.div>
     </div>
   );
 }
-

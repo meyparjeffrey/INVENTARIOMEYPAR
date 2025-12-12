@@ -64,12 +64,23 @@ export function ProductDetailPage() {
     };
   }, [id, getById]);
 
-  // Recargar cuando se navega a esta página (usando location.key)
+  // Recargar cuando se navega a esta página (usando location.key o state.refresh)
   React.useEffect(() => {
     if (id) {
       getById(id).then(setProduct);
     }
   }, [location.key, id, getById]);
+
+  // Recargar cuando viene de una edición (state.refresh)
+  React.useEffect(() => {
+    const state = location.state as { refresh?: boolean } | null;
+    if (state?.refresh && id) {
+      // Forzar recarga inmediata del producto
+      getById(id).then(setProduct);
+      // Limpiar el state para evitar recargas innecesarias
+      window.history.replaceState({ ...state, refresh: false }, '');
+    }
+  }, [location.state, id, getById]);
 
   const canEdit = authContext?.permissions?.includes('products.edit') ?? false;
 
@@ -281,17 +292,23 @@ export function ProductDetailPage() {
                 </dt>
               </div>
               <dd className="space-y-2 text-sm text-gray-900 dark:text-gray-50">
-                {product.locations && Array.isArray(product.locations) && product.locations.length > 0 ? (
+                {product.locations &&
+                Array.isArray(product.locations) &&
+                product.locations.length > 0 ? (
                   product.locations.map((loc, index) => (
                     <div key={index} className="flex items-center gap-2">
                       <span className="inline-flex items-center rounded-md bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700 ring-1 ring-inset ring-primary-700/10 dark:bg-primary-900/30 dark:text-primary-300 dark:ring-primary-300/20">
-                        {loc.warehouse === 'MEYPAR' ? 'MY' : loc.warehouse === 'OLIVA_TORRAS' ? 'OT' : 'FR'}
+                        {loc.warehouse === 'MEYPAR'
+                          ? 'MY'
+                          : loc.warehouse === 'OLIVA_TORRAS'
+                            ? 'OT'
+                            : 'FR'}
                       </span>
                       <span>
-                        {loc.warehouse === 'MEYPAR' 
-                          ? `Pasillo: ${loc.aisle} | Estante: ${loc.shelf}` 
-                          : loc.warehouse === 'FURGONETA' 
-                            ? `Técnico: ${loc.shelf}` 
+                        {loc.warehouse === 'MEYPAR'
+                          ? `Pasillo: ${loc.aisle} | Estante: ${loc.shelf}`
+                          : loc.warehouse === 'FURGONETA'
+                            ? `Técnico: ${loc.shelf}`
                             : 'Oliva Torras'}
                       </span>
                       {loc.isPrimary && (

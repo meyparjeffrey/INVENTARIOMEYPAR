@@ -1,4 +1,9 @@
-import type { BatchDefectReport, Product, ProductBatch, ProductLocation } from '@domain/entities';
+import type {
+  BatchDefectReport,
+  Product,
+  ProductBatch,
+  ProductLocation,
+} from '@domain/entities';
 import type {
   BatchFilters,
   CreateBatchInput,
@@ -121,7 +126,7 @@ const parseDimensions = (raw: string | null) => {
 const mapLocation = (row: ProductLocationRow): ProductLocation => ({
   id: row.id,
   productId: row.product_id,
-  warehouse: (row.warehouse as 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA'),
+  warehouse: row.warehouse as 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
   aisle: row.aisle,
   shelf: row.shelf,
   isPrimary: row.is_primary,
@@ -145,7 +150,8 @@ const mapProduct = (row: ProductRow, locations?: ProductLocationRow[]): Product 
   stockMax: row.stock_max,
   aisle: row.aisle,
   shelf: row.shelf,
-  locations: locations && Array.isArray(locations) ? locations.map(mapLocation) : undefined,
+  locations:
+    locations && Array.isArray(locations) ? locations.map(mapLocation) : undefined,
   locationExtra: row.location_extra,
   warehouse: (row.warehouse as 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA') || undefined,
   costPrice: row.cost_price,
@@ -278,11 +284,14 @@ export class SupabaseProductRepository
     }
 
     // Filtro por almacén y/o ubicación: buscar en product_locations
+    // IMPORTANTE: Cuando hay múltiples filtros (warehouse Y aisle), deben cumplirse TODOS en la MISMA ubicación
     let productIdsFromLocations: string[] = [];
-    
+
     if (filters?.warehouse || filters?.aisle || filters?.shelf) {
       const locationQuery = this.client.from('product_locations').select('product_id');
-      
+
+      // Aplicar TODOS los filtros como condiciones AND en la misma query
+      // Esto asegura que solo se encuentren ubicaciones que cumplan TODAS las condiciones
       if (filters.warehouse) {
         locationQuery.eq('warehouse', filters.warehouse);
       }
@@ -292,13 +301,16 @@ export class SupabaseProductRepository
       if (filters.shelf) {
         locationQuery.ilike('shelf', `%${filters.shelf}%`);
       }
-      
+
       const { data: locationProducts } = await locationQuery;
       if (locationProducts) {
-        productIdsFromLocations = locationProducts.map((lp: { product_id: string }) => lp.product_id);
+        // Obtener IDs únicos de productos que tienen ubicaciones que cumplen TODAS las condiciones
+        productIdsFromLocations = [
+          ...new Set(locationProducts.map((lp: { product_id: string }) => lp.product_id)),
+        ];
       }
     }
-    
+
     // Si hay filtros de ubicación, también buscar en la tabla products (compatibilidad con datos antiguos)
     let productIdsFromProducts: string[] = [];
     if ((filters?.aisle || filters?.shelf) && !filters?.warehouse) {
@@ -309,16 +321,18 @@ export class SupabaseProductRepository
       if (filters.shelf) {
         productsQuery.ilike('shelf', `%${filters.shelf}%`);
       }
-      
+
       const { data: productsData } = await productsQuery;
       if (productsData) {
         productIdsFromProducts = productsData.map((p: { id: string }) => p.id);
       }
     }
-    
+
     // Combinar IDs de ambas fuentes
     if (productIdsFromLocations.length > 0 || productIdsFromProducts.length > 0) {
-      const allProductIds = [...new Set([...productIdsFromLocations, ...productIdsFromProducts])];
+      const allProductIds = [
+        ...new Set([...productIdsFromLocations, ...productIdsFromProducts]),
+      ];
       if (allProductIds.length > 0) {
         query = query.in('id', allProductIds);
       } else {
@@ -331,10 +345,12 @@ export class SupabaseProductRepository
         .from('product_locations')
         .select('product_id')
         .eq('warehouse', filters.warehouse);
-      
+
       const { data: locationProducts } = await locationQuery;
       if (locationProducts && locationProducts.length > 0) {
-        const productIds = locationProducts.map((lp: { product_id: string }) => lp.product_id);
+        const productIds = locationProducts.map(
+          (lp: { product_id: string }) => lp.product_id,
+        );
         query = query.in('id', productIds);
       } else {
         query = query.eq('id', '00000000-0000-0000-0000-000000000000');
@@ -420,8 +436,8 @@ export class SupabaseProductRepository
 
         // Cargar ubicaciones para todos los productos del lote en una sola consulta
         const batchProductIds = (batchData ?? []).map((row: ProductRow) => row.id);
-        let batchLocationsMap: Map<string, ProductLocationRow[]> = new Map();
-        
+        const batchLocationsMap: Map<string, ProductLocationRow[]> = new Map();
+
         if (batchProductIds.length > 0) {
           try {
             const { data: batchLocationsData } = await this.client
@@ -430,7 +446,7 @@ export class SupabaseProductRepository
               .in('product_id', batchProductIds)
               .order('is_primary', { ascending: false })
               .order('created_at', { ascending: true });
-            
+
             if (batchLocationsData && Array.isArray(batchLocationsData)) {
               batchLocationsData.forEach((loc: ProductLocationRow) => {
                 if (!batchLocationsMap.has(loc.product_id)) {
@@ -443,7 +459,7 @@ export class SupabaseProductRepository
             console.warn('Error al cargar ubicaciones del lote:', err);
           }
         }
-        
+
         const batchProducts = (batchData ?? []).map((row: ProductRow) => {
           const locations = batchLocationsMap.get(row.id);
           return mapProduct(row, locations);
@@ -531,8 +547,8 @@ export class SupabaseProductRepository
 
     // Cargar ubicaciones para todos los productos obtenidos en una sola consulta
     const productIds = (data ?? []).map((row: ProductRow) => row.id);
-    let locationsMap: Map<string, ProductLocationRow[]> = new Map();
-    
+    const locationsMap: Map<string, ProductLocationRow[]> = new Map();
+
     if (productIds.length > 0) {
       try {
         const { data: allLocationsData } = await this.client
@@ -541,7 +557,7 @@ export class SupabaseProductRepository
           .in('product_id', productIds)
           .order('is_primary', { ascending: false })
           .order('created_at', { ascending: true });
-        
+
         if (allLocationsData && Array.isArray(allLocationsData)) {
           // Agrupar ubicaciones por product_id
           allLocationsData.forEach((loc: ProductLocationRow) => {
@@ -623,11 +639,14 @@ export class SupabaseProductRepository
       }
 
       // Filtro por almacén y/o ubicación: buscar en product_locations
+      // IMPORTANTE: Cuando hay múltiples filtros (warehouse Y aisle), deben cumplirse TODOS en la MISMA ubicación
       let productIdsFromLocations: string[] = [];
-      
+
       if (filters?.warehouse || filters?.aisle || filters?.shelf) {
         const locationQuery = this.client.from('product_locations').select('product_id');
-        
+
+        // Aplicar TODOS los filtros como condiciones AND en la misma query
+        // Esto asegura que solo se encuentren ubicaciones que cumplan TODAS las condiciones
         if (filters.warehouse) {
           locationQuery.eq('warehouse', filters.warehouse);
         }
@@ -637,13 +656,18 @@ export class SupabaseProductRepository
         if (filters.shelf) {
           locationQuery.ilike('shelf', `%${filters.shelf}%`);
         }
-        
+
         const { data: locationProducts } = await locationQuery;
         if (locationProducts) {
-          productIdsFromLocations = locationProducts.map((lp: { product_id: string }) => lp.product_id);
+          // Obtener IDs únicos de productos que tienen ubicaciones que cumplen TODAS las condiciones
+          productIdsFromLocations = [
+            ...new Set(
+              locationProducts.map((lp: { product_id: string }) => lp.product_id),
+            ),
+          ];
         }
       }
-      
+
       // Si hay filtros de ubicación, también buscar en la tabla products (compatibilidad)
       let productIdsFromProducts: string[] = [];
       if ((filters?.aisle || filters?.shelf) && !filters?.warehouse) {
@@ -654,16 +678,18 @@ export class SupabaseProductRepository
         if (filters.shelf) {
           productsQuery.ilike('shelf', `%${filters.shelf}%`);
         }
-        
+
         const { data: productsData } = await productsQuery;
         if (productsData) {
           productIdsFromProducts = productsData.map((p: { id: string }) => p.id);
         }
       }
-      
+
       // Combinar IDs de ambas fuentes
       if (productIdsFromLocations.length > 0 || productIdsFromProducts.length > 0) {
-        const allProductIds = [...new Set([...productIdsFromLocations, ...productIdsFromProducts])];
+        const allProductIds = [
+          ...new Set([...productIdsFromLocations, ...productIdsFromProducts]),
+        ];
         if (allProductIds.length > 0) {
           query = query.in('id', allProductIds);
         } else {
@@ -675,10 +701,12 @@ export class SupabaseProductRepository
           .from('product_locations')
           .select('product_id')
           .eq('warehouse', filters.warehouse);
-        
+
         const { data: locationProducts } = await locationQuery;
         if (locationProducts && locationProducts.length > 0) {
-          const productIds = locationProducts.map((lp: { product_id: string }) => lp.product_id);
+          const productIds = locationProducts.map(
+            (lp: { product_id: string }) => lp.product_id,
+          );
           query = query.in('id', productIds);
         } else {
           query = query.eq('id', '00000000-0000-0000-0000-000000000000');
@@ -731,8 +759,8 @@ export class SupabaseProductRepository
 
       // Cargar ubicaciones para todos los productos del lote en una sola consulta
       const batchProductIds = (data ?? []).map((row: ProductRow) => row.id);
-      let batchLocationsMap: Map<string, ProductLocationRow[]> = new Map();
-      
+      const batchLocationsMap: Map<string, ProductLocationRow[]> = new Map();
+
       if (batchProductIds.length > 0) {
         try {
           const { data: batchLocationsData } = await this.client
@@ -741,7 +769,7 @@ export class SupabaseProductRepository
             .in('product_id', batchProductIds)
             .order('is_primary', { ascending: false })
             .order('created_at', { ascending: true });
-          
+
           if (batchLocationsData && Array.isArray(batchLocationsData)) {
             batchLocationsData.forEach((loc: ProductLocationRow) => {
               if (!batchLocationsMap.has(loc.product_id)) {
@@ -754,7 +782,7 @@ export class SupabaseProductRepository
           console.warn('Error al cargar ubicaciones del lote:', err);
         }
       }
-      
+
       const batchProducts = (data ?? []).map((row: ProductRow) => {
         const locations = batchLocationsMap.get(row.id);
         return mapProduct(row, locations);
@@ -920,7 +948,7 @@ export class SupabaseProductRepository
         .eq('product_id', id)
         .order('is_primary', { ascending: false })
         .order('created_at', { ascending: true });
-      
+
       locationsData = locData && Array.isArray(locData) ? locData : undefined;
     } catch (err) {
       // Si falla cargar ubicaciones, continuar sin ellas
@@ -953,7 +981,7 @@ export class SupabaseProductRepository
         .eq('product_id', data.id)
         .order('is_primary', { ascending: false })
         .order('created_at', { ascending: true });
-      
+
       locationsData = locData && Array.isArray(locData) ? locData : undefined;
     } catch (err) {
       // Si falla cargar ubicaciones, continuar sin ellas
