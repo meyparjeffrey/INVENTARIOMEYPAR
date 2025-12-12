@@ -10,11 +10,11 @@ import { AiChatPanel } from "../ai/AiChatPanel";
  */
 export function MainLayout() {
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
-        <main className="flex-1 overflow-y-auto bg-gray-50 p-6 dark:bg-gray-900">
+        <main className="flex-1 overflow-y-auto bg-gray-50 p-6 pb-20 dark:bg-gray-900">
           <Outlet />
         </main>
       </div>

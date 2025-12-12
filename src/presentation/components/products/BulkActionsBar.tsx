@@ -46,12 +46,12 @@ export function BulkActionsBar({
           "dark:border-primary-600 dark:bg-primary-900/20"
         )}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6">
           <Button
             variant="ghost"
             size="sm"
             onClick={isAllSelected ? onDeselectAll : onSelectAll}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 px-4 py-2"
           >
             {isAllSelected ? (
               <CheckSquare className="h-4 w-4" />
@@ -69,13 +69,13 @@ export function BulkActionsBar({
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           {onActivate && (
             <Button
               variant="outline"
               size="sm"
               onClick={onActivate}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 px-4 py-2"
             >
               <Power className="h-4 w-4" />
               {t("products.bulk.activate")}
@@ -86,7 +86,7 @@ export function BulkActionsBar({
               variant="outline"
               size="sm"
               onClick={onDeactivate}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 px-4 py-2"
             >
               <PowerOff className="h-4 w-4" />
               {t("products.bulk.deactivate")}
@@ -97,7 +97,7 @@ export function BulkActionsBar({
               variant="outline"
               size="sm"
               onClick={onExport}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 px-4 py-2"
             >
               <Download className="h-4 w-4" />
               {t("products.bulk.export")}
@@ -108,7 +108,7 @@ export function BulkActionsBar({
               variant="outline"
               size="sm"
               onClick={onDelete}
-              className="flex items-center gap-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+              className="flex items-center gap-2 px-4 py-2 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
             >
               <Trash2 className="h-4 w-4" />
               {t("products.bulk.delete")}

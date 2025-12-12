@@ -220,9 +220,17 @@ export const ProductTable = React.memo(
             bValue = (b.warehouse || '').toLowerCase();
             break;
           case 'aisle': {
-            // Ordenar por ubicación formateada
+            // Ordenar por ubicación formateada (usar primera ubicación si hay múltiples)
             const getLocationValue = (p: Product) => {
               if (p.warehouse === 'MEYPAR') {
+                if (
+                  p.locations &&
+                  Array.isArray(p.locations) &&
+                  p.locations.length > 0
+                ) {
+                  const primary = p.locations.find((loc) => loc.isPrimary) || p.locations[0];
+                  return `${primary.aisle}${primary.shelf}`.toLowerCase();
+                }
                 return `${p.aisle}${p.shelf}`.toLowerCase();
               } else if (p.warehouse === 'OLIVA_TORRAS') {
                 return 'oliva torras';
@@ -424,7 +432,17 @@ export const ProductTable = React.memo(
               isDragging && 'cursor-grabbing opacity-100',
               !isDragging && 'opacity-0',
             )}
-            onMouseDown={handleDragStart}
+            onMouseDown={(e) => {
+              // No iniciar drag si se hace click en un botón o elemento interactivo
+              const target = e.target as HTMLElement;
+              const isButton = target.closest('button');
+              const isSelectable = target.closest('[data-selectable]');
+              if (isButton || isSelectable) {
+                return;
+              }
+              handleDragStart(e);
+            }}
+            style={{ pointerEvents: isDragging ? 'auto' : 'none' }}
           >
             <div className="flex h-full items-center justify-center">
               <GripHorizontal className="h-4 w-4 text-gray-400" />
@@ -470,12 +488,19 @@ export const ProductTable = React.memo(
             <thead className="bg-gray-50 dark:bg-gray-800">
               <tr>
                 {onSelectionChange && (
-                  <th className="px-4 py-3 text-center">
+                  <th className="px-4 py-3 text-center relative z-20">
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={isAllSelected ? handleDeselectAll : handleSelectAll}
-                      className="h-6 w-6 p-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (isAllSelected) {
+                          handleDeselectAll();
+                        } else {
+                          handleSelectAll();
+                        }
+                      }}
+                      className="h-6 w-6 p-0 cursor-pointer relative z-20"
                       title={
                         isAllSelected
                           ? t('products.bulk.deselectAll')
@@ -609,15 +634,23 @@ export const ProductTable = React.memo(
                       <div
                         className={cn(
                           'flex items-center text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400',
-                          config.sortField && 'cursor-pointer',
+                          // Solo código tiene cursor pointer, el resto no
+                          config.sortField && col.id === 'code' && 'cursor-pointer',
+                          // Para otras columnas con sort, permitir selección de texto pero no pointer
+                          config.sortField && col.id !== 'code' && 'select-text',
                         )}
                         onClick={
-                          config.sortField
+                          config.sortField && col.id === 'code'
                             ? (e) => {
                                 e.stopPropagation();
                                 handleSort(config.sortField!);
                               }
-                            : undefined
+                            : config.sortField && col.id !== 'code'
+                              ? (e) => {
+                                  e.stopPropagation();
+                                  handleSort(config.sortField!);
+                                }
+                              : undefined
                         }
                       >
                         {config.label}
@@ -650,13 +683,17 @@ export const ProductTable = React.memo(
                   return (
                     <th
                       key={col.id}
+                      data-code-header={col.id === 'code' ? true : undefined}
                       className={cn(
                         'px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400',
                         config.align === 'right' && 'text-right',
                         config.align === 'center' && 'text-center',
                         config.align === 'left' && 'text-left',
-                        config.sortField &&
+                        // Solo código tiene cursor pointer y hover, el resto permite selección de texto
+                        config.sortField && col.id === 'code' &&
                           'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
+                        config.sortField && col.id !== 'code' &&
+                          'select-text hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors',
                       )}
                       style={columnWidth ? { width: `${columnWidth}px` } : undefined}
                       onClick={
@@ -678,7 +715,29 @@ export const ProductTable = React.memo(
                 })}
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
+            <tbody 
+              className={cn(
+                'divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800',
+                // Añadir cursor grab cuando se puede hacer scroll horizontal (solo en el cuerpo de la tabla)
+                (canScrollLeft || canScrollRight) && 'cursor-grab active:cursor-grabbing',
+              )}
+              onMouseDown={(e) => {
+                // Solo activar drag si no se está haciendo click en un header, celda de código o botón
+                const target = e.target as HTMLElement;
+                const isHeader = target.closest('th');
+                const isCodeCell = target.closest('td[data-code-cell]');
+                const isButton = target.closest('button');
+                const isInput = target.closest('input, select, textarea');
+                
+                // Si es un header, celda de código, botón o input, no activar drag
+                if (isHeader || isCodeCell || isButton || isInput) {
+                  return;
+                }
+                
+                // Activar drag para mover la tabla
+                handleDragStart(e);
+              }}
+            >
               {productsList.map((product) => {
                 const isLowStock = product.stockCurrent <= product.stockMin;
                 const isHovered = hoveredRow === product.id;
@@ -730,8 +789,15 @@ export const ProductTable = React.memo(
                             return (
                               <td
                                 key="code"
-                                className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-50"
+                                data-code-cell="true"
+                                className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 dark:text-gray-50 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors"
                                 style={cellStyle}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (onView) {
+                                    onView(product);
+                                  }
+                                }}
                               >
                                 <ProductPreviewTooltip product={product}>
                                   <span>{highlightText(product.code, searchTerm)}</span>
@@ -859,44 +925,58 @@ export const ProductTable = React.memo(
                               </td>
                             );
                           case 'warehouse': {
-                            const warehouseLabel =
-                              product.warehouse === 'MEYPAR'
-                                ? t('form.warehouse.meypar') || 'MEYPAR'
-                                : product.warehouse === 'OLIVA_TORRAS'
-                                  ? t('form.warehouse.olivaTorras') || 'Oliva Torras'
-                                  : product.warehouse === 'FURGONETA'
-                                    ? t('form.warehouse.furgoneta') || 'Furgoneta'
-                                    : '-';
+                            // Obtener almacenes únicos de las ubicaciones del producto
+                            const warehouses = new Set<string>();
+                            if (product.locations && Array.isArray(product.locations)) {
+                              product.locations.forEach((loc) => warehouses.add(loc.warehouse));
+                            } else if (product.warehouse) {
+                              warehouses.add(product.warehouse);
+                            }
+                            
+                            // Convertir a nombres completos
+                            const warehouseNames = Array.from(warehouses).map((w) => {
+                              switch (w) {
+                                case 'MEYPAR': return t('form.warehouse.meypar') || 'MEYPAR';
+                                case 'OLIVA_TORRAS': return t('form.warehouse.olivaTorras') || 'Oliva Torras';
+                                case 'FURGONETA': return t('form.warehouse.furgoneta') || 'Furgoneta';
+                                default: return w;
+                              }
+                            }).join(', ');
+                            
                             return (
                               <td
                                 key="warehouse"
-                                className="whitespace-nowrap px-4 py-3 text-sm text-gray-500 dark:text-gray-400"
+                                className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-700 dark:text-gray-300"
                                 style={cellStyle}
                               >
-                                {warehouseLabel}
+                                {warehouseNames || '-'}
                               </td>
                             );
                           }
                           case 'aisle': {
-                            // Formatear ubicación según el almacén
+                            // Formatear ubicaciones: mostrar TODAS separadas por comas
                             let locationText = '-';
-                            if (product.warehouse === 'MEYPAR') {
-                              locationText = `${product.aisle}${product.shelf}`;
-                            } else if (product.warehouse === 'OLIVA_TORRAS') {
-                              locationText =
-                                t('form.warehouse.olivaTorras') || 'Oliva Torras';
-                            } else if (
-                              product.warehouse === 'FURGONETA' &&
-                              product.locationExtra
-                            ) {
-                              // Extraer solo el nombre del técnico (sin "Furgoneta")
-                              const match =
-                                product.locationExtra.match(/Furgoneta\s+(.+)/);
-                              locationText = match ? match[1] : product.locationExtra;
+                            
+                            if (product.locations && Array.isArray(product.locations) && product.locations.length > 0) {
+                              // Recopilar todas las ubicaciones formateadas
+                              const allLocations: string[] = [];
+                              
+                              product.locations.forEach((loc) => {
+                                if (loc.warehouse === 'MEYPAR') {
+                                  allLocations.push(`${loc.aisle}${loc.shelf}`);
+                                } else if (loc.warehouse === 'FURGONETA') {
+                                  allLocations.push(loc.shelf);
+                                } else if (loc.warehouse === 'OLIVA_TORRAS') {
+                                  allLocations.push(t('form.warehouse.olivaTorras') || 'Oliva Torras');
+                                }
+                              });
+                              
+                              locationText = allLocations.join(', ');
                             } else if (product.aisle && product.shelf) {
-                              // Fallback para productos antiguos sin warehouse
+                              // Fallback para productos antiguos
                               locationText = `${product.aisle}${product.shelf}`;
                             }
+                            
                             return (
                               <td
                                 key="aisle"

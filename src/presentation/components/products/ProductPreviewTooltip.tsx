@@ -138,24 +138,39 @@ export function ProductPreviewTooltip({ product, children }: ProductPreviewToolt
                 </div>
               )}
 
-              {/* Ubicación */}
-              <div className="flex items-center gap-2 text-sm">
-                <MapPin className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-600 dark:text-gray-300">
-                  {product.warehouse === 'MEYPAR'
-                    ? `${product.aisle}${product.shelf}`
-                    : product.warehouse === 'OLIVA_TORRAS'
-                      ? t('form.warehouse.olivaTorras') || 'Oliva Torras'
-                      : product.warehouse === 'FURGONETA' && product.locationExtra
-                        ? (() => {
-                            // Extraer solo el nombre del técnico (sin "Furgoneta")
-                            const match = product.locationExtra.match(/Furgoneta\s+(.+)/);
-                            return match ? match[1] : product.locationExtra;
-                          })()
-                        : product.aisle && product.shelf
-                          ? `${product.aisle}${product.shelf}`
-                          : '-'}
-                </span>
+              {/* Ubicaciones - Mostrar todas las ubicaciones reales con almacén */}
+              <div className="flex items-start gap-2 text-sm">
+                <MapPin className="h-4 w-4 mt-0.5 text-gray-400" />
+                <div className="flex-1 space-y-1">
+                  {product.locations && Array.isArray(product.locations) && product.locations.length > 0 ? (
+                    product.locations.map((loc, index) => (
+                      <div key={loc.id || index} className="flex items-center gap-2">
+                        <span className="text-gray-600 dark:text-gray-300">
+                          {loc.warehouse === 'MEYPAR' && `MEYPAR: ${loc.aisle}${loc.shelf.toUpperCase()}`}
+                          {loc.warehouse === 'FURGONETA' && `Furgoneta: ${loc.shelf}`}
+                          {loc.warehouse === 'OLIVA_TORRAS' && (t('form.warehouse.olivaTorras') || 'Oliva Torras')}
+                        </span>
+                        {loc.isPrimary && (
+                          <span className="text-xs text-gray-400 dark:text-gray-500">
+                            ({t('form.primary') || 'Principal'})
+                          </span>
+                        )}
+                      </div>
+                    ))
+                  ) : product.aisle && product.shelf ? (
+                    <span className="text-gray-600 dark:text-gray-300">
+                      {product.warehouse === 'MEYPAR' 
+                        ? `MEYPAR: ${product.aisle}${product.shelf}`
+                        : product.warehouse === 'FURGONETA'
+                          ? `Furgoneta: ${product.locationExtra || product.shelf}`
+                          : product.warehouse === 'OLIVA_TORRAS'
+                            ? (t('form.warehouse.olivaTorras') || 'Oliva Torras')
+                            : `${product.aisle}${product.shelf}`}
+                    </span>
+                  ) : (
+                    <span className="text-gray-600 dark:text-gray-300">-</span>
+                  )}
+                </div>
               </div>
 
               {/* Categoría */}

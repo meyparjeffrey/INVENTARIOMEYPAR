@@ -1,4 +1,4 @@
-import type { BatchDefectReport, Product, ProductBatch } from '@domain/entities';
+import type { BatchDefectReport, Product, ProductBatch, ProductLocation } from '@domain/entities';
 import type {
   BatchFilters,
   CreateBatchInput,
@@ -96,6 +96,19 @@ type DefectRow = {
   created_at: string;
 };
 
+type ProductLocationRow = {
+  id: string;
+  product_id: string;
+  warehouse: string;
+  aisle: string;
+  shelf: string;
+  is_primary: boolean;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+};
+
 const parseDimensions = (raw: string | null) => {
   if (!raw) return null;
   try {
@@ -105,7 +118,20 @@ const parseDimensions = (raw: string | null) => {
   }
 };
 
-const mapProduct = (row: ProductRow): Product => ({
+const mapLocation = (row: ProductLocationRow): ProductLocation => ({
+  id: row.id,
+  productId: row.product_id,
+  warehouse: (row.warehouse as 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA'),
+  aisle: row.aisle,
+  shelf: row.shelf,
+  isPrimary: row.is_primary,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+  createdBy: row.created_by,
+  updatedBy: row.updated_by,
+});
+
+const mapProduct = (row: ProductRow, locations?: ProductLocationRow[]): Product => ({
   id: row.id,
   // Si code está vacío o es "-", usar notes como código
   code:
@@ -119,6 +145,7 @@ const mapProduct = (row: ProductRow): Product => ({
   stockMax: row.stock_max,
   aisle: row.aisle,
   shelf: row.shelf,
+  locations: locations && Array.isArray(locations) ? locations.map(mapLocation) : undefined,
   locationExtra: row.location_extra,
   warehouse: (row.warehouse as 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA') || undefined,
   costPrice: row.cost_price,
@@ -250,17 +277,68 @@ export class SupabaseProductRepository
       query = query.ilike('supplier_code', `%${filters.supplierCode}%`);
     }
 
-    // Filtro por almacén
-    if (filters?.warehouse) {
-      query = query.eq('warehouse', filters.warehouse);
+    // Filtro por almacén y/o ubicación: buscar en product_locations
+    let productIdsFromLocations: string[] = [];
+    
+    if (filters?.warehouse || filters?.aisle || filters?.shelf) {
+      const locationQuery = this.client.from('product_locations').select('product_id');
+      
+      if (filters.warehouse) {
+        locationQuery.eq('warehouse', filters.warehouse);
+      }
+      if (filters.aisle) {
+        locationQuery.ilike('aisle', `%${filters.aisle}%`);
+      }
+      if (filters.shelf) {
+        locationQuery.ilike('shelf', `%${filters.shelf}%`);
+      }
+      
+      const { data: locationProducts } = await locationQuery;
+      if (locationProducts) {
+        productIdsFromLocations = locationProducts.map((lp: { product_id: string }) => lp.product_id);
+      }
     }
-
-    // Filtros por ubicación
-    if (filters?.aisle) {
-      query = query.ilike('aisle', `%${filters.aisle}%`);
+    
+    // Si hay filtros de ubicación, también buscar en la tabla products (compatibilidad con datos antiguos)
+    let productIdsFromProducts: string[] = [];
+    if ((filters?.aisle || filters?.shelf) && !filters?.warehouse) {
+      const productsQuery = this.client.from('products').select('id');
+      if (filters.aisle) {
+        productsQuery.ilike('aisle', `%${filters.aisle}%`);
+      }
+      if (filters.shelf) {
+        productsQuery.ilike('shelf', `%${filters.shelf}%`);
+      }
+      
+      const { data: productsData } = await productsQuery;
+      if (productsData) {
+        productIdsFromProducts = productsData.map((p: { id: string }) => p.id);
+      }
     }
-    if (filters?.shelf) {
-      query = query.ilike('shelf', `%${filters.shelf}%`);
+    
+    // Combinar IDs de ambas fuentes
+    if (productIdsFromLocations.length > 0 || productIdsFromProducts.length > 0) {
+      const allProductIds = [...new Set([...productIdsFromLocations, ...productIdsFromProducts])];
+      if (allProductIds.length > 0) {
+        query = query.in('id', allProductIds);
+      } else {
+        // No hay coincidencias
+        query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+      }
+    } else if (filters?.warehouse) {
+      // Solo filtro de almacén sin ubicación específica: buscar en product_locations
+      const locationQuery = this.client
+        .from('product_locations')
+        .select('product_id')
+        .eq('warehouse', filters.warehouse);
+      
+      const { data: locationProducts } = await locationQuery;
+      if (locationProducts && locationProducts.length > 0) {
+        const productIds = locationProducts.map((lp: { product_id: string }) => lp.product_id);
+        query = query.in('id', productIds);
+      } else {
+        query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+      }
     }
 
     // Filtro por rango de stock mínimo
@@ -340,7 +418,36 @@ export class SupabaseProductRepository
         );
         this.handleError('listar productos', batchError);
 
-        const batchProducts = (batchData ?? []).map(mapProduct);
+        // Cargar ubicaciones para todos los productos del lote en una sola consulta
+        const batchProductIds = (batchData ?? []).map((row: ProductRow) => row.id);
+        let batchLocationsMap: Map<string, ProductLocationRow[]> = new Map();
+        
+        if (batchProductIds.length > 0) {
+          try {
+            const { data: batchLocationsData } = await this.client
+              .from('product_locations')
+              .select('*')
+              .in('product_id', batchProductIds)
+              .order('is_primary', { ascending: false })
+              .order('created_at', { ascending: true });
+            
+            if (batchLocationsData && Array.isArray(batchLocationsData)) {
+              batchLocationsData.forEach((loc: ProductLocationRow) => {
+                if (!batchLocationsMap.has(loc.product_id)) {
+                  batchLocationsMap.set(loc.product_id, []);
+                }
+                batchLocationsMap.get(loc.product_id)!.push(loc);
+              });
+            }
+          } catch (err) {
+            console.warn('Error al cargar ubicaciones del lote:', err);
+          }
+        }
+        
+        const batchProducts = (batchData ?? []).map((row: ProductRow) => {
+          const locations = batchLocationsMap.get(row.id);
+          return mapProduct(row, locations);
+        });
         allProducts = [...allProducts, ...batchProducts];
 
         // Si recibimos menos productos que el tamaño del lote, no hay más
@@ -422,7 +529,38 @@ export class SupabaseProductRepository
     const { data, error, count } = await query.range(from, to);
     this.handleError('listar productos', error);
 
-    const products = (data ?? []).map(mapProduct);
+    // Cargar ubicaciones para todos los productos obtenidos en una sola consulta
+    const productIds = (data ?? []).map((row: ProductRow) => row.id);
+    let locationsMap: Map<string, ProductLocationRow[]> = new Map();
+    
+    if (productIds.length > 0) {
+      try {
+        const { data: allLocationsData } = await this.client
+          .from('product_locations')
+          .select('*')
+          .in('product_id', productIds)
+          .order('is_primary', { ascending: false })
+          .order('created_at', { ascending: true });
+        
+        if (allLocationsData && Array.isArray(allLocationsData)) {
+          // Agrupar ubicaciones por product_id
+          allLocationsData.forEach((loc: ProductLocationRow) => {
+            if (!locationsMap.has(loc.product_id)) {
+              locationsMap.set(loc.product_id, []);
+            }
+            locationsMap.get(loc.product_id)!.push(loc);
+          });
+        }
+      } catch (err) {
+        console.warn('Error al cargar ubicaciones de productos:', err);
+      }
+    }
+
+    // Mapear productos con sus ubicaciones
+    const products = (data ?? []).map((row: ProductRow) => {
+      const locations = locationsMap.get(row.id);
+      return mapProduct(row, locations);
+    });
 
     return toPaginatedResult(products, count ?? null, page, pageSize);
   }
@@ -484,17 +622,67 @@ export class SupabaseProductRepository
         query = query.ilike('supplier_code', `%${filters.supplierCode}%`);
       }
 
-      // Filtro por almacén
-      if (filters?.warehouse) {
-        query = query.eq('warehouse', filters.warehouse);
+      // Filtro por almacén y/o ubicación: buscar en product_locations
+      let productIdsFromLocations: string[] = [];
+      
+      if (filters?.warehouse || filters?.aisle || filters?.shelf) {
+        const locationQuery = this.client.from('product_locations').select('product_id');
+        
+        if (filters.warehouse) {
+          locationQuery.eq('warehouse', filters.warehouse);
+        }
+        if (filters.aisle) {
+          locationQuery.ilike('aisle', `%${filters.aisle}%`);
+        }
+        if (filters.shelf) {
+          locationQuery.ilike('shelf', `%${filters.shelf}%`);
+        }
+        
+        const { data: locationProducts } = await locationQuery;
+        if (locationProducts) {
+          productIdsFromLocations = locationProducts.map((lp: { product_id: string }) => lp.product_id);
+        }
       }
-
-      // Filtros por ubicación
-      if (filters?.aisle) {
-        query = query.ilike('aisle', `%${filters.aisle}%`);
+      
+      // Si hay filtros de ubicación, también buscar en la tabla products (compatibilidad)
+      let productIdsFromProducts: string[] = [];
+      if ((filters?.aisle || filters?.shelf) && !filters?.warehouse) {
+        const productsQuery = this.client.from('products').select('id');
+        if (filters.aisle) {
+          productsQuery.ilike('aisle', `%${filters.aisle}%`);
+        }
+        if (filters.shelf) {
+          productsQuery.ilike('shelf', `%${filters.shelf}%`);
+        }
+        
+        const { data: productsData } = await productsQuery;
+        if (productsData) {
+          productIdsFromProducts = productsData.map((p: { id: string }) => p.id);
+        }
       }
-      if (filters?.shelf) {
-        query = query.ilike('shelf', `%${filters.shelf}%`);
+      
+      // Combinar IDs de ambas fuentes
+      if (productIdsFromLocations.length > 0 || productIdsFromProducts.length > 0) {
+        const allProductIds = [...new Set([...productIdsFromLocations, ...productIdsFromProducts])];
+        if (allProductIds.length > 0) {
+          query = query.in('id', allProductIds);
+        } else {
+          query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+        }
+      } else if (filters?.warehouse) {
+        // Solo filtro de almacén sin ubicación específica
+        const locationQuery = this.client
+          .from('product_locations')
+          .select('product_id')
+          .eq('warehouse', filters.warehouse);
+        
+        const { data: locationProducts } = await locationQuery;
+        if (locationProducts && locationProducts.length > 0) {
+          const productIds = locationProducts.map((lp: { product_id: string }) => lp.product_id);
+          query = query.in('id', productIds);
+        } else {
+          query = query.eq('id', '00000000-0000-0000-0000-000000000000');
+        }
       }
 
       // Filtro por rango de stock mínimo
@@ -541,7 +729,36 @@ export class SupabaseProductRepository
       const { data, error, count } = await query;
       this.handleError('obtener todos los productos', error);
 
-      const batchProducts = (data ?? []).map(mapProduct);
+      // Cargar ubicaciones para todos los productos del lote en una sola consulta
+      const batchProductIds = (data ?? []).map((row: ProductRow) => row.id);
+      let batchLocationsMap: Map<string, ProductLocationRow[]> = new Map();
+      
+      if (batchProductIds.length > 0) {
+        try {
+          const { data: batchLocationsData } = await this.client
+            .from('product_locations')
+            .select('*')
+            .in('product_id', batchProductIds)
+            .order('is_primary', { ascending: false })
+            .order('created_at', { ascending: true });
+          
+          if (batchLocationsData && Array.isArray(batchLocationsData)) {
+            batchLocationsData.forEach((loc: ProductLocationRow) => {
+              if (!batchLocationsMap.has(loc.product_id)) {
+                batchLocationsMap.set(loc.product_id, []);
+              }
+              batchLocationsMap.get(loc.product_id)!.push(loc);
+            });
+          }
+        } catch (err) {
+          console.warn('Error al cargar ubicaciones del lote:', err);
+        }
+      }
+      
+      const batchProducts = (data ?? []).map((row: ProductRow) => {
+        const locations = batchLocationsMap.get(row.id);
+        return mapProduct(row, locations);
+      });
       allProducts = [...allProducts, ...batchProducts];
 
       // Si recibimos menos productos que el tamaño del lote, no hay más
@@ -564,6 +781,121 @@ export class SupabaseProductRepository
     return allProducts;
   }
 
+  /**
+   * Obtiene las ubicaciones de un producto.
+   */
+  async getProductLocations(productId: string): Promise<ProductLocation[]> {
+    try {
+      const { data, error } = await this.client
+        .from('product_locations')
+        .select('*')
+        .eq('product_id', productId)
+        .order('is_primary', { ascending: false })
+        .order('created_at', { ascending: true });
+
+      // Si hay error pero es porque la tabla no existe o no hay datos, retornar array vacío
+      if (error) {
+        // Si es un error de tabla no encontrada, retornar array vacío en lugar de lanzar error
+        if (error.code === '42P01' || error.message?.includes('does not exist')) {
+          return [];
+        }
+        this.handleError('obtener ubicaciones del producto', error);
+      }
+      return (data ?? []).map(mapLocation);
+    } catch (err) {
+      // Si hay cualquier error, retornar array vacío para no romper el flujo
+      console.warn('Error al obtener ubicaciones del producto:', err);
+      return [];
+    }
+  }
+
+  /**
+   * Añade una nueva ubicación a un producto.
+   */
+  async addProductLocation(
+    productId: string,
+    warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
+    aisle: string,
+    shelf: string,
+    isPrimary: boolean = false,
+    userId?: string,
+  ): Promise<ProductLocation> {
+    // Si se marca como primaria, desmarcar las demás
+    if (isPrimary) {
+      await this.client
+        .from('product_locations')
+        .update({ is_primary: false })
+        .eq('product_id', productId)
+        .eq('is_primary', true);
+    }
+
+    const { data, error } = await this.client
+      .from('product_locations')
+      .insert({
+        product_id: productId,
+        warehouse,
+        aisle,
+        shelf,
+        is_primary: isPrimary,
+        created_by: userId,
+      })
+      .select('*')
+      .single();
+
+    this.handleError('añadir ubicación al producto', error);
+    return mapLocation(data as ProductLocationRow);
+  }
+
+  /**
+   * Elimina una ubicación de un producto.
+   */
+  async removeProductLocation(locationId: string, userId?: string): Promise<void> {
+    const { error } = await this.client
+      .from('product_locations')
+      .update({ updated_by: userId })
+      .eq('id', locationId);
+
+    if (error) {
+      console.warn('Error al actualizar updated_by antes de eliminar:', error);
+    }
+
+    const { error: deleteError } = await this.client
+      .from('product_locations')
+      .delete()
+      .eq('id', locationId);
+
+    this.handleError('eliminar ubicación del producto', deleteError);
+  }
+
+  /**
+   * Marca una ubicación como primaria.
+   */
+  async setPrimaryLocation(
+    productId: string,
+    locationId: string,
+    isPrimary: boolean,
+    userId?: string,
+  ): Promise<ProductLocation> {
+    // Desmarcar todas las primarias si se está marcando como primaria
+    if (isPrimary) {
+      await this.client
+        .from('product_locations')
+        .update({ is_primary: false, updated_by: userId })
+        .eq('product_id', productId);
+    }
+
+    // Marcar la nueva como primaria o desmarcarla
+    const { data, error } = await this.client
+      .from('product_locations')
+      .update({ is_primary: isPrimary, updated_by: userId })
+      .eq('id', locationId)
+      .select('*')
+      .single();
+
+    this.handleError('marcar ubicación como primaria', error);
+    return mapLocation(data as ProductLocationRow);
+  }
+
   async findById(id: string) {
     const { data, error } = await this.client
       .from('products')
@@ -577,7 +909,24 @@ export class SupabaseProductRepository
       .maybeSingle();
 
     this.handleError('buscar producto por id', error);
-    return data ? mapProduct(data as ProductRow) : null;
+    if (!data) return null;
+
+    // Cargar ubicaciones (si falla, continuar sin ubicaciones)
+    let locationsData: ProductLocationRow[] | undefined;
+    try {
+      const { data: locData } = await this.client
+        .from('product_locations')
+        .select('*')
+        .eq('product_id', id)
+        .order('is_primary', { ascending: false })
+        .order('created_at', { ascending: true });
+      
+      locationsData = locData && Array.isArray(locData) ? locData : undefined;
+    } catch (err) {
+      // Si falla cargar ubicaciones, continuar sin ellas
+      console.warn('No se pudieron cargar las ubicaciones del producto:', err);
+    }
+    return mapProduct(data as ProductRow, locationsData);
   }
 
   async findByCodeOrBarcode(term: string) {
@@ -593,7 +942,24 @@ export class SupabaseProductRepository
       .maybeSingle();
 
     this.handleError('buscar producto por código/barcode', error);
-    return data ? mapProduct(data as ProductRow) : null;
+    if (!data) return null;
+
+    // Cargar ubicaciones (si falla, continuar sin ubicaciones)
+    let locationsData: ProductLocationRow[] | undefined;
+    try {
+      const { data: locData } = await this.client
+        .from('product_locations')
+        .select('*')
+        .eq('product_id', data.id)
+        .order('is_primary', { ascending: false })
+        .order('created_at', { ascending: true });
+      
+      locationsData = locData && Array.isArray(locData) ? locData : undefined;
+    } catch (err) {
+      // Si falla cargar ubicaciones, continuar sin ellas
+      console.warn('No se pudieron cargar las ubicaciones del producto:', err);
+    }
+    return mapProduct(data as ProductRow, locationsData);
   }
 
   async getBatches(productId: string, filters?: BatchFilters) {
@@ -670,7 +1036,14 @@ export class SupabaseProductRepository
       .single();
 
     this.handleError('crear producto', error);
-    return mapProduct(data as ProductRow);
+    const product = data as ProductRow;
+
+    // Las ubicaciones se manejan desde el formulario después de crear el producto
+    // No creamos ubicaciones aquí porque ahora se gestionan desde ProductForm.tsx
+
+    // Cargar ubicaciones (puede estar vacío si no se han añadido aún)
+    const locations = await this.getProductLocations(product.id);
+    return mapProduct(product, locations);
   }
 
   async update(id: string, input: UpdateProductInput): Promise<Product> {

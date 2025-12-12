@@ -213,4 +213,36 @@ export interface ProductRepository {
    * Recupera los reportes de defectos asociados a un lote.
    */
   getDefectReports(batchId: UUID): Promise<BatchDefectReport[]>;
+
+  /**
+   * Obtiene todas las ubicaciones de un producto.
+   */
+  getProductLocations(productId: UUID): Promise<ProductLocation[]>;
+
+  /**
+   * Añade una nueva ubicación a un producto.
+   */
+  addProductLocation(
+    productId: UUID,
+    warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
+    aisle: string,
+    shelf: string,
+    isPrimary: boolean,
+    userId: UUID,
+  ): Promise<ProductLocation>;
+
+  /**
+   * Elimina una ubicación de un producto.
+   */
+  removeProductLocation(locationId: UUID, userId: UUID): Promise<void>;
+
+  /**
+   * Establece una ubicación como primaria.
+   */
+  setPrimaryLocation(
+    productId: UUID,
+    locationId: UUID,
+    isPrimary: boolean,
+    userId: UUID,
+  ): Promise<ProductLocation>;
 }

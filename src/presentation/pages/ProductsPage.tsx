@@ -334,16 +334,43 @@ export function ProductsPage() {
                 : Number(parseFloat(String(product.salePrice)) || 0)
               : '',
           'Cód.Provedor': String(product.supplierCode || ''),
-          Almacén:
-            product.warehouse === 'MEYPAR'
+          Almacén: (() => {
+            // Obtener todos los almacenes únicos de las ubicaciones
+            if (product.locations && Array.isArray(product.locations) && product.locations.length > 0) {
+              const warehouses = new Set<string>();
+              product.locations.forEach((loc) => {
+                if (loc.warehouse === 'MEYPAR') warehouses.add('MEYPAR');
+                else if (loc.warehouse === 'OLIVA_TORRAS') warehouses.add('Oliva Torras');
+                else if (loc.warehouse === 'FURGONETA') warehouses.add('Furgoneta');
+              });
+              return Array.from(warehouses).join(', ') || '-';
+            }
+            // Fallback para productos antiguos
+            return product.warehouse === 'MEYPAR'
               ? 'MEYPAR'
               : product.warehouse === 'OLIVA_TORRAS'
                 ? 'Oliva Torras'
                 : product.warehouse === 'FURGONETA'
                   ? 'Furgoneta'
-                  : '-',
-          Ubicación:
-            product.warehouse === 'MEYPAR'
+                  : '-';
+          })(),
+          Ubicación: (() => {
+            // Obtener todas las ubicaciones formateadas
+            if (product.locations && Array.isArray(product.locations) && product.locations.length > 0) {
+              const locationStrings: string[] = [];
+              product.locations.forEach((loc) => {
+                if (loc.warehouse === 'MEYPAR') {
+                  locationStrings.push(`${loc.aisle}${loc.shelf.toUpperCase()}`);
+                } else if (loc.warehouse === 'FURGONETA') {
+                  locationStrings.push(loc.shelf); // shelf contiene el nombre del técnico
+                } else if (loc.warehouse === 'OLIVA_TORRAS') {
+                  locationStrings.push('Oliva Torras');
+                }
+              });
+              return locationStrings.join(', ') || '-';
+            }
+            // Fallback para productos antiguos
+            return product.warehouse === 'MEYPAR'
               ? `${product.aisle}${product.shelf}`
               : product.warehouse === 'OLIVA_TORRAS'
                 ? 'Oliva Torras'
@@ -351,7 +378,8 @@ export function ProductsPage() {
                   ? product.locationExtra
                   : product.aisle && product.shelf
                     ? `${product.aisle}${product.shelf}`
-                    : '-',
+                    : '-';
+          })(),
           'Control por Lotes': product.isBatchTracked ? 'Sí' : 'No',
           'Unidad de Medida': String(product.unitOfMeasure || ''),
           'Peso (kg)': product.weightKg != null ? Number(product.weightKg) : '',
@@ -591,23 +619,59 @@ export function ProductsPage() {
         return;
       }
 
-      const excelData = selectedProducts.map((product) => ({
-        Código: product.code || '',
-        Nombre: product.name || '',
-        Categoría: product.category || '',
-        'Stock Actual': product.stockCurrent ?? 0,
-        'Stock Mínimo': product.stockMin ?? 0,
-        'Precio Coste (€)':
-          typeof product.costPrice === 'number'
-            ? product.costPrice
-            : parseFloat(product.costPrice?.toString() || '0'),
-        'Precio Venta (€)': product.salePrice
-          ? typeof product.salePrice === 'number'
-            ? product.salePrice
-            : parseFloat(product.salePrice.toString())
-          : '',
-        'Cód.Provedor': product.supplierCode || '',
-      }));
+      const excelData = selectedProducts.map((product) => {
+        // Obtener almacenes únicos
+        let warehouses = '-';
+        if (product.locations && Array.isArray(product.locations) && product.locations.length > 0) {
+          const warehouseSet = new Set<string>();
+          product.locations.forEach((loc) => {
+            if (loc.warehouse === 'MEYPAR') warehouseSet.add('MEYPAR');
+            else if (loc.warehouse === 'OLIVA_TORRAS') warehouseSet.add('Oliva Torras');
+            else if (loc.warehouse === 'FURGONETA') warehouseSet.add('Furgoneta');
+          });
+          warehouses = Array.from(warehouseSet).join(', ') || '-';
+        } else if (product.warehouse) {
+          warehouses = product.warehouse === 'MEYPAR' ? 'MEYPAR' : product.warehouse === 'OLIVA_TORRAS' ? 'Oliva Torras' : product.warehouse === 'FURGONETA' ? 'Furgoneta' : '-';
+        }
+
+        // Obtener ubicaciones formateadas
+        let locations = '-';
+        if (product.locations && Array.isArray(product.locations) && product.locations.length > 0) {
+          const locationStrings: string[] = [];
+          product.locations.forEach((loc) => {
+            if (loc.warehouse === 'MEYPAR') {
+              locationStrings.push(`${loc.aisle}${loc.shelf.toUpperCase()}`);
+            } else if (loc.warehouse === 'FURGONETA') {
+              locationStrings.push(loc.shelf); // shelf contiene el nombre del técnico
+            } else if (loc.warehouse === 'OLIVA_TORRAS') {
+              locationStrings.push('Oliva Torras');
+            }
+          });
+          locations = locationStrings.join(', ') || '-';
+        } else if (product.aisle && product.shelf) {
+          locations = `${product.aisle}${product.shelf}`;
+        }
+
+        return {
+          Código: product.code || '',
+          Nombre: product.name || '',
+          Categoría: product.category || '',
+          'Stock Actual': product.stockCurrent ?? 0,
+          'Stock Mínimo': product.stockMin ?? 0,
+          Almacén: warehouses,
+          Ubicación: locations,
+          'Precio Coste (€)':
+            typeof product.costPrice === 'number'
+              ? product.costPrice
+              : parseFloat(product.costPrice?.toString() || '0'),
+          'Precio Venta (€)': product.salePrice
+            ? typeof product.salePrice === 'number'
+              ? product.salePrice
+              : parseFloat(product.salePrice.toString())
+            : '',
+          'Cód.Provedor': product.supplierCode || '',
+        };
+      });
 
       const worksheet = XLSX.utils.json_to_sheet(excelData);
       const workbook = XLSX.utils.book_new();
@@ -750,16 +814,43 @@ export function ProductsPage() {
           stockCurrent: (p) => p.stockCurrent,
           stockMin: (p) => p.stockMin,
           stockMax: (p) => p.stockMax || '',
-          warehouse: (p) =>
-            p.warehouse === 'MEYPAR'
+          warehouse: (p) => {
+            // Obtener todos los almacenes únicos de las ubicaciones
+            if (p.locations && Array.isArray(p.locations) && p.locations.length > 0) {
+              const warehouses = new Set<string>();
+              p.locations.forEach((loc) => {
+                if (loc.warehouse === 'MEYPAR') warehouses.add('MEYPAR');
+                else if (loc.warehouse === 'OLIVA_TORRAS') warehouses.add('Oliva Torras');
+                else if (loc.warehouse === 'FURGONETA') warehouses.add('Furgoneta');
+              });
+              return Array.from(warehouses).join(', ') || (p.warehouse === 'MEYPAR' ? 'MEYPAR' : p.warehouse === 'OLIVA_TORRAS' ? 'Oliva Torras' : p.warehouse === 'FURGONETA' ? 'Furgoneta' : '-');
+            }
+            // Fallback para productos antiguos
+            return p.warehouse === 'MEYPAR'
               ? 'MEYPAR'
               : p.warehouse === 'OLIVA_TORRAS'
                 ? 'Oliva Torras'
                 : p.warehouse === 'FURGONETA'
                   ? 'Furgoneta'
-                  : '-',
-          aisle: (p) =>
-            p.warehouse === 'MEYPAR'
+                  : '-';
+          },
+          aisle: (p) => {
+            // Obtener todas las ubicaciones formateadas
+            if (p.locations && Array.isArray(p.locations) && p.locations.length > 0) {
+              const locationStrings: string[] = [];
+              p.locations.forEach((loc) => {
+                if (loc.warehouse === 'MEYPAR') {
+                  locationStrings.push(`${loc.aisle}${loc.shelf.toUpperCase()}`);
+                } else if (loc.warehouse === 'FURGONETA') {
+                  locationStrings.push(loc.shelf); // shelf contiene el nombre del técnico
+                } else if (loc.warehouse === 'OLIVA_TORRAS') {
+                  locationStrings.push('Oliva Torras');
+                }
+              });
+              return locationStrings.join(', ') || '-';
+            }
+            // Fallback para productos antiguos
+            return p.warehouse === 'MEYPAR'
               ? `${p.aisle}${p.shelf}`
               : p.warehouse === 'OLIVA_TORRAS'
                 ? 'Oliva Torras'
@@ -767,7 +858,8 @@ export function ProductsPage() {
                   ? p.locationExtra
                   : p.aisle && p.shelf
                     ? `${p.aisle}${p.shelf}`
-                    : '-',
+                    : '-';
+          },
           costPrice: (p) =>
             typeof p.costPrice === 'number'
               ? p.costPrice

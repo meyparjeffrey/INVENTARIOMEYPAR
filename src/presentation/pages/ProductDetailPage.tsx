@@ -44,6 +44,33 @@ export function ProductDetailPage() {
     }
   }, [id, getById]);
 
+  // Recargar producto cuando se vuelve a esta página (después de editar)
+  React.useEffect(() => {
+    const handleFocus = () => {
+      if (id) {
+        getById(id).then(setProduct);
+      }
+    };
+    const handleVisibilityChange = () => {
+      if (!document.hidden && id) {
+        getById(id).then(setProduct);
+      }
+    };
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [id, getById]);
+
+  // Recargar cuando se navega a esta página (usando location.key)
+  React.useEffect(() => {
+    if (id) {
+      getById(id).then(setProduct);
+    }
+  }, [location.key, id, getById]);
+
   const canEdit = authContext?.permissions?.includes('products.edit') ?? false;
 
   if (loading) {
@@ -250,12 +277,34 @@ export function ProductDetailPage() {
               <div className="mb-2 flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-gray-400" />
                 <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Ubicación
+                  Ubicaciones
                 </dt>
               </div>
-              <dd className="text-sm text-gray-900 dark:text-gray-50">
-                Pasillo: {product.aisle} | Estante: {product.shelf}
-                {product.locationExtra && ` | ${product.locationExtra}`}
+              <dd className="space-y-2 text-sm text-gray-900 dark:text-gray-50">
+                {product.locations && Array.isArray(product.locations) && product.locations.length > 0 ? (
+                  product.locations.map((loc, index) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <span className="inline-flex items-center rounded-md bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700 ring-1 ring-inset ring-primary-700/10 dark:bg-primary-900/30 dark:text-primary-300 dark:ring-primary-300/20">
+                        {loc.warehouse === 'MEYPAR' ? 'MY' : loc.warehouse === 'OLIVA_TORRAS' ? 'OT' : 'FR'}
+                      </span>
+                      <span>
+                        {loc.warehouse === 'MEYPAR' 
+                          ? `Pasillo: ${loc.aisle} | Estante: ${loc.shelf}` 
+                          : loc.warehouse === 'FURGONETA' 
+                            ? `Técnico: ${loc.shelf}` 
+                            : 'Oliva Torras'}
+                      </span>
+                      {loc.isPrimary && (
+                        <span className="text-xs text-gray-500">(Principal)</span>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <span>
+                    Pasillo: {product.aisle} | Estante: {product.shelf}
+                    {product.locationExtra && ` | ${product.locationExtra}`}
+                  </span>
+                )}
               </dd>
             </div>
           </dl>

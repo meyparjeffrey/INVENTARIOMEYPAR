@@ -11,13 +11,14 @@
 /**
  * Opciones válidas para elementos por página.
  * Todas las páginas que usen paginación deben usar estas opciones para mantener consistencia.
+ * Valores: 10, 30, 60, 100, 200 (sincronizado con Configuración > Preferencias)
  */
-export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100, 200, 500] as const;
+export const PAGE_SIZE_OPTIONS = [10, 30, 60, 100, 200] as const;
 
 /**
  * Valor por defecto para elementos por página.
  */
-export const DEFAULT_PAGE_SIZE = 25;
+export const DEFAULT_PAGE_SIZE = 30;
 
 /**
  * Valida si un valor es una opción válida de elementos por página.
