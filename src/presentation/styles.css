@@ -41,6 +41,13 @@
   --gray-900: #f9fafb;
 }
 
+/* Prevenir doble scroll - solo el main debe scrollear */
+html,
+body,
+#root {
+  @apply h-full overflow-hidden;
+}
+
 body {
   @apply bg-gray-50 text-gray-900 dark:bg-gray-900 dark:text-gray-50;
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
