@@ -5,12 +5,12 @@ import {
   ArrowRightLeft,
   Package,
   Calendar,
-  User
-} from "lucide-react";
-import * as React from "react";
-import type { InventoryMovement, MovementType, Product } from "@domain/entities";
-import { useLanguage } from "../../context/LanguageContext";
-import { cn } from "../../lib/cn";
+  User,
+} from 'lucide-react';
+import * as React from 'react';
+import type { InventoryMovement, MovementType, Product } from '@domain/entities';
+import { useLanguage } from '../../context/LanguageContext';
+import { cn } from '../../lib/cn';
 
 interface MovementWithProduct extends InventoryMovement {
   product?: Product;
@@ -35,36 +35,47 @@ const movementTypeConfig: Record<
 > = {
   IN: {
     icon: ArrowDownCircle,
-    color: "text-green-600 dark:text-green-400",
-    bgColor: "bg-green-100 dark:bg-green-900/30"
+    color: 'text-green-600 dark:text-green-400',
+    bgColor: 'bg-green-100 dark:bg-green-900/30',
   },
   OUT: {
     icon: ArrowUpCircle,
-    color: "text-red-600 dark:text-red-400",
-    bgColor: "bg-red-100 dark:bg-red-900/30"
+    color: 'text-red-600 dark:text-red-400',
+    bgColor: 'bg-red-100 dark:bg-red-900/30',
   },
   ADJUSTMENT: {
     icon: RefreshCw,
-    color: "text-blue-600 dark:text-blue-400",
-    bgColor: "bg-blue-100 dark:bg-blue-900/30"
+    color: 'text-blue-600 dark:text-blue-400',
+    bgColor: 'bg-blue-100 dark:bg-blue-900/30',
   },
   TRANSFER: {
     icon: ArrowRightLeft,
-    color: "text-purple-600 dark:text-purple-400",
-    bgColor: "bg-purple-100 dark:bg-purple-900/30"
-  }
+    color: 'text-purple-600 dark:text-purple-400',
+    bgColor: 'bg-purple-100 dark:bg-purple-900/30',
+  },
 };
 
 /**
  * Tabla de movimientos de inventario.
+ *
+ * Muestra una tabla con todos los movimientos, incluyendo fecha, tipo,
+ * producto, cantidad, stock antes/después, motivo, categoría y usuario.
+ * Permite hacer clic en las filas para ver el detalle completo.
+ *
+ * @component
+ * @param {MovementTableProps} props - Propiedades del componente
+ * @param {MovementWithProduct[]} props.movements - Lista de movimientos a mostrar
+ * @param {boolean} props.loading - Estado de carga
+ * @param {Function} props.onViewProduct - Callback al hacer clic en un producto
+ * @param {Function} props.onViewDetail - Callback al hacer clic en una fila
  */
-export function MovementTable({
+export const MovementTable = React.memo(function MovementTable({
   movements,
   loading = false,
   onViewProduct,
   onViewDetail,
   emptyMessage,
-  emptyDescription
+  emptyDescription,
 }: MovementTableProps) {
   const { t } = useLanguage();
 
@@ -80,8 +91,10 @@ export function MovementTable({
     return (
       <div className="flex h-64 flex-col items-center justify-center text-gray-500 dark:text-gray-400">
         <Package className="mb-4 h-12 w-12" />
-        <p className="text-lg font-medium">{emptyMessage || t("movements.noMovements")}</p>
-        <p className="text-sm">{emptyDescription || t("movements.createFirst")}</p>
+        <p className="text-lg font-medium">
+          {emptyMessage || t('movements.noMovements')}
+        </p>
+        <p className="text-sm">{emptyDescription || t('movements.createFirst')}</p>
       </div>
     );
   }
@@ -93,34 +106,34 @@ export function MovementTable({
           <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {t("movements.date")}
+                {t('movements.date')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {t("movements.type")}
+                {t('movements.type')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {t("movements.product")}
+                {t('movements.product')}
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {t("movements.quantity")}
+                {t('movements.quantity')}
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {t("movements.stockBefore")}
+                {t('movements.stockBefore')}
               </th>
               <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {t("movements.stockAfter")}
+                {t('movements.stockAfter')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {t("movements.reason")}
+                {t('movements.reason')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {t("movements.category")}
+                {t('movements.category')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {t("movements.user")}
+                {t('movements.user')}
               </th>
               <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                {t("table.actions")}
+                {t('table.actions')}
               </th>
             </tr>
           </thead>
@@ -129,9 +142,10 @@ export function MovementTable({
               const config = movementTypeConfig[movement.movementType];
               const Icon = config.icon;
               const date = new Date(movement.movementDate);
-              const userName = movement.userFirstName || movement.userLastName
-                ? `${movement.userFirstName || ""} ${movement.userLastName || ""}`.trim()
-                : null;
+              const userName =
+                movement.userFirstName || movement.userLastName
+                  ? `${movement.userFirstName || ''} ${movement.userLastName || ''}`.trim()
+                  : null;
 
               return (
                 <tr
@@ -143,13 +157,11 @@ export function MovementTable({
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-gray-400" />
                       <div>
-                        <div className="font-medium">
-                          {date.toLocaleDateString()}
-                        </div>
+                        <div className="font-medium">{date.toLocaleDateString()}</div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           {date.toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit"
+                            hour: '2-digit',
+                            minute: '2-digit',
                           })}
                         </div>
                       </div>
@@ -158,9 +170,9 @@ export function MovementTable({
                   <td className="whitespace-nowrap px-4 py-3 text-sm">
                     <span
                       className={cn(
-                        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium",
+                        'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
                         config.bgColor,
-                        config.color
+                        config.color,
                       )}
                     >
                       <Icon className="h-3.5 w-3.5" />
@@ -177,10 +189,12 @@ export function MovementTable({
                         className="text-left hover:underline"
                       >
                         <div className="font-medium text-gray-900 dark:text-gray-50">
-                          {movement.product?.name || movement.productName || "N/A"}
+                          {movement.product?.name || movement.productName || 'N/A'}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {movement.product?.code || movement.productCode || movement.productId.slice(0, 8)}
+                          {movement.product?.code ||
+                            movement.productCode ||
+                            movement.productId.slice(0, 8)}
                         </div>
                       </button>
                     ) : (
@@ -192,15 +206,19 @@ export function MovementTable({
                   <td className="whitespace-nowrap px-4 py-3 text-right text-sm">
                     <span
                       className={cn(
-                        "font-bold",
-                        movement.movementType === "IN"
-                          ? "text-green-600 dark:text-green-400"
-                          : movement.movementType === "OUT"
-                            ? "text-red-600 dark:text-red-400"
-                            : "text-gray-900 dark:text-gray-50"
+                        'font-bold',
+                        movement.movementType === 'IN'
+                          ? 'text-green-600 dark:text-green-400'
+                          : movement.movementType === 'OUT'
+                            ? 'text-red-600 dark:text-red-400'
+                            : 'text-gray-900 dark:text-gray-50',
                       )}
                     >
-                      {movement.movementType === "IN" ? "+" : movement.movementType === "OUT" ? "-" : ""}
+                      {movement.movementType === 'IN'
+                        ? '+'
+                        : movement.movementType === 'OUT'
+                          ? '-'
+                          : ''}
                       {movement.quantity}
                     </span>
                   </td>
@@ -248,7 +266,7 @@ export function MovementTable({
                       }}
                       className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
                     >
-                      {t("common.view")}
+                      {t('common.view')}
                     </button>
                   </td>
                 </tr>
@@ -259,5 +277,4 @@ export function MovementTable({
       </div>
     </div>
   );
-}
-
+});
