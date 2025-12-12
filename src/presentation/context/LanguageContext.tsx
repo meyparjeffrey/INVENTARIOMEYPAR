@@ -716,6 +716,24 @@ const translations: Record<LanguageCode, Record<string, string>> = {
       'IMPORTANTE: Los ajustes deben ser autorizados y documentados. Solo personal autorizado debe realizar ajustes.',
     'movements.help.whenToUse': 'Cuándo usar:',
     'movements.help.examples': 'Ejemplos:',
+    'movements.help.netBalance.title': 'Balance Neto',
+    'movements.help.netBalance.description':
+      'El Balance Neto es la diferencia entre el total de entradas y el total de salidas de stock en los movimientos mostrados.',
+    'movements.help.netBalance.howCalculated': '¿Cómo se calcula?',
+    'movements.help.netBalance.formula': 'Balance Neto = Total Entradas - Total Salidas',
+    'movements.help.netBalance.meaning': '¿Qué significa?',
+    'movements.help.netBalance.positive': 'Valor positivo (+)',
+    'movements.help.netBalance.positiveDesc':
+      'Hay más entradas que salidas. El inventario ha aumentado en el período mostrado.',
+    'movements.help.netBalance.negative': 'Valor negativo (-)',
+    'movements.help.netBalance.negativeDesc':
+      'Hay más salidas que entradas. El inventario ha disminuido en el período mostrado.',
+    'movements.help.netBalance.zero': 'Valor cero (0)',
+    'movements.help.netBalance.zeroDesc':
+      'Las entradas y salidas están equilibradas. El inventario se mantiene igual.',
+    'movements.help.netBalance.note': 'Nota:',
+    'movements.help.netBalance.noteDesc':
+      'El Balance Neto solo considera movimientos de ENTRADA (IN) y SALIDA (OUT). Los ajustes (ADJUSTMENT) y transferencias (TRANSFER) no se incluyen en este cálculo.',
     'common.help': 'Ayuda',
     'common.exporting': 'Exportando...',
     'common.close': 'Cerrar',
@@ -1582,6 +1600,24 @@ const translations: Record<LanguageCode, Record<string, string>> = {
       'IMPORTANT: Els ajustos han de ser autoritzats i documentats. Només personal autoritzat ha de realitzar ajustos.',
     'movements.help.whenToUse': 'Quan usar:',
     'movements.help.examples': 'Exemples:',
+    'movements.help.netBalance.title': 'Balanç Net',
+    'movements.help.netBalance.description':
+      "El Balanç Net és la diferència entre el total d'entrades i el total de sortides d'estoc en els moviments mostrats.",
+    'movements.help.netBalance.howCalculated': 'Com es calcula?',
+    'movements.help.netBalance.formula': 'Balanç Net = Total Entrades - Total Sortides',
+    'movements.help.netBalance.meaning': 'Què significa?',
+    'movements.help.netBalance.positive': 'Valor positiu (+)',
+    'movements.help.netBalance.positiveDesc':
+      "Hi ha més entrades que sortides. L'inventari ha augmentat en el període mostrat.",
+    'movements.help.netBalance.negative': 'Valor negatiu (-)',
+    'movements.help.netBalance.negativeDesc':
+      "Hi ha més sortides que entrades. L'inventari ha disminuït en el període mostrat.",
+    'movements.help.netBalance.zero': 'Valor zero (0)',
+    'movements.help.netBalance.zeroDesc':
+      "Les entrades i sortides estan equilibrades. L'inventari es manté igual.",
+    'movements.help.netBalance.note': 'Nota:',
+    'movements.help.netBalance.noteDesc':
+      "El Balanç Net només considera moviments d'ENTRADA (IN) i SORTIDA (OUT). Els ajustos (ADJUSTMENT) i transferències (TRANSFER) no s'inclouen en aquest càlcul.",
     'common.help': 'Ajuda',
     'common.exporting': 'Exportant...',
     'common.close': 'Tancar',

@@ -296,10 +296,32 @@ export class SupabaseProductRepository
         locationQuery.eq('warehouse', filters.warehouse);
       }
       if (filters.aisle) {
-        locationQuery.ilike('aisle', `%${filters.aisle}%`);
+        // Usar comparación exacta (eq) para valores específicos del select
+        // Esto evita que "1" encuentre "10", "11", "15", etc.
+        // Solo usar ilike si el valor contiene caracteres especiales o es una búsqueda parcial
+        const aisleValue = filters.aisle.trim();
+        // Si es un número simple (1-30) o un valor exacto, usar eq
+        // Si contiene caracteres especiales o es una búsqueda parcial, usar ilike
+        if (/^\d+$/.test(aisleValue) || aisleValue.length <= 3) {
+          // Valor exacto: usar eq para búsqueda precisa
+          locationQuery.eq('aisle', aisleValue);
+        } else {
+          // Búsqueda parcial: usar ilike
+          locationQuery.ilike('aisle', `%${aisleValue}%`);
+        }
       }
       if (filters.shelf) {
-        locationQuery.ilike('shelf', `%${filters.shelf}%`);
+        // Usar comparación exacta (eq) para valores específicos del select (A-G)
+        // Esto evita que "A" encuentre "A1", "A2", etc.
+        const shelfValue = filters.shelf.trim();
+        // Si es una letra única (A-G) o un valor exacto corto, usar eq
+        if (/^[A-G]$/i.test(shelfValue) || shelfValue.length === 1) {
+          // Valor exacto: usar eq para búsqueda precisa
+          locationQuery.eq('shelf', shelfValue);
+        } else {
+          // Búsqueda parcial: usar ilike
+          locationQuery.ilike('shelf', `%${shelfValue}%`);
+        }
       }
 
       const { data: locationProducts } = await locationQuery;
