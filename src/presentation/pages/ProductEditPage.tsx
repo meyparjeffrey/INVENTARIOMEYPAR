@@ -65,9 +65,9 @@ export function ProductEditPage() {
       };
 
       await update(id, updateData);
-      // Navegar con state para forzar recarga en ProductDetailPage
+      // Navegar con state y timestamp para forzar recarga en ProductDetailPage
       navigate(`/products/${id}`, {
-        state: { refresh: true },
+        state: { refresh: true, timestamp: Date.now() },
         replace: false,
       });
     },

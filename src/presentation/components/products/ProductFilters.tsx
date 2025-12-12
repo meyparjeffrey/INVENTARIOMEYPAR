@@ -543,29 +543,77 @@ export function ProductFilters({ filters, onFiltersChange }: ProductFiltersProps
                     </div>
                   </div>
 
-                  {/* Ubicación */}
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <Label htmlFor="filter-aisle">{t('filters.aisle')}</Label>
-                      <Input
-                        id="filter-aisle"
-                        value={localFilters.aisle || ''}
-                        onChange={(e) => handleFilterChange('aisle', e.target.value)}
-                        placeholder={t('filters.aislePlaceholder')}
-                        className="mt-1"
-                      />
+                  {/* Ubicación - Solo habilitado si se selecciona MEYPAR */}
+                  {localFilters.warehouse === 'MEYPAR' && (
+                    <div className="space-y-2">
+                      <div>
+                        <Label htmlFor="filter-aisle">
+                          {t('filters.estanteria') || 'Estantería'}
+                        </Label>
+                        <select
+                          id="filter-aisle"
+                          value={localFilters.aisle || ''}
+                          onChange={(e) =>
+                            handleFilterChange('aisle', e.target.value || undefined)
+                          }
+                          className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                        >
+                          <option value="">{t('filters.all') || 'Todas'}</option>
+                          {Array.from({ length: 30 }, (_, i) => i + 1).map((num) => (
+                            <option key={num} value={num.toString()}>
+                              {num}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <Label htmlFor="filter-shelf">
+                          {t('filters.estante') || 'Estante'}
+                        </Label>
+                        <select
+                          id="filter-shelf"
+                          value={localFilters.shelf || ''}
+                          onChange={(e) =>
+                            handleFilterChange('shelf', e.target.value || undefined)
+                          }
+                          className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                        >
+                          <option value="">{t('filters.all') || 'Todos'}</option>
+                          {['A', 'B', 'C', 'D', 'E', 'F', 'G'].map((letter) => (
+                            <option key={letter} value={letter}>
+                              {letter}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <Label htmlFor="filter-shelf">{t('filters.shelf')}</Label>
-                      <Input
-                        id="filter-shelf"
-                        value={localFilters.shelf || ''}
-                        onChange={(e) => handleFilterChange('shelf', e.target.value)}
-                        placeholder={t('filters.shelfPlaceholder')}
-                        className="mt-1"
-                      />
+                  )}
+
+                  {/* Para otros almacenes, mantener inputs de texto */}
+                  {localFilters.warehouse && localFilters.warehouse !== 'MEYPAR' && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <Label htmlFor="filter-aisle">{t('filters.aisle')}</Label>
+                        <Input
+                          id="filter-aisle"
+                          value={localFilters.aisle || ''}
+                          onChange={(e) => handleFilterChange('aisle', e.target.value)}
+                          placeholder={t('filters.aislePlaceholder')}
+                          className="mt-1"
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="filter-shelf">{t('filters.shelf')}</Label>
+                        <Input
+                          id="filter-shelf"
+                          value={localFilters.shelf || ''}
+                          onChange={(e) => handleFilterChange('shelf', e.target.value)}
+                          placeholder={t('filters.shelfPlaceholder')}
+                          className="mt-1"
+                        />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Stock actual */}
                   <div>

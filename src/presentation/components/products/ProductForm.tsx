@@ -24,7 +24,6 @@ import { useLanguage } from '../../context/LanguageContext';
 import { formatCurrency } from '../../utils/formatCurrency';
 import { cn } from '../../lib/cn';
 import { useBatches } from '../../hooks/useBatches';
-import type { ProductLocation } from '@domain/entities';
 import { SupabaseProductRepository } from '@infrastructure/repositories/SupabaseProductRepository';
 import { supabaseClient } from '@infrastructure/supabase/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
@@ -34,69 +33,69 @@ import { useToast } from '../ui/Toast';
 // Componentes memoizados fuera del componente principal para evitar re-renders
 const FieldWrapper = React.memo(
   ({
-  children,
-  error,
-  touched,
+    children,
+    error,
+    touched,
     className,
-}: {
-  children: React.ReactNode;
-  error?: string;
-  touched?: boolean;
-  className?: string;
-}) => (
+  }: {
+    children: React.ReactNode;
+    error?: string;
+    touched?: boolean;
+    className?: string;
+  }) => (
     <div className={cn('space-y-1.5', className)}>
-    {children}
-    <AnimatePresence>
-      {error && touched && (
-        <motion.p
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -4 }}
-          className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400"
-        >
-          <AlertCircle className="h-3.5 w-3.5" />
-          {error}
-        </motion.p>
-      )}
-    </AnimatePresence>
-  </div>
+      {children}
+      <AnimatePresence>
+        {error && touched && (
+          <motion.p
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            className="flex items-center gap-1.5 text-sm text-red-600 dark:text-red-400"
+          >
+            <AlertCircle className="h-3.5 w-3.5" />
+            {error}
+          </motion.p>
+        )}
+      </AnimatePresence>
+    </div>
   ),
 );
 FieldWrapper.displayName = 'FieldWrapper';
 
 const SectionCard = React.memo(
   ({
-  icon: Icon,
-  title,
-  children,
+    icon: Icon,
+    title,
+    children,
     delay = 0,
-}: {
-  icon: React.ElementType;
-  title: string;
-  children: React.ReactNode;
-  delay?: number;
-}) => (
-  <motion.div
-    initial={{ opacity: 0, y: 20 }}
-    animate={{ opacity: 1, y: 0 }}
-    transition={{ duration: 0.4, delay }}
-    className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 hover:border-blue-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-600"
-  >
-    {/* Efecto de brillo en hover */}
-    <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-blue-500/0 to-blue-500/0 opacity-0 transition-opacity duration-500 group-hover:from-blue-500/5 group-hover:via-transparent group-hover:to-blue-500/5 group-hover:opacity-100" />
+  }: {
+    icon: React.ElementType;
+    title: string;
+    children: React.ReactNode;
+    delay?: number;
+  }) => (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay }}
+      className="group relative overflow-hidden rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-all duration-300 hover:border-blue-300 hover:shadow-md dark:border-gray-700 dark:bg-gray-800 dark:hover:border-blue-600"
+    >
+      {/* Efecto de brillo en hover */}
+      <div className="absolute inset-0 bg-gradient-to-br from-blue-500/0 via-blue-500/0 to-blue-500/0 opacity-0 transition-opacity duration-500 group-hover:from-blue-500/5 group-hover:via-transparent group-hover:to-blue-500/5 group-hover:opacity-100" />
 
-    <div className="relative">
-      <div className="mb-4 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600 transition-colors duration-300 group-hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:group-hover:bg-blue-900/50">
-          <Icon className="h-5 w-5" />
-        </div>
+      <div className="relative">
+        <div className="mb-4 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600 transition-colors duration-300 group-hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400 dark:group-hover:bg-blue-900/50">
+            <Icon className="h-5 w-5" />
+          </div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
             {title}
           </h3>
+        </div>
+        {children}
       </div>
-      {children}
-    </div>
-  </motion.div>
+    </motion.div>
   ),
 );
 SectionCard.displayName = 'SectionCard';
@@ -111,10 +110,10 @@ interface ProductFormProps {
 
 /**
  * Formulario moderno e interactivo para crear o editar productos.
- * 
+ *
  * Incluye validación en tiempo real, animaciones, y soporte para productos con lotes.
  * El formulario se divide en secciones: Información básica, Stock, Ubicación, Precios, etc.
- * 
+ *
  * @component
  * @param {ProductFormProps} props - Propiedades del componente
  * @param {Product} [props.product] - Producto a editar (si no se proporciona, se crea uno nuevo)
@@ -147,26 +146,28 @@ export function ProductForm({
   // Ubicaciones por almacén: cada ubicación tiene warehouse, aisle, shelf
   // Para FURGONETA: aisle="FURGONETA", shelf=nombre del técnico
   // Para OLIVA_TORRAS: aisle="", shelf=""
-  const [locations, setLocations] = React.useState<Array<{ 
-    warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA';
-    aisle: string; 
-    shelf: string; 
-    id?: string; 
-    isPrimary?: boolean 
-  }>>([]);
-  
+  const [locations, setLocations] = React.useState<
+    Array<{
+      warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA';
+      aisle: string;
+      shelf: string;
+      id?: string;
+      isPrimary?: boolean;
+    }>
+  >([]);
+
   // Asegurar que locations siempre sea un array
   const safeLocations = Array.isArray(locations) ? locations : [];
-  const [newLocation, setNewLocation] = React.useState({ 
+  const [newLocation, setNewLocation] = React.useState({
     warehouse: 'MEYPAR' as 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
-    aisle: '1', 
-    shelf: 'A', 
-    technicianName: '' 
+    aisle: '1',
+    shelf: 'A',
+    technicianName: '',
   });
-  
+
   // Estado para mostrar/ocultar el formulario de añadir ubicación
   const [showAddLocationForm, setShowAddLocationForm] = React.useState(false);
-  
+
   const repositoryRef = React.useRef(new SupabaseProductRepository(supabaseClient));
   // Determinar warehouse inicial basado en el producto existente
   const getInitialWarehouse = (): 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA' => {
@@ -238,7 +239,11 @@ export function ProductForm({
       repositoryRef.current
         .getProductLocations(product.id)
         .then((loadedLocations) => {
-          if (loadedLocations && Array.isArray(loadedLocations) && loadedLocations.length > 0) {
+          if (
+            loadedLocations &&
+            Array.isArray(loadedLocations) &&
+            loadedLocations.length > 0
+          ) {
             setLocations(
               loadedLocations.map((loc) => {
                 if (loc.warehouse === 'FURGONETA') {
@@ -263,17 +268,33 @@ export function ProductForm({
           } else {
             // Fallback: usar datos del producto si no hay ubicaciones en product_locations
             if (product.warehouse === 'MEYPAR' && product.aisle && product.shelf) {
-              setLocations([{ aisle: product.aisle, shelf: product.shelf, warehouse: 'MEYPAR', isPrimary: true }]);
+              setLocations([
+                {
+                  aisle: product.aisle,
+                  shelf: product.shelf,
+                  warehouse: 'MEYPAR',
+                  isPrimary: true,
+                },
+              ]);
             } else if (product.warehouse === 'FURGONETA' && product.locationExtra) {
               const match = product.locationExtra.match(/Furgoneta\s+(.+)/);
               const techName = match ? match[1] : product.locationExtra;
               if (techName) {
-                setLocations([{ aisle: 'FURGONETA', shelf: techName, warehouse: 'FURGONETA', isPrimary: true }]);
+                setLocations([
+                  {
+                    aisle: 'FURGONETA',
+                    shelf: techName,
+                    warehouse: 'FURGONETA',
+                    isPrimary: true,
+                  },
+                ]);
               } else {
                 setLocations([]);
               }
             } else if (product.warehouse === 'OLIVA_TORRAS') {
-              setLocations([{ aisle: '', shelf: '', warehouse: 'OLIVA_TORRAS', isPrimary: true }]);
+              setLocations([
+                { aisle: '', shelf: '', warehouse: 'OLIVA_TORRAS', isPrimary: true },
+              ]);
             } else {
               setLocations([]);
             }
@@ -283,17 +304,33 @@ export function ProductForm({
           console.warn('Error al cargar ubicaciones:', err);
           // Fallback en caso de error
           if (product.warehouse === 'MEYPAR' && product.aisle && product.shelf) {
-            setLocations([{ aisle: product.aisle, shelf: product.shelf, warehouse: 'MEYPAR', isPrimary: true }]);
+            setLocations([
+              {
+                aisle: product.aisle,
+                shelf: product.shelf,
+                warehouse: 'MEYPAR',
+                isPrimary: true,
+              },
+            ]);
           } else if (product.warehouse === 'FURGONETA' && product.locationExtra) {
             const match = product.locationExtra.match(/Furgoneta\s+(.+)/);
             const techName = match ? match[1] : product.locationExtra;
             if (techName) {
-              setLocations([{ aisle: 'FURGONETA', shelf: techName, warehouse: 'FURGONETA', isPrimary: true }]);
+              setLocations([
+                {
+                  aisle: 'FURGONETA',
+                  shelf: techName,
+                  warehouse: 'FURGONETA',
+                  isPrimary: true,
+                },
+              ]);
             } else {
               setLocations([]);
             }
           } else if (product.warehouse === 'OLIVA_TORRAS') {
-            setLocations([{ aisle: '', shelf: '', warehouse: 'OLIVA_TORRAS', isPrimary: true }]);
+            setLocations([
+              { aisle: '', shelf: '', warehouse: 'OLIVA_TORRAS', isPrimary: true },
+            ]);
           } else {
             setLocations([]);
           }
@@ -304,7 +341,7 @@ export function ProductForm({
     } else {
       setLocations([]);
     }
-  }, [product?.id]);
+  }, [product?.id, product]);
 
   // Ya no necesitamos este useEffect porque el usuario añade ubicaciones manualmente
 
@@ -389,7 +426,8 @@ export function ProductForm({
 
     // Validación: debe haber al menos una ubicación
     if (safeLocations.length === 0) {
-      newErrors.locations = t('validation.locations.required') || 'Debe añadir al menos una ubicación';
+      newErrors.locations =
+        t('validation.locations.required') || 'Debe añadir al menos una ubicación';
     }
 
     setErrors(newErrors);
@@ -416,10 +454,10 @@ export function ProductForm({
     const dimensionsCm =
       formData.dimensionsLength || formData.dimensionsWidth || formData.dimensionsHeight
         ? {
-          length: Number(formData.dimensionsLength) || 0,
-          width: Number(formData.dimensionsWidth) || 0,
+            length: Number(formData.dimensionsLength) || 0,
+            width: Number(formData.dimensionsWidth) || 0,
             height: Number(formData.dimensionsHeight) || 0,
-        }
+          }
         : null;
 
     // Preparar datos de ubicación: usar la primera ubicación primaria de cualquier almacén
@@ -428,13 +466,14 @@ export function ProductForm({
     let locationExtra: string | null = null;
     let warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA' = 'MEYPAR';
 
-    const primaryLocation = safeLocations.find((loc) => loc.isPrimary) || safeLocations[0];
-    
+    const primaryLocation =
+      safeLocations.find((loc) => loc.isPrimary) || safeLocations[0];
+
     if (primaryLocation) {
       warehouse = primaryLocation.warehouse;
       aisle = primaryLocation.aisle;
       shelf = primaryLocation.shelf;
-      
+
       if (warehouse === 'OLIVA_TORRAS') {
         locationExtra = 'Oliva Torras';
       } else if (warehouse === 'FURGONETA') {
@@ -478,19 +517,21 @@ export function ProductForm({
     };
 
     await onSubmit(submitData);
-    
+
     // **DESPUÉS** de guardar el producto, gestionar TODAS las ubicaciones (de todos los almacenes)
     if (safeLocations.length > 0) {
       // Obtener userId desde Supabase directamente para asegurar que esté disponible
       let userId: string | undefined;
       try {
-        const { data: { user } } = await supabaseClient.auth.getUser();
+        const {
+          data: { user },
+        } = await supabaseClient.auth.getUser();
         userId = user?.id;
       } catch (err) {
         console.warn('Error al obtener userId:', err);
         userId = authContext?.user?.id;
       }
-      
+
       // Obtener el producto guardado (por código si es nuevo, por ID si es edición)
       let savedProduct: Product | null = null;
       if (isEditing && product?.id) {
@@ -499,17 +540,19 @@ export function ProductForm({
         // Producto nuevo: buscarlo por código
         savedProduct = await repositoryRef.current.findByCodeOrBarcode(submitData.code);
       }
-      
+
       if (savedProduct) {
         try {
           // Obtener ubicaciones actuales del producto
-          const currentLocations = await repositoryRef.current.getProductLocations(savedProduct.id);
-          
+          const currentLocations = await repositoryRef.current.getProductLocations(
+            savedProduct.id,
+          );
+
           console.log('Ubicaciones actuales en BD:', currentLocations);
           console.log('Ubicaciones en el formulario:', safeLocations);
 
           // Normalizar isPrimary antes de guardar: solo una ubicación puede ser primaria
-          const primaryLocations = safeLocations.filter(loc => loc.isPrimary === true);
+          const primaryLocations = safeLocations.filter((loc) => loc.isPrimary === true);
           if (primaryLocations.length > 1) {
             // Mantener solo la primera como primaria y desmarcar las demás
             let firstPrimaryFound = false;
@@ -520,26 +563,37 @@ export function ProductForm({
                 loc.isPrimary = false;
               }
             });
-            console.log('Normalizado: múltiples primarias detectadas, manteniendo solo la primera');
+            console.log(
+              'Normalizado: múltiples primarias detectadas, manteniendo solo la primera',
+            );
           } else if (primaryLocations.length === 0 && safeLocations.length > 0) {
             // Si no hay primaria, marcar la primera como primaria
             safeLocations[0].isPrimary = true;
-            console.log('Normalizado: no hay primaria, marcando la primera como primaria');
+            console.log(
+              'Normalizado: no hay primaria, marcando la primera como primaria',
+            );
           }
 
           // **CRÍTICO**: Si hay alguna ubicación nueva que será primaria, primero desmarcar TODAS las primarias existentes
           const hasNewPrimaryLocation = safeLocations.some(
-            (loc) => loc.isPrimary === true && !currentLocations.find(
-              (cl) => cl.id === loc.id || 
-                (cl.warehouse === loc.warehouse && 
-                 (cl.aisle || '').toString().trim() === (loc.aisle || '').toString().trim() &&
-                 (cl.shelf || '').toString().trim() === (loc.shelf || '').toString().trim())
-            )
+            (loc) =>
+              loc.isPrimary === true &&
+              !currentLocations.find(
+                (cl) =>
+                  cl.id === loc.id ||
+                  (cl.warehouse === loc.warehouse &&
+                    (cl.aisle || '').toString().trim() ===
+                      (loc.aisle || '').toString().trim() &&
+                    (cl.shelf || '').toString().trim() ===
+                      (loc.shelf || '').toString().trim()),
+              ),
           );
 
           if (hasNewPrimaryLocation) {
             // Desmarcar todas las primarias existentes ANTES de añadir nuevas
-            console.log('Desmarcando todas las ubicaciones primarias existentes antes de añadir nueva primaria');
+            console.log(
+              'Desmarcando todas las ubicaciones primarias existentes antes de añadir nueva primaria',
+            );
             for (const currentLoc of currentLocations) {
               if (currentLoc.isPrimary && currentLoc.id) {
                 try {
@@ -559,12 +613,17 @@ export function ProductForm({
           // Eliminar ubicaciones que ya no existen
           for (const currentLoc of currentLocations) {
             const exists = safeLocations.find(
-              (loc) => 
-                loc.id === currentLoc.id || 
-                (loc.warehouse === currentLoc.warehouse && loc.aisle === currentLoc.aisle && loc.shelf === currentLoc.shelf)
+              (loc) =>
+                loc.id === currentLoc.id ||
+                (loc.warehouse === currentLoc.warehouse &&
+                  loc.aisle === currentLoc.aisle &&
+                  loc.shelf === currentLoc.shelf),
             );
             if (!exists && currentLoc.id) {
-              await repositoryRef.current.removeProductLocation(currentLoc.id, userId || '');
+              await repositoryRef.current.removeProductLocation(
+                currentLoc.id,
+                userId || '',
+              );
             }
           }
 
@@ -578,17 +637,19 @@ export function ProductForm({
           for (const loc of sortedLocations) {
             // Normalizar comparación: para FURGONETA, aisle puede ser 'FURGONETA' o vacío en la BD
             // Para MEYPAR y OLIVA_TORRAS, normalizar aisle y shelf como strings
-            const normalizedLocAisle = loc.warehouse === 'FURGONETA' 
-              ? (loc.aisle || 'FURGONETA') 
-              : (loc.aisle || '').toString().trim();
+            const normalizedLocAisle =
+              loc.warehouse === 'FURGONETA'
+                ? loc.aisle || 'FURGONETA'
+                : (loc.aisle || '').toString().trim();
             const normalizedLocShelf = (loc.shelf || '').toString().trim();
-            
+
             const existing = currentLocations.find((cl) => {
-              const normalizedClAisle = cl.warehouse === 'FURGONETA' 
-                ? (cl.aisle || 'FURGONETA') 
-                : (cl.aisle || '').toString().trim();
+              const normalizedClAisle =
+                cl.warehouse === 'FURGONETA'
+                  ? cl.aisle || 'FURGONETA'
+                  : (cl.aisle || '').toString().trim();
               const normalizedClShelf = (cl.shelf || '').toString().trim();
-              
+
               return (
                 cl.warehouse === loc.warehouse &&
                 normalizedClAisle === normalizedLocAisle &&
@@ -598,9 +659,12 @@ export function ProductForm({
 
             if (!existing) {
               // Nueva ubicación - asegurar que aisle esté correcto para FURGONETA
-              const aisleToSave = loc.warehouse === 'FURGONETA' ? 'FURGONETA' : (loc.aisle || '').toString().trim();
+              const aisleToSave =
+                loc.warehouse === 'FURGONETA'
+                  ? 'FURGONETA'
+                  : (loc.aisle || '').toString().trim();
               const shelfToSave = (loc.shelf || '').toString().trim();
-              
+
               console.log('Añadiendo nueva ubicación:', {
                 productId: savedProduct.id,
                 warehouse: loc.warehouse,
@@ -609,7 +673,7 @@ export function ProductForm({
                 isPrimary: loc.isPrimary || false,
                 userId: userId || 'undefined',
               });
-              
+
               try {
                 const newLocation = await repositoryRef.current.addProductLocation(
                   savedProduct.id,
@@ -624,7 +688,9 @@ export function ProductForm({
                 console.error('Error al añadir ubicación:', locationError);
                 showError(
                   t('form.errorAddingLocation') || 'Error al añadir ubicación',
-                  locationError instanceof Error ? locationError.message : String(locationError)
+                  locationError instanceof Error
+                    ? locationError.message
+                    : String(locationError),
                 );
                 throw locationError; // Re-lanzar para que se capture en el catch externo
               }
@@ -640,50 +706,52 @@ export function ProductForm({
               }
             }
           }
-          
+
           console.log('Todas las ubicaciones procesadas correctamente');
         } catch (error) {
           console.error('Error al gestionar ubicaciones:', error);
           showError(
             t('form.errorManagingLocations') || 'Error al gestionar ubicaciones',
-            error instanceof Error ? error.message : String(error)
+            error instanceof Error ? error.message : String(error),
           );
           // No re-lanzar el error para que el producto se guarde aunque falle la gestión de ubicaciones
         }
       } else {
-        console.warn('No se pudo obtener el producto guardado para gestionar ubicaciones');
+        console.warn(
+          'No se pudo obtener el producto guardado para gestionar ubicaciones',
+        );
       }
     }
   };
 
   const handleChange = React.useCallback(
     (field: string, value: string | number | boolean) => {
-    // Si es batchCode, convertir a mayúsculas y aplicar formato
+      // Si es batchCode, convertir a mayúsculas y aplicar formato
       if (field === 'batchCode' && typeof value === 'string') {
         let formatted = value.toUpperCase().replace(/[^L0-9-]/g, '');
-      // Asegurar formato L-XXXXX
+        // Asegurar formato L-XXXXX
         if (formatted.startsWith('L') && !formatted.includes('-')) {
-        if (formatted.length > 1) {
-          formatted = `L-${formatted.slice(1)}`;
+          if (formatted.length > 1) {
+            formatted = `L-${formatted.slice(1)}`;
+          }
         }
+        // Limitar a 7 caracteres (L-XXXXX)
+        if (formatted.length > 7) {
+          formatted = formatted.slice(0, 7);
+        }
+        value = formatted;
       }
-      // Limitar a 7 caracteres (L-XXXXX)
-      if (formatted.length > 7) {
-        formatted = formatted.slice(0, 7);
-      }
-      value = formatted;
-    }
 
-    setFormData((prev) => ({ ...prev, [field]: value }));
-    // Solo limpiar error si existe, sin validar
-    setErrors((prev) => {
-      if (prev[field]) {
-        const newErrors = { ...prev };
-        delete newErrors[field];
-        return newErrors;
-      }
-      return prev;
-    });
+      setFormData((prev) => ({ ...prev, [field]: value }));
+      // Solo limpiar error si existe, sin validar
+      setErrors((prev) => {
+        if (prev[field]) {
+          const newErrors = { ...prev };
+          delete newErrors[field];
+          return newErrors;
+        }
+        return prev;
+      });
     },
     [],
   );
@@ -698,84 +766,108 @@ export function ProductForm({
 
   const addLocation = (): boolean => {
     const warehouse = newLocation.warehouse;
-    
+
     if (warehouse === 'MEYPAR') {
       const aisle = newLocation.aisle;
       const shelf = newLocation.shelf.toUpperCase();
-      
+
       if (!aisle || !shelf) {
         return false;
       }
-      
+
       // Validar si la ubicación ya existe en este almacén
       const exists = safeLocations.some(
-        (loc) => loc.warehouse === 'MEYPAR' && loc.aisle === aisle && loc.shelf.toUpperCase() === shelf
+        (loc) =>
+          loc.warehouse === 'MEYPAR' &&
+          loc.aisle === aisle &&
+          loc.shelf.toUpperCase() === shelf,
       );
-      
+
       if (exists) {
         showError(
           t('form.locationExists') || 'Ubicación existente',
-          (t('form.locationExistsMessage') || 'La ubicación {{location}} ya está añadida. Por favor, elige otra ubicación.').replace('{{location}}', `${aisle}${shelf}`)
+          (
+            t('form.locationExistsMessage') ||
+            'La ubicación {{location}} ya está añadida. Por favor, elige otra ubicación.'
+          ).replace('{{location}}', `${aisle}${shelf}`),
         );
         return false;
       }
-      
+
       // Solo marcar como primaria si no hay ninguna ubicación primaria existente
-      const hasPrimary = safeLocations.some(loc => loc.isPrimary === true);
+      const hasPrimary = safeLocations.some((loc) => loc.isPrimary === true);
       const isPrimary = !hasPrimary && safeLocations.length === 0;
       const newLoc = { warehouse: 'MEYPAR' as const, aisle, shelf, isPrimary };
       setLocations([...safeLocations, newLoc]);
       setNewLocation({ warehouse: 'MEYPAR', aisle: '1', shelf: 'A', technicianName: '' });
       return true;
-      
     } else if (warehouse === 'FURGONETA') {
       const techName = newLocation.technicianName?.trim();
       if (!techName || techName.length < 2) {
         return false;
       }
-      
+
       // Validar si el técnico ya existe
       const exists = safeLocations.some(
-        (loc) => loc.warehouse === 'FURGONETA' && loc.shelf.toLowerCase() === techName.toLowerCase()
+        (loc) =>
+          loc.warehouse === 'FURGONETA' &&
+          loc.shelf.toLowerCase() === techName.toLowerCase(),
       );
-      
+
       if (exists) {
         showError(
           t('form.technicianExists') || 'Técnico existente',
-          (t('form.technicianExistsMessage') || 'El técnico "{{name}}" ya está añadido. Por favor, elige otro técnico.').replace('{{name}}', techName)
+          (
+            t('form.technicianExistsMessage') ||
+            'El técnico "{{name}}" ya está añadido. Por favor, elige otro técnico.'
+          ).replace('{{name}}', techName),
         );
         return false;
       }
-      
+
       // Solo marcar como primaria si no hay ninguna ubicación primaria existente
-      const hasPrimary = safeLocations.some(loc => loc.isPrimary === true);
+      const hasPrimary = safeLocations.some((loc) => loc.isPrimary === true);
       const isPrimary = !hasPrimary && safeLocations.length === 0;
-      const newLoc = { warehouse: 'FURGONETA' as const, aisle: 'FURGONETA', shelf: techName, isPrimary };
+      const newLoc = {
+        warehouse: 'FURGONETA' as const,
+        aisle: 'FURGONETA',
+        shelf: techName,
+        isPrimary,
+      };
       setLocations([...safeLocations, newLoc]);
-      setNewLocation({ warehouse: 'FURGONETA', aisle: '1', shelf: 'A', technicianName: '' });
+      setNewLocation({
+        warehouse: 'FURGONETA',
+        aisle: '1',
+        shelf: 'A',
+        technicianName: '',
+      });
       return true;
-      
     } else if (warehouse === 'OLIVA_TORRAS') {
       // Validar si ya existe una ubicación de Oliva Torras
       const exists = safeLocations.some((loc) => loc.warehouse === 'OLIVA_TORRAS');
-      
+
       if (exists) {
         showError(
           t('form.locationExists') || 'Ubicación existente',
-          t('form.olivaTorrasExists') || 'Ya existe una ubicación para Oliva Torras'
+          t('form.olivaTorrasExists') || 'Ya existe una ubicación para Oliva Torras',
         );
         return false;
       }
-      
+
       // Solo marcar como primaria si no hay ninguna ubicación primaria existente
-      const hasPrimary = safeLocations.some(loc => loc.isPrimary === true);
+      const hasPrimary = safeLocations.some((loc) => loc.isPrimary === true);
       const isPrimary = !hasPrimary && safeLocations.length === 0;
-      const newLoc = { warehouse: 'OLIVA_TORRAS' as const, aisle: '', shelf: '', isPrimary };
+      const newLoc = {
+        warehouse: 'OLIVA_TORRAS' as const,
+        aisle: '',
+        shelf: '',
+        isPrimary,
+      };
       setLocations([...safeLocations, newLoc]);
       setNewLocation({ warehouse: 'MEYPAR', aisle: '1', shelf: 'A', technicianName: '' });
       return true;
     }
-    
+
     return false;
   };
 
@@ -793,15 +885,22 @@ export function ProductForm({
   };
 
   // Obtener nombre del almacén traducido
-  const getWarehouseName = React.useCallback((warehouse?: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA') => {
-    if (!warehouse) return '';
-    switch (warehouse) {
-      case 'MEYPAR': return t('form.warehouse.meypar') || 'Meypar';
-      case 'OLIVA_TORRAS': return t('form.warehouse.olivaTorras') || 'Oliva Torras';
-      case 'FURGONETA': return t('form.warehouse.furgoneta') || 'Furgoneta';
-      default: return '';
-    }
-  }, [t]);
+  const getWarehouseName = React.useCallback(
+    (warehouse?: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA') => {
+      if (!warehouse) return '';
+      switch (warehouse) {
+        case 'MEYPAR':
+          return t('form.warehouse.meypar') || 'Meypar';
+        case 'OLIVA_TORRAS':
+          return t('form.warehouse.olivaTorras') || 'Oliva Torras';
+        case 'FURGONETA':
+          return t('form.warehouse.furgoneta') || 'Furgoneta';
+        default:
+          return '';
+      }
+    },
+    [t],
+  );
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -1071,19 +1170,19 @@ export function ProductForm({
               <p className="text-sm text-red-600 dark:text-red-400">{errors.locations}</p>
             </div>
           )}
-          
+
           {/* Ubicaciones asignadas - VISIBLES */}
           <div>
             <Label className="mb-3 block text-sm font-medium">
               {t('form.locations') || 'Ubicaciones asignadas'}
             </Label>
-            
+
             {safeLocations.length > 0 ? (
               <div className="space-y-2">
                 {safeLocations.map((loc, index) => (
                   <div
                     key={loc.id || index}
-              className={cn(
+                    className={cn(
                       'flex items-center gap-3 rounded-lg border p-3 transition-colors',
                       loc.isPrimary
                         ? 'border-primary-300 bg-primary-50 dark:border-primary-700 dark:bg-primary-900/20'
@@ -1106,13 +1205,11 @@ export function ProductForm({
                           {getWarehouseName(loc.warehouse)}
                         </span>
                         <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                          {loc.warehouse === 'MEYPAR' ? (
-                            `${loc.aisle}${loc.shelf.toUpperCase()}`
-                          ) : loc.warehouse === 'FURGONETA' ? (
-                            loc.shelf
-                          ) : (
-                            t('form.warehouse.olivaTorras') || 'Oliva Torras'
-                          )}
+                          {loc.warehouse === 'MEYPAR'
+                            ? `${loc.aisle}${loc.shelf.toUpperCase()}`
+                            : loc.warehouse === 'FURGONETA'
+                              ? loc.shelf
+                              : t('form.warehouse.olivaTorras') || 'Oliva Torras'}
                         </span>
                         {loc.isPrimary && (
                           <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
@@ -1147,7 +1244,8 @@ export function ProductForm({
             ) : (
               <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-center dark:border-gray-700 dark:bg-gray-900">
                 <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {t('form.noLocations') || 'No hay ubicaciones asignadas. Añade una ubicación para comenzar.'}
+                  {t('form.noLocations') ||
+                    'No hay ubicaciones asignadas. Añade una ubicación para comenzar.'}
                 </p>
               </div>
             )}
@@ -1168,12 +1266,17 @@ export function ProductForm({
               <div className="flex items-center justify-between">
                 <Label className="text-sm font-medium">
                   {t('form.addNewLocation') || 'Añadir nueva ubicación'}
-            </Label>
+                </Label>
                 <button
                   type="button"
                   onClick={() => {
                     setShowAddLocationForm(false);
-                    setNewLocation({ warehouse: 'MEYPAR', aisle: '1', shelf: 'A', technicianName: '' });
+                    setNewLocation({
+                      warehouse: 'MEYPAR',
+                      aisle: '1',
+                      shelf: 'A',
+                      technicianName: '',
+                    });
                   }}
                   className="rounded p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
                   title={t('form.cancel') || 'Cancelar'}
@@ -1185,49 +1288,77 @@ export function ProductForm({
               {/* Selector de almacén */}
               <select
                 value={newLocation.warehouse}
-                onChange={(e) => setNewLocation({ ...newLocation, warehouse: e.target.value as 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA' })}
+                onChange={(e) =>
+                  setNewLocation({
+                    ...newLocation,
+                    warehouse: e.target.value as 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
+                  })
+                }
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
               >
                 <option value="MEYPAR">{t('form.warehouse.meypar') || 'Meypar'}</option>
-                <option value="FURGONETA">{t('form.warehouse.furgoneta') || 'Furgoneta'}</option>
-                <option value="OLIVA_TORRAS">{t('form.warehouse.olivaTorras') || 'Oliva Torras'}</option>
+                <option value="FURGONETA">
+                  {t('form.warehouse.furgoneta') || 'Furgoneta'}
+                </option>
+                <option value="OLIVA_TORRAS">
+                  {t('form.warehouse.olivaTorras') || 'Oliva Torras'}
+                </option>
               </select>
 
               {/* Campos según el almacén seleccionado */}
               {newLocation.warehouse === 'MEYPAR' && (
-                <div className="flex gap-2">
-                  <select
-                    value={newLocation.aisle}
-                    onChange={(e) => setNewLocation({ ...newLocation, aisle: e.target.value })}
-                    className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
-                  >
-                    {Array.from({ length: 30 }, (_, i) => i + 1).map((num) => (
-                      <option key={num} value={num.toString()}>
-                        {num}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    value={newLocation.shelf}
-                    onChange={(e) =>
-                      setNewLocation({ ...newLocation, shelf: e.target.value.toUpperCase() })
-                    }
-                    className="flex-1 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
-                  >
-                    {['A', 'B', 'C', 'D', 'E', 'F', 'G'].map((letter) => (
-                      <option key={letter} value={letter}>
-                        {letter}
-                      </option>
-                    ))}
-                  </select>
+                <div className="space-y-2">
+                  <div>
+                    <Label className="text-xs text-gray-600 dark:text-gray-400">
+                      {t('form.estanteria') || 'Estantería'}
+                    </Label>
+                    <select
+                      value={newLocation.aisle}
+                      onChange={(e) =>
+                        setNewLocation({ ...newLocation, aisle: e.target.value })
+                      }
+                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                    >
+                      {Array.from({ length: 30 }, (_, i) => i + 1).map((num) => (
+                        <option key={num} value={num.toString()}>
+                          {num}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <Label className="text-xs text-gray-600 dark:text-gray-400">
+                      {t('form.estante') || 'Estante'}
+                    </Label>
+                    <select
+                      value={newLocation.shelf}
+                      onChange={(e) =>
+                        setNewLocation({
+                          ...newLocation,
+                          shelf: e.target.value.toUpperCase(),
+                        })
+                      }
+                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
+                    >
+                      {['A', 'B', 'C', 'D', 'E', 'F', 'G'].map((letter) => (
+                        <option key={letter} value={letter}>
+                          {letter}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               )}
 
               {newLocation.warehouse === 'FURGONETA' && (
-            <Input
+                <Input
                   value={newLocation.technicianName || ''}
-                  onChange={(e) => setNewLocation({ ...newLocation, technicianName: e.target.value })}
-                  placeholder={t('form.furgonetaNamePlaceholder') || 'Ej: Jaume, Carles...'}
+                  onChange={(e) =>
+                    setNewLocation({ ...newLocation, technicianName: e.target.value })
+                  }
+                  placeholder={
+                    t('form.furgonetaNamePlaceholder') || 'Ej: Jaume, Carles...'
+                  }
                   className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-800"
                 />
               )}
@@ -1239,7 +1370,12 @@ export function ProductForm({
                   const success = addLocation();
                   if (success) {
                     setShowAddLocationForm(false);
-                    setNewLocation({ warehouse: 'MEYPAR', aisle: '1', shelf: 'A', technicianName: '' });
+                    setNewLocation({
+                      warehouse: 'MEYPAR',
+                      aisle: '1',
+                      shelf: 'A',
+                      technicianName: '',
+                    });
                   }
                 }}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600"
@@ -1247,7 +1383,7 @@ export function ProductForm({
                 <Plus className="h-4 w-4" />
                 {t('form.addLocation') || 'Añadir'}
               </button>
-          </div>
+            </div>
           )}
         </div>
       </SectionCard>

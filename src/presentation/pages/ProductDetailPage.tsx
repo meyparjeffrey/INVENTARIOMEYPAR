@@ -64,7 +64,7 @@ export function ProductDetailPage() {
     };
   }, [id, getById]);
 
-  // Recargar cuando se navega a esta página (usando location.key o state.refresh)
+  // Recargar cuando se navega a esta página (usando location.key)
   React.useEffect(() => {
     if (id) {
       getById(id).then(setProduct);
@@ -72,13 +72,22 @@ export function ProductDetailPage() {
   }, [location.key, id, getById]);
 
   // Recargar cuando viene de una edición (state.refresh)
+  // Usar un ref para evitar recargas múltiples
+  const refreshHandledRef = React.useRef<string | null>(null);
   React.useEffect(() => {
-    const state = location.state as { refresh?: boolean } | null;
+    const state = location.state as { refresh?: boolean; timestamp?: number } | null;
     if (state?.refresh && id) {
-      // Forzar recarga inmediata del producto
-      getById(id).then(setProduct);
-      // Limpiar el state para evitar recargas innecesarias
-      window.history.replaceState({ ...state, refresh: false }, '');
+      const timestamp = state.timestamp || Date.now();
+      const stateKey = `${id}-${timestamp}`;
+
+      // Solo recargar si no se ha manejado este refresh antes
+      if (refreshHandledRef.current !== stateKey) {
+        refreshHandledRef.current = stateKey;
+        // Forzar recarga inmediata del producto
+        getById(id).then(setProduct);
+        // Limpiar el state para evitar recargas innecesarias
+        window.history.replaceState({ ...state, refresh: false }, '');
+      }
     }
   }, [location.state, id, getById]);
 
