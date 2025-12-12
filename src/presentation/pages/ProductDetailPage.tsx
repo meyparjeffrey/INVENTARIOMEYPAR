@@ -38,6 +38,7 @@ export function ProductDetailPage() {
     return '/products';
   };
 
+  // Carga inicial del producto
   React.useEffect(() => {
     if (id) {
       getById(id).then(setProduct);
@@ -64,56 +65,36 @@ export function ProductDetailPage() {
     };
   }, [id, getById]);
 
-  // Recargar cuando se navega a esta página (usando location.key)
-  React.useEffect(() => {
-    if (id) {
-      getById(id).then(setProduct);
-    }
-  }, [location.key, id, getById]);
-
   // Recargar cuando viene de una edición (state.refresh)
-  // Usar un ref para evitar recargas múltiples y un timeout para asegurar que la navegación se complete
-  const refreshHandledRef = React.useRef<string | null>(null);
+  // IMPORTANTE: Este efecto debe ejecutarse DESPUÉS de que los datos se guarden en Supabase
   React.useEffect(() => {
     const state = location.state as { refresh?: boolean; timestamp?: number } | null;
     if (state?.refresh && id) {
-      const timestamp = state.timestamp || Date.now();
-      const stateKey = `${id}-${timestamp}`;
-
-      // Solo recargar si no se ha manejado este refresh antes
-      if (refreshHandledRef.current !== stateKey) {
-        refreshHandledRef.current = stateKey;
-
-        // Usar un timeout para asegurar que la navegación se complete
-        // y que los datos se hayan guardado completamente en la base de datos
-        const timeoutId = setTimeout(() => {
-          // Forzar recarga del producto con un pequeño delay adicional
-          // para dar tiempo a que Supabase propague los cambios
-          getById(id)
-            .then((updatedProduct) => {
-              if (updatedProduct) {
-                setProduct(updatedProduct);
-              }
-            })
-            .catch((error) => {
+      // Usar un timeout más largo para asegurar que Supabase termine de guardar
+      const timeoutId = setTimeout(() => {
+        // Forzar recarga del producto
+        getById(id)
+          .then((updatedProduct) => {
+            if (updatedProduct) {
+              setProduct(updatedProduct);
               // eslint-disable-next-line no-console
-              console.error('Error al recargar producto después de edición:', error);
-              // Intentar recargar de nuevo después de un segundo
-              setTimeout(() => {
-                getById(id).then(setProduct);
-              }, 1000);
-            });
-        }, 300);
+              console.log('Producto recargado después de edición:', updatedProduct);
+            }
+          })
+          .catch((error) => {
+            // eslint-disable-next-line no-console
+            console.error('Error al recargar producto:', error);
+          });
+      }, 500); // Timeout aumentado a 500ms
 
-        // Limpiar el state para evitar recargas innecesarias
-        window.history.replaceState({ ...state, refresh: false }, '');
+      // Limpiar el state para evitar recargas innecesarias en el futuro
+      window.history.replaceState({}, '');
 
-        return () => {
-          clearTimeout(timeoutId);
-        };
-      }
+      return () => {
+        clearTimeout(timeoutId);
+      };
     }
-  }, [location.state, id, getById, setProduct]);
+  }, [location.state, id, getById]);
 
   const canEdit = authContext?.permissions?.includes('products.edit') ?? false;
 
