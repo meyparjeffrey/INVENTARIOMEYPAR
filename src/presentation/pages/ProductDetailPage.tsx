@@ -72,7 +72,7 @@ export function ProductDetailPage() {
   }, [location.key, id, getById]);
 
   // Recargar cuando viene de una edición (state.refresh)
-  // Usar un ref para evitar recargas múltiples
+  // Usar un ref para evitar recargas múltiples y un timeout para asegurar que la navegación se complete
   const refreshHandledRef = React.useRef<string | null>(null);
   React.useEffect(() => {
     const state = location.state as { refresh?: boolean; timestamp?: number } | null;
@@ -83,13 +83,37 @@ export function ProductDetailPage() {
       // Solo recargar si no se ha manejado este refresh antes
       if (refreshHandledRef.current !== stateKey) {
         refreshHandledRef.current = stateKey;
-        // Forzar recarga inmediata del producto
-        getById(id).then(setProduct);
+
+        // Usar un timeout para asegurar que la navegación se complete
+        // y que los datos se hayan guardado completamente en la base de datos
+        const timeoutId = setTimeout(() => {
+          // Forzar recarga del producto con un pequeño delay adicional
+          // para dar tiempo a que Supabase propague los cambios
+          getById(id)
+            .then((updatedProduct) => {
+              if (updatedProduct) {
+                setProduct(updatedProduct);
+              }
+            })
+            .catch((error) => {
+              // eslint-disable-next-line no-console
+              console.error('Error al recargar producto después de edición:', error);
+              // Intentar recargar de nuevo después de un segundo
+              setTimeout(() => {
+                getById(id).then(setProduct);
+              }, 1000);
+            });
+        }, 300);
+
         // Limpiar el state para evitar recargas innecesarias
         window.history.replaceState({ ...state, refresh: false }, '');
+
+        return () => {
+          clearTimeout(timeoutId);
+        };
       }
     }
-  }, [location.state, id, getById]);
+  }, [location.state, id, getById, setProduct]);
 
   const canEdit = authContext?.permissions?.includes('products.edit') ?? false;
 

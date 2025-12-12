@@ -65,6 +65,8 @@ export function ProductEditPage() {
       };
 
       await update(id, updateData);
+      // Esperar un momento para asegurar que la actualización se complete en la BD
+      await new Promise((resolve) => setTimeout(resolve, 200));
       // Navegar con state y timestamp para forzar recarga en ProductDetailPage
       navigate(`/products/${id}`, {
         state: { refresh: true, timestamp: Date.now() },
