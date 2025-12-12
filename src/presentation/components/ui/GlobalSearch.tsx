@@ -1,16 +1,16 @@
-import { Search, Clock, X } from "lucide-react";
-import * as React from "react";
-import { useNavigate } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
-import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
-import { Input } from "./Input";
-import { useLanguage } from "../../context/LanguageContext";
-import { cn } from "../../lib/cn";
-import { highlightText } from "../../utils/highlightText";
+import { Search, Clock, X } from 'lucide-react';
+import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { supabaseClient } from '@infrastructure/supabase/supabaseClient';
+import { Input } from './Input';
+import { useLanguage } from '../../context/LanguageContext';
+import { cn } from '../../lib/cn';
+import { highlightText } from '../../utils/highlightText';
 
 interface SearchResult {
   id: string;
-  type: "product" | "batch";
+  type: 'product' | 'batch';
   code: string;
   name: string;
   description?: string;
@@ -23,18 +23,21 @@ interface GlobalSearchProps {
 
 /**
  * Búsqueda global con dropdown de resultados.
- * 
+ *
  * Permite búsqueda por código completo, primeros 3+ caracteres del código, o nombre.
  * Busca en productos y lotes activos, mostrando hasta 10 resultados de productos y 5 de lotes.
- * 
+ *
  * @component
  * @param {GlobalSearchProps} props - Propiedades del componente
  * @param {string} [props.placeholder] - Texto placeholder
  * @param {string} [props.className] - Clases CSS adicionales
  */
-export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 3 caracteres)", className }: GlobalSearchProps) {
+export function GlobalSearch({
+  placeholder = 'Buscar productos, lotes... (mín. 3 caracteres)',
+  className,
+}: GlobalSearchProps) {
   const { t } = useLanguage();
-  const [value, setValue] = React.useState("");
+  const [value, setValue] = React.useState('');
   const [results, setResults] = React.useState<SearchResult[]>([]);
   const [isOpen, setIsOpen] = React.useState(false);
   const [loading, setLoading] = React.useState(false);
@@ -45,7 +48,7 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
 
   // Cargar búsquedas recientes desde localStorage
   React.useEffect(() => {
-    const stored = localStorage.getItem("recentSearches");
+    const stored = localStorage.getItem('recentSearches');
     if (stored) {
       try {
         setRecentSearches(JSON.parse(stored));
@@ -58,21 +61,21 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
   // Atajo de teclado Ctrl+K / Cmd+K
   React.useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
         e.preventDefault();
         inputRef.current?.focus();
         if (results.length > 0) {
           setIsOpen(true);
         }
       }
-      if (e.key === "Escape" && isOpen) {
+      if (e.key === 'Escape' && isOpen) {
         setIsOpen(false);
         inputRef.current?.blur();
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, results.length]);
 
   React.useEffect(() => {
@@ -96,28 +99,32 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
         // Buscar productos: código completo, código parcial (3+ caracteres), nombre, barcode
         // Priorizar coincidencias exactas primero
         const { data: products, error: productsError } = await supabaseClient
-          .from("products")
-          .select("id, code, name, description, barcode")
-          .or(`code.ilike.${term},name.ilike.${term},barcode.ilike.${term},code.eq.${searchTerm},barcode.eq.${searchTerm}`)
-          .eq("is_active", true)
-          .order("code", { ascending: true })
+          .from('products')
+          .select('id, code, name, description, barcode')
+          .or(
+            `code.ilike.${term},name.ilike.${term},barcode.ilike.${term},code.eq.${searchTerm},barcode.eq.${searchTerm}`,
+          )
+          .eq('is_active', true)
+          .order('code', { ascending: true })
           .limit(10); // Aumentar a 10 resultados
 
         if (productsError) {
           // eslint-disable-next-line no-console
-          console.error("[GlobalSearch] Error buscando productos:", productsError);
+          console.error('[GlobalSearch] Error buscando productos:', productsError);
         }
 
         // Buscar lotes
         const { data: batches, error: batchesError } = await supabaseClient
-          .from("product_batches")
-          .select("id, batch_code, product_id, batch_barcode, products:product_id(name)")
-          .or(`batch_code.ilike.${term},batch_barcode.ilike.${term},batch_code.eq.${searchTerm},batch_barcode.eq.${searchTerm}`)
+          .from('product_batches')
+          .select('id, batch_code, product_id, batch_barcode, products:product_id(name)')
+          .or(
+            `batch_code.ilike.${term},batch_barcode.ilike.${term},batch_code.eq.${searchTerm},batch_barcode.eq.${searchTerm}`,
+          )
           .limit(5);
 
         if (batchesError) {
           // eslint-disable-next-line no-console
-          console.error("[GlobalSearch] Error buscando lotes:", batchesError);
+          console.error('[GlobalSearch] Error buscando lotes:', batchesError);
         }
 
         const searchResults: SearchResult[] = [];
@@ -126,10 +133,10 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
         products?.forEach((p) => {
           searchResults.push({
             id: p.id,
-            type: "product",
+            type: 'product',
             code: p.code,
             name: p.name,
-            description: p.description ?? undefined
+            description: p.description ?? undefined,
           });
         });
 
@@ -138,10 +145,10 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
           const product = b.products as { name: string } | null;
           searchResults.push({
             id: b.id,
-            type: "batch",
+            type: 'batch',
             code: b.batch_code,
-            name: product?.name ?? "Lote",
-            description: `Lote: ${b.batch_code}`
+            name: product?.name ?? 'Lote',
+            description: `Lote: ${b.batch_code}`,
           });
         });
 
@@ -149,7 +156,7 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
         setIsOpen(searchResults.length > 0);
       } catch (error) {
         // eslint-disable-next-line no-console
-        console.error("Error en búsqueda:", error);
+        console.error('Error en búsqueda:', error);
       } finally {
         setLoading(false);
       }
@@ -165,17 +172,22 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
   const handleResultClick = (result: SearchResult) => {
     // Guardar en búsquedas recientes
     if (value.trim()) {
-      const updated = [value.trim(), ...recentSearches.filter((s) => s !== value.trim())].slice(0, 5);
+      const updated = [
+        value.trim(),
+        ...recentSearches.filter((s) => s !== value.trim()),
+      ].slice(0, 5);
       setRecentSearches(updated);
-      localStorage.setItem("recentSearches", JSON.stringify(updated));
+      localStorage.setItem('recentSearches', JSON.stringify(updated));
     }
 
-    if (result.type === "product") {
-      navigate(`/products?highlight=${result.id}`);
+    if (result.type === 'product') {
+      // Navegar directamente al detalle del producto
+      navigate(`/products/${result.id}`);
     } else {
+      // Para lotes, navegar a la página de lotes con highlight
       navigate(`/batches?highlight=${result.id}`);
     }
-    setValue("");
+    setValue('');
     setIsOpen(false);
   };
 
@@ -185,7 +197,7 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
   };
 
   return (
-    <div className={cn("relative flex-1 max-w-md", className)}>
+    <div className={cn('relative flex-1 max-w-md', className)}>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -193,13 +205,16 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
           // Si hay un término de búsqueda válido (3+ caracteres), navegar a la página de resultados
           if (trimmedValue.length >= 3) {
             // Guardar en búsquedas recientes
-            const updated = [trimmedValue, ...recentSearches.filter((s) => s !== trimmedValue)].slice(0, 5);
+            const updated = [
+              trimmedValue,
+              ...recentSearches.filter((s) => s !== trimmedValue),
+            ].slice(0, 5);
             setRecentSearches(updated);
-            localStorage.setItem("recentSearches", JSON.stringify(updated));
-            
+            localStorage.setItem('recentSearches', JSON.stringify(updated));
+
             // Navegar a la página de resultados de búsqueda
             navigate(`/products/search?q=${encodeURIComponent(trimmedValue)}`);
-            setValue("");
+            setValue('');
             setIsOpen(false);
           } else if (results.length > 0) {
             // Si no hay término válido pero hay resultados, ir al primero
@@ -217,9 +232,9 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             // Ctrl+Z o Cmd+Z: Limpiar el campo
-            if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
               e.preventDefault();
-              setValue("");
+              setValue('');
               setIsOpen(false);
               return;
             }
@@ -229,7 +244,7 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
           onPaste={(e) => {
             // Permitir el comportamiento por defecto del navegador
             // React actualizará el valor automáticamente a través de onChange
-            const pastedText = e.clipboardData.getData("text");
+            const pastedText = e.clipboardData.getData('text');
             if (pastedText) {
               // Prevenir el comportamiento por defecto y establecer el valor manualmente
               e.preventDefault();
@@ -249,7 +264,7 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
           <button
             type="button"
             onClick={() => {
-              setValue("");
+              setValue('');
               inputRef.current?.focus();
             }}
             className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-1 text-gray-400 transition hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700"
@@ -275,13 +290,13 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
           >
             {loading ? (
               <div className="px-4 py-3 text-sm text-gray-500 dark:text-gray-400">
-                {t("search.loading") || "Buscando..."}
+                {t('search.loading') || 'Buscando...'}
               </div>
             ) : value.length < 3 ? (
               recentSearches.length > 0 ? (
                 <div>
                   <div className="border-b border-gray-200 px-4 py-2 text-xs font-semibold text-gray-500 dark:border-gray-700 dark:text-gray-400">
-                    {t("search.recent") || "Búsquedas recientes"}
+                    {t('search.recent') || 'Búsquedas recientes'}
                   </div>
                   <ul className="max-h-48 overflow-y-auto py-1">
                     {recentSearches.map((search, idx) => (
@@ -292,7 +307,9 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
                           className="flex w-full items-center gap-2 px-4 py-2 text-left text-sm transition hover:bg-gray-100 dark:hover:bg-gray-700"
                         >
                           <Clock className="h-4 w-4 text-gray-400" />
-                          <span className="text-gray-700 dark:text-gray-300">{search}</span>
+                          <span className="text-gray-700 dark:text-gray-300">
+                            {search}
+                          </span>
                         </button>
                       </li>
                     ))}
@@ -301,7 +318,7 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
               ) : null
             ) : results.length === 0 ? (
               <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-gray-400">
-                {t("search.noResults") || "No se encontraron resultados"}
+                {t('search.noResults') || 'No se encontraron resultados'}
               </div>
             ) : (
               <ul className="max-h-64 overflow-y-auto py-1">
@@ -318,7 +335,10 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
                           {highlightText(result.name, value)}
                         </div>
                         <div className="text-xs text-gray-500 dark:text-gray-400">
-                          {result.type === "product" ? (t("search.product") || "Producto") : (t("search.batch") || "Lote")}: {highlightText(result.code, value)}
+                          {result.type === 'product'
+                            ? t('search.product') || 'Producto'
+                            : t('search.batch') || 'Lote'}
+                          : {highlightText(result.code, value)}
                         </div>
                         {result.description && (
                           <div className="mt-0.5 text-xs text-gray-400 dark:text-gray-500">
@@ -337,4 +357,3 @@ export function GlobalSearch({ placeholder = "Buscar productos, lotes... (mín. 
     </div>
   );
 }
-
