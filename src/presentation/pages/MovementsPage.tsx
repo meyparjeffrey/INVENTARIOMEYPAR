@@ -442,77 +442,77 @@ export function MovementsPage() {
         loading={loading}
         onViewProduct={handleViewProduct}
         onViewDetail={handleViewDetail}
+        visibleColumns={visibleColumns}
+        onColumnResize={handleColumnResize}
       />
 
-      {/* Paginación Completa */}
-      {totalPages > 1 && (
-        <div className="flex flex-col gap-4 border-t border-gray-200 pt-4 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {t('pagination.showing')} {(page - 1) * 20 + 1}-
-              {Math.min(page * 20, totalCount)} {t('pagination.of')} {totalCount}{' '}
-              {t('movements.total')}
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(1)}
-              disabled={page <= 1}
-              title={t('pagination.first') || 'Primera página'}
-            >
-              {'<<'}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(page - 1)}
-              disabled={page <= 1}
-            >
-              {t('pagination.previous')}
-            </Button>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                {t('pagination.page') || 'Página'}
-              </span>
-              <Input
-                type="number"
-                min={1}
-                max={totalPages}
-                value={page}
-                onChange={(e) => {
-                  const newPage = parseInt(e.target.value, 10);
-                  if (newPage >= 1 && newPage <= totalPages) {
-                    setPage(newPage);
-                  }
-                }}
-                className="w-16 text-center"
-              />
-              <span className="text-sm text-gray-500 dark:text-gray-400">
-                / {totalPages}
-              </span>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(page + 1)}
-              disabled={page >= totalPages}
-            >
-              {t('pagination.next')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(totalPages)}
-              disabled={page >= totalPages}
-              title={t('pagination.last') || 'Última página'}
-            >
-              {'>>'}
-            </Button>
-          </div>
+      {/* Paginación - SIEMPRE visible */}
+      <div className="flex flex-col gap-4 border-t border-gray-200 pt-4 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {t('pagination.showing')} {(page - 1) * 20 + 1}-
+            {Math.min(page * 20, totalCount)} {t('pagination.of')} {totalCount}{' '}
+            {t('movements.total')}
+          </p>
         </div>
-      )}
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(1)}
+            disabled={page <= 1}
+            title={t('pagination.first') || 'Primera página'}
+          >
+            {'<<'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(page - 1)}
+            disabled={page <= 1}
+          >
+            {t('pagination.previous')}
+          </Button>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              {t('pagination.page') || 'Página'}
+            </span>
+            <Input
+              type="number"
+              min={1}
+              max={totalPages}
+              value={page}
+              onChange={(e) => {
+                const newPage = parseInt(e.target.value, 10);
+                if (newPage >= 1 && newPage <= totalPages) {
+                  setPage(newPage);
+                }
+              }}
+              className="w-16 text-center"
+            />
+            <span className="text-sm text-gray-500 dark:text-gray-400">
+              / {totalPages}
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(page + 1)}
+            disabled={page >= totalPages}
+          >
+            {t('pagination.next')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setPage(totalPages)}
+            disabled={page >= totalPages}
+            title={t('pagination.last') || 'Última página'}
+          >
+            {'>>'}
+          </Button>
+        </div>
+      </div>
 
       {/* Modal de detalle */}
       {selectedMovement && (

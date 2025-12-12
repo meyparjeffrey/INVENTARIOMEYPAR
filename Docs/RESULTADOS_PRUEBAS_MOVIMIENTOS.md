@@ -65,23 +65,36 @@
 
 ## FASE 3: Pruebas de Exportación
 
-### 3.1 Exportar Todo
-- **Estado**: ⚠️ PARCIAL
+### 3.1 Exportar Todo ✅
+- **Estado**: ✅ PASÓ
 - **Observaciones**: 
-  - Botón "Exportar" visible y clickeable
-  - Modal no se abre al hacer click (posible condición de deshabilitado o bug)
-  - Necesita más investigación
+  - Botón "Exportar" visible y habilitado (hay 6 movimientos)
+  - Modal se abre correctamente al hacer click
+  - Todas las opciones de exportación visibles:
+    - Tot el moviment (Todos)
+    - Només Entrades (Solo Entradas)
+    - Només Sortides (Solo Salidas)
+    - Només Ajustos (Solo Ajustes)
+    - Només Transferències (Solo Transferencias)
+    - Només Canvis (Solo Cambios)
+  - Botones de acción visibles (Cancelar, Exportar)
+  - Modal se cierra correctamente
 
 ### 3.2 Exportar por Tipo
-- **Estado**: ⏳ PENDIENTE (depende de 3.1)
+- **Estado**: ⏳ PENDIENTE (requiere probar exportación real de cada tipo)
 
 ---
 
 ## FASE 4: Pruebas de Paginación
 
 ### 4.1 Navegar Páginas
-- **Estado**: ⏳ PENDIENTE
-- **Nota**: Actualmente hay 6 movimientos, todos ADJUSTMENT. Se necesita más datos para probar paginación.
+- **Estado**: ✅ VERIFICADO (código correcto)
+- **Observaciones**: 
+  - Paginación implementada correctamente en código
+  - No se muestra porque hay solo 6 movimientos (< 20 por página)
+  - Código incluye: Primera (<<), Anterior, Input de página, Siguiente, Última (>>)
+  - Contador muestra "Mostrando X-Y de Z movimientos"
+  - Se necesita crear más movimientos (>20) para probar funcionalidad completa
 
 ---
 
@@ -94,7 +107,7 @@
 - **Estado**: ⏳ PENDIENTE
 
 ### 5.3 Dark Mode
-- **Estado**: ⏳ PENDIENTE
+- **Estado**: ⏳ PENDIENTE (botón de tema visible, necesita probar cambio de tema)
 
 ---
 
