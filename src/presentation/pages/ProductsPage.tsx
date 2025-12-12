@@ -1590,9 +1590,8 @@ export function ProductsPage() {
         />
       )}
 
-      {/* Paginación mejorada */}
-      {pagination.total > pagination.pageSize && (
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      {/* Paginación - SIEMPRE visible */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
             <p className="text-sm text-gray-500 dark:text-gray-400">
               {t('pagination.showing')} {(currentPage - 1) * pagination.pageSize + 1} -{' '}
@@ -1697,7 +1696,6 @@ export function ProductsPage() {
             </Button>
           </div>
         </div>
-      )}
 
       {/* Modal de exportación */}
       <ExportDialog
