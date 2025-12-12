@@ -152,6 +152,7 @@ export const MovementTable = React.memo(function MovementTable({
                   key={movement.id}
                   className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
                   onClick={() => onViewDetail?.(movement)}
+                  style={{ cursor: "pointer" }}
                 >
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-gray-50">
                     <div className="flex items-center gap-2">
@@ -233,11 +234,65 @@ export const MovementTable = React.memo(function MovementTable({
                       {movement.requestReason}
                     </div>
                     {movement.comments && (
-                      <div
-                        className="max-w-xs truncate text-xs text-gray-500 dark:text-gray-400"
-                        title={movement.comments}
-                      >
-                        {movement.comments}
+                      <div className="mt-1 space-y-1">
+                        {/* Detectar y mostrar cambios de producto */}
+                        {(() => {
+                          const comments = movement.comments;
+                          const hasNameChange = comments.includes('Nombre:') || comments.includes('Nom:');
+                          const hasCodeChange = comments.includes('Código:') || comments.includes('Codi:') || comments.includes('Código de barras:');
+                          const hasLocationChange = comments.includes('Pa illo:') || comments.includes('E tante:') || comments.includes('Ubicación') || comments.includes('Ubicació');
+                          const hasBarcodeChange = comments.includes('Código de barras:') || comments.includes('Codi de barres:');
+                          const hasActiveChange = comments.includes('Activo:') || comments.includes('Actiu:');
+
+                          if (!hasNameChange && !hasCodeChange && !hasLocationChange && !hasBarcodeChange && !hasActiveChange) {
+                            // Si no hay cambios específicos, mostrar comentarios normales
+                            return (
+                              <div
+                                className="max-w-xs truncate text-xs text-gray-500 dark:text-gray-400"
+                                title={comments}
+                              >
+                                {comments}
+                              </div>
+                            );
+                          }
+
+                          // Mostrar badges de cambios
+                          return (
+                            <div className="flex flex-wrap gap-1">
+                              {hasNameChange && (
+                                <span className="inline-flex items-center rounded bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                  {t('movements.changes.name') || 'Nombre'}
+                                </span>
+                              )}
+                              {hasCodeChange && (
+                                <span className="inline-flex items-center rounded bg-purple-100 px-2 py-0.5 text-xs font-medium text-purple-800 dark:bg-purple-900/30 dark:text-purple-300">
+                                  {t('movements.changes.code') || 'Código'}
+                                </span>
+                              )}
+                              {hasBarcodeChange && (
+                                <span className="inline-flex items-center rounded bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300">
+                                  {t('movements.changes.barcode') || 'Código de barras'}
+                                </span>
+                              )}
+                              {hasLocationChange && (
+                                <span className="inline-flex items-center rounded bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800 dark:bg-amber-900/30 dark:text-amber-300">
+                                  {t('movements.changes.location') || 'Ubicación'}
+                                </span>
+                              )}
+                              {hasActiveChange && (
+                                <span className="inline-flex items-center rounded bg-green-100 px-2 py-0.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300">
+                                  {t('movements.changes.active') || 'Activo'}
+                                </span>
+                              )}
+                              <div
+                                className="max-w-xs truncate text-xs text-gray-500 dark:text-gray-400"
+                                title={comments}
+                              >
+                                {comments}
+                              </div>
+                            </div>
+                          );
+                        })()}
                       </div>
                     )}
                   </td>

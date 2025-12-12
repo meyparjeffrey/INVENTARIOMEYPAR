@@ -4,11 +4,13 @@ import {
   ArrowDownCircle,
   ArrowUpCircle,
   RefreshCw as RefreshCwIcon,
+  HelpCircle,
 } from 'lucide-react';
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
 import { SearchInput } from '../components/ui/SearchInput';
 import { MovementTable } from '../components/movements/MovementTable';
 import { MovementFilters } from '../components/movements/MovementFilters';
@@ -16,6 +18,8 @@ import { MovementSortButton } from '../components/movements/MovementSortButton';
 import { MovementDetailModal } from '../components/movements/MovementDetailModal';
 import { MovementForm } from '../components/movements/MovementForm';
 import { MovementStatsCards } from '../components/movements/MovementStatsCards';
+import { ExportMovementsDialog } from '../components/movements/ExportMovementsDialog';
+import { MovementsHelpModal } from '../components/movements/MovementsHelpModal';
 import { useLanguage } from '../context/LanguageContext';
 import { useMovements } from '../hooks/useMovements';
 import { useProducts } from '../hooks/useProducts';
@@ -55,6 +59,10 @@ export function MovementsPage() {
   const [isEntryOpen, setIsEntryOpen] = React.useState(false);
   const [isExitOpen, setIsExitOpen] = React.useState(false);
   const [isAdjustmentOpen, setIsAdjustmentOpen] = React.useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = React.useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = React.useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = React.useState(false);
+  const [isHelpModalOpen, setIsHelpModalOpen] = React.useState(false);
 
   const {
     movements,
@@ -157,12 +165,40 @@ export function MovementsPage() {
     setIsEntryOpen(false);
     setIsExitOpen(false);
     setIsAdjustmentOpen(false);
-    setPreselectedMovementType(null);
   };
 
-  const handleExportExcel = () => {
+  const handleExportExcel = (exportType: 'ALL' | 'IN' | 'OUT' | 'ADJUSTMENT' | 'TRANSFER' | 'CHANGES' = 'ALL') => {
+    // Filtrar movimientos según el tipo de exportación
+    let movementsToExport = movements;
+    
+    if (exportType === 'IN') {
+      movementsToExport = movements.filter(m => m.movementType === 'IN');
+    } else if (exportType === 'OUT') {
+      movementsToExport = movements.filter(m => m.movementType === 'OUT');
+    } else if (exportType === 'ADJUSTMENT') {
+      movementsToExport = movements.filter(m => m.movementType === 'ADJUSTMENT');
+    } else if (exportType === 'TRANSFER') {
+      movementsToExport = movements.filter(m => m.movementType === 'TRANSFER');
+    } else if (exportType === 'CHANGES') {
+      // Movimientos que incluyen cambios en nombre, código o ubicación
+      movementsToExport = movements.filter(m => 
+        m.movementType === 'ADJUSTMENT' && 
+        (m.comments?.includes('Nombre:') || 
+         m.comments?.includes('Código:') || 
+         m.comments?.includes('Ubicación') ||
+         m.comments?.includes('Pa illo:') ||
+         m.comments?.includes('E tante:'))
+      );
+    }
+
+    if (movementsToExport.length === 0) {
+      // eslint-disable-next-line no-console
+      console.warn('No hay movimientos para exportar con el filtro seleccionado');
+      return;
+    }
+
     // Preparar datos
-    const excelData = movements.map((movement) => {
+    const excelData = movementsToExport.map((movement) => {
       const date = new Date(movement.movementDate);
       const userName =
         movement.userFirstName || movement.userLastName
@@ -243,7 +279,12 @@ export function MovementsPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `movimientos_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const exportTypeLabel = exportType === 'ALL' ? 'todos' : 
+                            exportType === 'IN' ? 'entradas' :
+                            exportType === 'OUT' ? 'salidas' :
+                            exportType === 'ADJUSTMENT' ? 'ajustes' :
+                            exportType === 'TRANSFER' ? 'transferencias' : 'cambios';
+    link.download = `movimientos_${exportTypeLabel}_${new Date().toISOString().split('T')[0]}.xlsx`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -297,12 +338,22 @@ export function MovementsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={handleExportExcel}
+            onClick={() => setIsExportDialogOpen(true)}
             className="gap-2"
             disabled={movements.length === 0}
           >
             <Download className="h-4 w-4" />
             {t('common.export')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsHelpModalOpen(true)}
+            className="gap-2"
+            title={t('movements.help.title') || 'Ayuda sobre movimientos'}
+          >
+            <HelpCircle className="h-4 w-4" />
+            {t('common.help') || 'Ayuda'}
           </Button>
         </div>
       </div>
@@ -386,14 +437,26 @@ export function MovementsPage() {
         onViewDetail={handleViewDetail}
       />
 
-      {/* Paginación */}
+      {/* Paginación Completa */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between border-t border-gray-200 pt-4 dark:border-gray-700">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            {t('pagination.showing')} {(page - 1) * 20 + 1}-
-            {Math.min(page * 20, totalCount)} {t('pagination.of')} {totalCount}
-          </p>
-          <div className="flex gap-2">
+        <div className="flex flex-col gap-4 border-t border-gray-200 pt-4 dark:border-gray-700 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              {t('pagination.showing')} {(page - 1) * 20 + 1}-
+              {Math.min(page * 20, totalCount)} {t('pagination.of')} {totalCount}{' '}
+              {t('movements.total')}
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(1)}
+              disabled={page <= 1}
+              title={t('pagination.first') || 'Primera página'}
+            >
+              {'<<'}
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -402,6 +465,27 @@ export function MovementsPage() {
             >
               {t('pagination.previous')}
             </Button>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                {t('pagination.page') || 'Página'}
+              </span>
+              <Input
+                type="number"
+                min={1}
+                max={totalPages}
+                value={page}
+                onChange={(e) => {
+                  const newPage = parseInt(e.target.value, 10);
+                  if (newPage >= 1 && newPage <= totalPages) {
+                    setPage(newPage);
+                  }
+                }}
+                className="w-16 text-center"
+              />
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                / {totalPages}
+              </span>
+            </div>
             <Button
               variant="outline"
               size="sm"
@@ -409,6 +493,15 @@ export function MovementsPage() {
               disabled={page >= totalPages}
             >
               {t('pagination.next')}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(totalPages)}
+              disabled={page >= totalPages}
+              title={t('pagination.last') || 'Última página'}
+            >
+              {'>>'}
             </Button>
           </div>
         </div>
@@ -455,6 +548,22 @@ export function MovementsPage() {
         onSubmit={handleCreateMovement}
         products={products}
         preselectedMovementType="ADJUSTMENT"
+      />
+
+      {/* Modal de exportación */}
+      <ExportMovementsDialog
+        isOpen={isExportDialogOpen}
+        onClose={() => setIsExportDialogOpen(false)}
+        onExport={(exportType) => {
+          handleExportExcel(exportType);
+          setIsExportDialogOpen(false);
+        }}
+      />
+
+      {/* Modal de ayuda */}
+      <MovementsHelpModal
+        isOpen={isHelpModalOpen}
+        onClose={() => setIsHelpModalOpen(false)}
       />
     </div>
   );
