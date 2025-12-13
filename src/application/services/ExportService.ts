@@ -369,7 +369,9 @@ export class ExportService {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const jsPDFClass =
         jsPDFModule.jsPDF ||
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (jsPDFModule as any).default?.jsPDF ||
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (jsPDFModule as any).default;
 
       const autoTableModule = await import('jspdf-autotable');
@@ -483,8 +485,6 @@ export class ExportService {
       const product = item.product || {};
       const valueAtCost = item.valueAtCost ?? 0;
       const valueAtSale = item.valueAtSale ?? 0;
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const productAny = product as any; // Para acceder a propiedades que pueden no estar tipadas
 
       return {
         [translations.code]: product.code || '',
@@ -492,8 +492,6 @@ export class ExportService {
         [translations.stockCurrent]: item.currentStock ?? 0,
         [translations.stockMin]: item.stockMin ?? 0,
         [translations.stockMax]: item.stockMax ?? '',
-        [translations.aisle]: productAny.aisle || '',
-        [translations.shelf]: productAny.shelf || '',
         [translations.location]: item.location || '',
         [translations.category]: product.category ?? '',
         [translations.costPrice]: `${(product.costPrice ?? 0).toFixed(2)} €`,
