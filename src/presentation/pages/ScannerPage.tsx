@@ -457,6 +457,14 @@ export function ScannerPage() {
   );
 
   /**
+   * Abre el formulario de movimiento con el producto preseleccionado.
+   */
+  const handleAddMovement = React.useCallback((product: Product) => {
+    setSelectedProductForMovement(product);
+    setIsMovementFormOpen(true);
+  }, []);
+
+  /**
    * Maneja la entrada de texto.
    */
   const handleInputChange = React.useCallback(
@@ -516,14 +524,6 @@ export function ScannerPage() {
       processBarcode(scanValue.trim());
     }
   }, [scanValue, searching, processBarcode]);
-
-  /**
-   * Abre el formulario de movimiento con el producto preseleccionado.
-   */
-  const handleAddMovement = React.useCallback((product: Product) => {
-    setSelectedProductForMovement(product);
-    setIsMovementFormOpen(true);
-  }, []);
 
   /**
    * Maneja el envío del formulario de movimiento.
