@@ -1,9 +1,9 @@
 /**
  * Card visual para cada categoría de informes.
- *
+ * 
  * Muestra icono, título, descripción y contador de tipos de informes disponibles.
  * Incluye animaciones hover con Framer Motion.
- *
+ * 
  * @module @presentation/components/reports/ReportCategoryCard
  */
 
@@ -41,7 +41,7 @@ export function ReportCategoryCard({
   reportTypesCount,
   color,
   onClick,
-  selected,
+  selected
 }: ReportCategoryCardProps) {
   return (
     <motion.div
@@ -53,20 +53,24 @@ export function ReportCategoryCard({
         selected
           ? `border-${color}-500 shadow-lg`
           : `border-gray-200 hover:border-${color}-300 hover:shadow-lg dark:border-gray-700 dark:hover:border-${color}-600`,
-        onClick && 'cursor-pointer',
+        onClick && 'cursor-pointer'
       )}
     >
       <div
         className={cn(
           'mb-4 inline-flex rounded-lg p-3',
-          `bg-${color}-100 text-${color}-600 dark:bg-${color}-900/30 dark:text-${color}-400`,
+          `bg-${color}-100 text-${color}-600 dark:bg-${color}-900/30 dark:text-${color}-400`
         )}
       >
         {icon}
       </div>
-      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">{title}</h3>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
+        {title}
+      </h3>
       {description && (
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{description}</p>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          {description}
+        </p>
       )}
       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
         {reportTypesCount} tipos de informes
@@ -78,3 +82,4 @@ export function ReportCategoryCard({
     </motion.div>
   );
 }
+

@@ -1,8 +1,8 @@
 /**
  * Tool MCP para predecir necesidades de reposición.
- *
+ * 
  * Analiza el consumo histórico y predice qué productos necesitarán reposición.
- *
+ * 
  * @module mcp-server/tools/predictReorderNeeds
  */
 
@@ -27,12 +27,12 @@ export interface ReorderPrediction {
 
 /**
  * Predice qué productos necesitarán reposición en los próximos días.
- *
+ * 
  * @param days_ahead - Días de antelación para la predicción (por defecto: 7)
  * @returns Lista de predicciones de reposición
  */
 export async function predictReorderNeeds(
-  days_ahead: number = 7,
+  days_ahead: number = 7
 ): Promise<ReorderPrediction[]> {
   // Obtener productos activos
   const { data: products, error: productsError } = await mcpSupabaseClient
@@ -85,12 +85,12 @@ export async function predictReorderNeeds(
       if (daysUntilMin <= days_ahead && daysUntilMin > 0) {
         const suggestedReorderQty = Math.max(
           product.stock_min * 2 - product.stock_current,
-          product.stock_min,
+          product.stock_min
         );
 
         // Calcular confianza basada en cantidad de datos
         const movementCount = (movements ?? []).filter(
-          (m) => m.product_id === product.id,
+          (m) => m.product_id === product.id
         ).length;
         const confidence = Math.min(movementCount / 10, 1.0);
 
@@ -105,12 +105,11 @@ export async function predictReorderNeeds(
 
         let preferredSupplier: ReorderPrediction['preferred_supplier'] | undefined;
         if (productSuppliers && productSuppliers.suppliers) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const supplier = productSuppliers.suppliers as any;
           preferredSupplier = {
             id: supplier.id,
             name: supplier.name,
-            lead_time_days: supplier.lead_time_days ?? 7,
+            lead_time_days: supplier.lead_time_days ?? 7
           };
         }
 
@@ -124,7 +123,7 @@ export async function predictReorderNeeds(
           days_until_min: daysUntilMin,
           suggested_reorder_qty: suggestedReorderQty,
           confidence,
-          preferred_supplier: preferredSupplier,
+          preferred_supplier: preferredSupplier
         });
       }
     }
@@ -135,3 +134,4 @@ export async function predictReorderNeeds(
 
   return predictions;
 }
+

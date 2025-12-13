@@ -1,8 +1,8 @@
 /**
  * Card para cada tipo de informe específico.
- *
+ * 
  * Muestra nombre, descripción, icono y botón para generar el informe.
- *
+ * 
  * @module @presentation/components/reports/ReportTypeCard
  */
 
@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 import * as React from 'react';
 import { FileText, Play } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { cn } from '../../lib/cn';
 
 export interface ReportTypeCardProps {
   /** ID del tipo de informe */
@@ -34,7 +35,7 @@ export function ReportTypeCard({
   description,
   icon,
   loading,
-  onGenerate,
+  onGenerate
 }: ReportTypeCardProps) {
   return (
     <motion.div
@@ -51,8 +52,12 @@ export function ReportTypeCard({
           <FileText className="h-6 w-6 text-gray-400" />
         )}
         <div className="flex-1">
-          <h3 className="font-semibold text-gray-900 dark:text-gray-50">{name}</h3>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{description}</p>
+          <h3 className="font-semibold text-gray-900 dark:text-gray-50">
+            {name}
+          </h3>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            {description}
+          </p>
           {onGenerate && (
             <Button
               className="mt-4 w-full"
@@ -69,3 +74,4 @@ export function ReportTypeCard({
     </motion.div>
   );
 }
+

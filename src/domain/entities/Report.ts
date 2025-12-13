@@ -427,11 +427,7 @@ export interface BatchAnomaly {
   productId: UUID;
   productCode: string;
   productName: string;
-  anomalyType:
-    | 'HIGH_DEFECT_RATE'
-    | 'ABNORMAL_CONSUMPTION'
-    | 'EXPIRING_SOON'
-    | 'BLOCKED_TOO_LONG';
+  anomalyType: 'HIGH_DEFECT_RATE' | 'ABNORMAL_CONSUMPTION' | 'EXPIRING_SOON' | 'BLOCKED_TOO_LONG';
   severity: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   description: string;
   detectedAt: Timestamp;
@@ -526,3 +522,4 @@ export interface ReportMetadata {
   filters: Record<string, unknown>;
   exportConfig?: Nullable<ReportExportConfig>;
 }
+

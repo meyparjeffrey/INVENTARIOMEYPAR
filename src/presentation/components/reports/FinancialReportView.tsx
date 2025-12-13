@@ -1,14 +1,21 @@
 /**
  * Vista de informe financiero.
- *
+ * 
  * Muestra métricas financieras, valor de inventario y márgenes.
- *
+ * 
  * @module @presentation/components/reports/FinancialReportView
  */
 
 import * as React from 'react';
 import type { FinancialReport } from '@domain/entities/Report';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
+  Legend
+} from 'recharts';
 import { DollarSign, TrendingUp, Package } from 'lucide-react';
 
 export interface FinancialReportViewProps {
@@ -24,14 +31,14 @@ export function FinancialReportView({ report }: FinancialReportViewProps) {
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: 'EUR',
-      minimumFractionDigits: 2,
+      minimumFractionDigits: 2
     }).format(value);
   };
 
   // Datos para gráfico circular por categoría
   const categoryData = report.byCategory.map((item) => ({
     name: item.category,
-    value: item.valueAtCost,
+    value: item.valueAtCost
   }));
 
   const COLORS = [
@@ -41,7 +48,7 @@ export function FinancialReportView({ report }: FinancialReportViewProps) {
     '#ef4444',
     '#8b5cf6',
     '#ec4899',
-    '#06b6d4',
+    '#06b6d4'
   ];
 
   return (
@@ -90,7 +97,9 @@ export function FinancialReportView({ report }: FinancialReportViewProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5 text-gray-500" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Unidades</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Total Unidades
+            </p>
           </div>
           <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-50">
             {report.summary.totalUnits.toLocaleString('es-ES')}
@@ -120,7 +129,10 @@ export function FinancialReportView({ report }: FinancialReportViewProps) {
                 dataKey="value"
               >
                 {categoryData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  <Cell
+                    key={`cell-${index}`}
+                    fill={COLORS[index % COLORS.length]}
+                  />
                 ))}
               </Pie>
               <Tooltip formatter={(value: number) => formatCurrency(value)} />
@@ -229,3 +241,4 @@ export function FinancialReportView({ report }: FinancialReportViewProps) {
     </div>
   );
 }
+

@@ -1,25 +1,26 @@
 /**
  * Vista de análisis ABC.
- *
+ * 
  * Muestra clasificación ABC con gráfico de Pareto.
- *
+ * 
  * @module @presentation/components/reports/ABCReportView
  */
 
 import * as React from 'react';
 import type { ABCReport } from '@domain/entities/Report';
 import {
+  BarChart,
   Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
+  Legend,
   ResponsiveContainer,
   Line,
-  ComposedChart,
-  Legend,
+  ComposedChart
 } from 'recharts';
-import { Package } from 'lucide-react';
+import { TrendingUp, Package } from 'lucide-react';
 
 export interface ABCReportViewProps {
   /** Informe ABC */
@@ -34,7 +35,7 @@ export function ABCReportView({ report }: ABCReportViewProps) {
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: 'EUR',
-      minimumFractionDigits: 2,
+      minimumFractionDigits: 2
     }).format(value);
   };
 
@@ -42,7 +43,7 @@ export function ABCReportView({ report }: ABCReportViewProps) {
   const paretoData = report.classifications.map((item) => ({
     product: item.product.code,
     value: item.value,
-    cumulative: item.cumulativePercentage,
+    cumulative: item.cumulativePercentage
   }));
 
   return (
@@ -111,7 +112,12 @@ export function ABCReportView({ report }: ABCReportViewProps) {
             <YAxis yAxisId="right" orientation="right" />
             <Tooltip />
             <Legend />
-            <Bar yAxisId="left" dataKey="value" fill="#3b82f6" name="Valor" />
+            <Bar
+              yAxisId="left"
+              dataKey="value"
+              fill="#3b82f6"
+              name="Valor"
+            />
             <Line
               yAxisId="right"
               type="monotone"
@@ -151,7 +157,7 @@ export function ABCReportView({ report }: ABCReportViewProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-              {report.classifications.map((item) => (
+              {report.classifications.map((item, index) => (
                 <tr
                   key={item.product.id}
                   className="hover:bg-gray-50 dark:hover:bg-gray-900"
@@ -193,3 +199,4 @@ export function ABCReportView({ report }: ABCReportViewProps) {
     </div>
   );
 }
+

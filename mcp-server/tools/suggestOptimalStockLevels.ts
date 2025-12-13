@@ -1,9 +1,9 @@
 /**
  * Tool MCP para sugerir niveles óptimos de stock.
- *
+ * 
  * Calcula el stock mínimo óptimo usando EOQ (Economic Order Quantity)
  * y análisis de consumo histórico.
- *
+ * 
  * @module mcp-server/tools/suggestOptimalStockLevels
  */
 
@@ -23,12 +23,12 @@ export interface StockOptimization {
 
 /**
  * Sugiere niveles óptimos de stock para un producto.
- *
+ * 
  * @param product_id - ID del producto
  * @returns Sugerencia de optimización de stock
  */
 export async function suggestOptimalStockLevels(
-  product_id: string,
+  product_id: string
 ): Promise<StockOptimization | null> {
   // Obtener producto
   const { data: product, error: productError } = await mcpSupabaseClient
@@ -57,7 +57,10 @@ export async function suggestOptimalStockLevels(
   }
 
   // Calcular consumo promedio diario
-  const totalConsumed = (movements ?? []).reduce((sum, m) => sum + m.quantity, 0);
+  const totalConsumed = (movements ?? []).reduce(
+    (sum, m) => sum + m.quantity,
+    0
+  );
   const daysInPeriod = 90;
   const averageDailyConsumption = totalConsumed / daysInPeriod;
 
@@ -89,6 +92,7 @@ export async function suggestOptimalStockLevels(
     current_stock_max: product.stock_max ?? undefined,
     suggested_stock_max: suggestedStockMax,
     reasoning,
-    confidence,
+    confidence
   };
 }
+

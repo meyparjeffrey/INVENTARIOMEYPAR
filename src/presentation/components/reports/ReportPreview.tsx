@@ -1,9 +1,9 @@
 /**
  * Vista previa del informe generado.
- *
+ * 
  * Muestra tabla con datos, gráficos interactivos, métricas resumidas
  * y botones para exportar, imprimir y compartir.
- *
+ * 
  * @module @presentation/components/reports/ReportPreview
  */
 
@@ -40,7 +40,7 @@ export function ReportPreview({
   onPrint,
   onShare,
   canExportExcel = true,
-  canExportPDF = true,
+  canExportPDF = true
 }: ReportPreviewProps) {
   const { t } = useLanguage();
 
@@ -74,25 +74,37 @@ export function ReportPreview({
               month: 'long',
               year: 'numeric',
               hour: '2-digit',
-              minute: '2-digit',
+              minute: '2-digit'
             })}
           </p>
         </div>
         <div className="flex gap-2">
           {canExportExcel && (
-            <Button variant="outline" size="sm" onClick={() => onExport?.('EXCEL')}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onExport?.('EXCEL')}
+            >
               <Download className="mr-2 h-4 w-4" />
               Excel
             </Button>
           )}
           {canExportPDF && (
-            <Button variant="outline" size="sm" onClick={() => onExport?.('PDF')}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onExport?.('PDF')}
+            >
               <FileText className="mr-2 h-4 w-4" />
               {t('reports.exportPDF') || 'PDF'}
             </Button>
           )}
           {canExportExcel && (
-            <Button variant="outline" size="sm" onClick={() => onExport?.('CSV')}>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onExport?.('CSV')}
+            >
               <Download className="mr-2 h-4 w-4" />
               {t('reports.exportCSV') || 'CSV'}
             </Button>
@@ -107,6 +119,8 @@ export function ReportPreview({
           </Button>
         </div>
       </div>
+
     </div>
   );
 }
+

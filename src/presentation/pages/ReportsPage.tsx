@@ -1,9 +1,9 @@
 /**
  * Página principal de informes.
- *
+ * 
  * Muestra categorías de informes, permite generar diferentes tipos de informes,
  * configurar filtros y exportar resultados.
- *
+ * 
  * @module @presentation/pages/ReportsPage
  * @requires @presentation/hooks/useReports
  * @requires @presentation/context/LanguageContext
@@ -16,11 +16,16 @@ import {
   Layers,
   DollarSign,
   Factory,
+  TrendingUp,
   Brain,
   RefreshCw,
+  FileText,
   BarChart3,
   AlertTriangle,
-  X,
+  Calendar,
+  Filter,
+  Download,
+  X
 } from 'lucide-react';
 import * as React from 'react';
 import { useLanguage } from '../context/LanguageContext';
@@ -75,24 +80,21 @@ export function ReportsPage() {
     generateReorderPredictionsReport,
     generateBatchAnomaliesReport,
     generateStockOptimizationReport,
-    clearReport,
+    clearReport
   } = useReports();
 
-  const [selectedCategory, setSelectedCategory] = React.useState<ReportCategory | null>(
-    null,
-  );
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [selectedReportType, setSelectedReportType] = React.useState<ReportType | null>(
-    null,
-  );
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const [selectedCategory, setSelectedCategory] =
+    React.useState<ReportCategory | null>(null);
+  const [selectedReportType, setSelectedReportType] =
+    React.useState<ReportType | null>(null);
   const [showFilters, setShowFilters] = React.useState(false);
 
   // Verificar permisos
   const canViewReports = authContext?.permissions?.includes('reports.view') ?? false;
   const canExportExcel =
     authContext?.permissions?.includes('reports.export_excel') ?? false;
-  const canExportPDF = authContext?.permissions?.includes('reports.export_pdf') ?? false;
+  const canExportPDF =
+    authContext?.permissions?.includes('reports.export_pdf') ?? false;
 
   // Configuración de categorías
   const categories: ReportCategoryConfig[] = React.useMemo(
@@ -105,24 +107,24 @@ export function ReportsPage() {
           {
             id: 'INVENTORY',
             nameKey: 'reports.types.inventory',
-            descriptionKey: 'reports.descriptions.inventory',
+            descriptionKey: 'reports.descriptions.inventory'
           },
           {
             id: 'LOW_STOCK',
             nameKey: 'reports.types.lowStock',
-            descriptionKey: 'reports.descriptions.lowStock',
+            descriptionKey: 'reports.descriptions.lowStock'
           },
           {
             id: 'ABC_ANALYSIS',
             nameKey: 'reports.types.abcAnalysis',
-            descriptionKey: 'reports.descriptions.abcAnalysis',
+            descriptionKey: 'reports.descriptions.abcAnalysis'
           },
           {
             id: 'STOCK_ROTATION',
             nameKey: 'reports.types.stockRotation',
-            descriptionKey: 'reports.descriptions.stockRotation',
-          },
-        ],
+            descriptionKey: 'reports.descriptions.stockRotation'
+          }
+        ]
       },
       {
         id: 'MOVEMENTS',
@@ -132,14 +134,14 @@ export function ReportsPage() {
           {
             id: 'MOVEMENTS',
             nameKey: 'reports.types.movements',
-            descriptionKey: 'reports.descriptions.movements',
+            descriptionKey: 'reports.descriptions.movements'
           },
           {
             id: 'CONSUMPTION_TRENDS',
             nameKey: 'reports.types.consumptionTrends',
-            descriptionKey: 'reports.descriptions.consumptionTrends',
-          },
-        ],
+            descriptionKey: 'reports.descriptions.consumptionTrends'
+          }
+        ]
       },
       {
         id: 'BATCHES',
@@ -149,19 +151,19 @@ export function ReportsPage() {
           {
             id: 'BATCHES',
             nameKey: 'reports.types.batches',
-            descriptionKey: 'reports.descriptions.batches',
+            descriptionKey: 'reports.descriptions.batches'
           },
           {
             id: 'EXPIRING_BATCHES',
             nameKey: 'reports.types.expiringBatches',
-            descriptionKey: 'reports.descriptions.expiringBatches',
+            descriptionKey: 'reports.descriptions.expiringBatches'
           },
           {
             id: 'DEFECTS',
             nameKey: 'reports.types.defects',
-            descriptionKey: 'reports.descriptions.defects',
-          },
-        ],
+            descriptionKey: 'reports.descriptions.defects'
+          }
+        ]
       },
       {
         id: 'FINANCIAL',
@@ -171,9 +173,9 @@ export function ReportsPage() {
           {
             id: 'FINANCIAL',
             nameKey: 'reports.types.financial',
-            descriptionKey: 'reports.descriptions.financial',
-          },
-        ],
+            descriptionKey: 'reports.descriptions.financial'
+          }
+        ]
       },
       {
         id: 'SUPPLIERS',
@@ -183,9 +185,9 @@ export function ReportsPage() {
           {
             id: 'SUPPLIER_QUALITY',
             nameKey: 'reports.types.supplierQuality',
-            descriptionKey: 'reports.descriptions.supplierQuality',
-          },
-        ],
+            descriptionKey: 'reports.descriptions.supplierQuality'
+          }
+        ]
       },
       {
         id: 'ANALYSIS',
@@ -195,19 +197,19 @@ export function ReportsPage() {
           {
             id: 'ABC_ANALYSIS',
             nameKey: 'reports.types.abcAnalysis',
-            descriptionKey: 'reports.descriptions.abcAnalysis',
+            descriptionKey: 'reports.descriptions.abcAnalysis'
           },
           {
             id: 'STOCK_ROTATION',
             nameKey: 'reports.types.stockRotation',
-            descriptionKey: 'reports.descriptions.stockRotation',
+            descriptionKey: 'reports.descriptions.stockRotation'
           },
           {
             id: 'CONSUMPTION_TRENDS',
             nameKey: 'reports.types.consumptionTrends',
-            descriptionKey: 'reports.descriptions.consumptionTrends',
-          },
-        ],
+            descriptionKey: 'reports.descriptions.consumptionTrends'
+          }
+        ]
       },
       {
         id: 'AI',
@@ -217,22 +219,22 @@ export function ReportsPage() {
           {
             id: 'REORDER_PREDICTIONS',
             nameKey: 'reports.types.reorderPredictions',
-            descriptionKey: 'reports.descriptions.reorderPredictions',
+            descriptionKey: 'reports.descriptions.reorderPredictions'
           },
           {
             id: 'BATCH_ANOMALIES',
             nameKey: 'reports.types.batchAnomalies',
-            descriptionKey: 'reports.descriptions.batchAnomalies',
+            descriptionKey: 'reports.descriptions.batchAnomalies'
           },
           {
             id: 'STOCK_OPTIMIZATION',
             nameKey: 'reports.types.stockOptimization',
-            descriptionKey: 'reports.descriptions.stockOptimization',
-          },
-        ],
-      },
+            descriptionKey: 'reports.descriptions.stockOptimization'
+          }
+        ]
+      }
     ],
-    [],
+    []
   );
 
   /**
@@ -251,11 +253,9 @@ export function ReportsPage() {
       case 'FINANCIAL':
         return <FinancialReportView report={report} />;
       case 'BATCHES':
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return <BatchesReportView report={report as any} />;
       case 'EXPIRING_BATCHES':
         // ExpiringBatchesReport tiene estructura similar, se puede adaptar
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         return <BatchesReportView report={report as any} />;
       default:
         return (
@@ -280,59 +280,42 @@ export function ReportsPage() {
       const lang = currentLang === 'ca-ES' ? 'ca-ES' : 'es-ES';
 
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const reportTypeName =
-          t(`reports.types.${report.type.toLowerCase()}`) || report.type;
+        const reportTypeName = t(`reports.types.${report.type.toLowerCase()}`) || report.type;
         const config = {
           fileName: `informe_${report.type.toLowerCase()}_${new Date().toISOString().split('T')[0]}`,
           format: format.toLowerCase() as 'xlsx' | 'csv' | 'pdf',
           columns: [],
-          language: lang as 'es-ES' | 'ca-ES',
+          language: lang as 'es-ES' | 'ca-ES'
         };
 
-        // Todas las funciones ahora son asíncronas, así que siempre usamos await
         switch (report.type) {
           case 'INVENTORY':
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await ExportService.exportInventoryReport(report as any, config);
+            ExportService.exportInventoryReport(report as any, config);
             break;
           case 'MOVEMENTS':
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await ExportService.exportMovementsReport(report as any, config);
+            ExportService.exportMovementsReport(report as any, config);
             break;
           case 'ABC_ANALYSIS':
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await ExportService.exportABCReport(report as any, config);
+            ExportService.exportABCReport(report as any, config);
             break;
           case 'FINANCIAL':
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await ExportService.exportFinancialReport(report as any, config);
+            ExportService.exportFinancialReport(report as any, config);
             break;
           case 'LOW_STOCK':
             // Usar exportInventoryReport para stock bajo
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await ExportService.exportInventoryReport(report as any, config);
+            ExportService.exportInventoryReport(report as any, config);
             break;
           case 'BATCHES':
           case 'EXPIRING_BATCHES':
             // Exportar lotes usando exportBatches si está disponible
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             if (report.type === 'BATCHES' && (report as any).items) {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
               const batches = (report as any).items.map((item: any) => ({
                 ...item.batch,
-                productName: item.product?.name,
+                productName: item.product?.name
               }));
               ExportService.exportBatches(batches, {
                 ...config,
-                columns: [
-                  'batchCode',
-                  'productName',
-                  'quantityTotal',
-                  'quantityAvailable',
-                  'status',
-                  'expiryDate',
-                ],
+                columns: ['batchCode', 'productName', 'quantityTotal', 'quantityAvailable', 'status', 'expiryDate']
               });
             } else {
               // eslint-disable-next-line no-console
@@ -341,10 +324,7 @@ export function ReportsPage() {
             break;
           default:
             // eslint-disable-next-line no-console
-            console.warn(
-              'Exportación no implementada para este tipo de informe:',
-              report.type,
-            );
+            console.warn('Exportación no implementada para este tipo de informe:', report.type);
         }
       } catch (error) {
         // eslint-disable-next-line no-console
@@ -352,7 +332,7 @@ export function ReportsPage() {
         alert(t('reports.exportError') || 'Error al exportar el informe');
       }
     },
-    [report, authContext, t],
+    [report, authContext, t]
   );
 
   /**
@@ -375,7 +355,7 @@ export function ReportsPage() {
       month: 'long',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit',
+      minute: '2-digit'
     });
 
     // Generar HTML para imprimir
@@ -410,7 +390,6 @@ export function ReportsPage() {
     switch (report.type) {
       case 'INVENTORY':
       case 'LOW_STOCK': {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const invReport = report as any;
         content += `
           <div class="summary">
@@ -433,7 +412,6 @@ export function ReportsPage() {
             </thead>
             <tbody>
         `;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (invReport.items || []).slice(0, 100).forEach((item: any) => {
           content += `
             <tr>
@@ -450,7 +428,6 @@ export function ReportsPage() {
         break;
       }
       case 'MOVEMENTS': {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const movReport = report as any;
         content += `
           <div class="summary">
@@ -472,7 +449,6 @@ export function ReportsPage() {
             </thead>
             <tbody>
         `;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (movReport.items || []).slice(0, 100).forEach((item: any) => {
           content += `
             <tr>
@@ -499,7 +475,7 @@ export function ReportsPage() {
     printWindow.document.write(content);
     printWindow.document.close();
     printWindow.focus();
-
+    
     // Esperar a que se cargue el contenido antes de imprimir
     setTimeout(() => {
       printWindow.print();
@@ -520,7 +496,7 @@ export function ReportsPage() {
     const shareData = {
       title: `${reportTypeName} - ${generatedDate}`,
       text: `${reportTypeName}\nGenerado el ${generatedDate}\n\n`,
-      url: window.location.href,
+      url: window.location.href
     };
 
     try {
@@ -622,8 +598,8 @@ export function ReportsPage() {
       generateConsumptionTrendsReport,
       generateReorderPredictionsReport,
       generateBatchAnomaliesReport,
-      generateStockOptimizationReport,
-    ],
+      generateStockOptimizationReport
+    ]
   );
 
   // Si no tiene permisos, mostrar mensaje
@@ -720,7 +696,8 @@ export function ReportsPage() {
                   {category.icon}
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
-                  {t(`reports.categories.${category.id.toLowerCase()}`) || category.id}
+                  {t(`reports.categories.${category.id.toLowerCase()}`) ||
+                    category.id}
                 </h3>
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                   {category.reportTypes.length}{' '}
@@ -766,7 +743,8 @@ export function ReportsPage() {
                         {t(reportType.nameKey) || reportType.id}
                       </h3>
                       <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                        {t(reportType.descriptionKey) || 'Descripción del informe'}
+                        {t(reportType.descriptionKey) ||
+                          'Descripción del informe'}
                       </p>
                       <Button
                         className="mt-4 w-full"
@@ -786,3 +764,4 @@ export function ReportsPage() {
     </div>
   );
 }
+

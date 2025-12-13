@@ -1,14 +1,15 @@
 /**
  * Vista de informe de inventario.
- *
+ * 
  * Muestra tabla de productos con métricas, valores y ubicaciones.
- *
+ * 
  * @module @presentation/components/reports/InventoryReportView
  */
 
 import * as React from 'react';
 import type { InventoryReport } from '@domain/entities/Report';
 import { Package, AlertTriangle, DollarSign } from 'lucide-react';
+import { cn } from '../../lib/cn';
 
 export interface InventoryReportViewProps {
   /** Informe de inventario */
@@ -23,7 +24,7 @@ export function InventoryReportView({ report }: InventoryReportViewProps) {
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: 'EUR',
-      minimumFractionDigits: 2,
+      minimumFractionDigits: 2
     }).format(value);
   };
 
@@ -34,7 +35,9 @@ export function InventoryReportView({ report }: InventoryReportViewProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5 text-gray-500" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Productos</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Total Productos
+            </p>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-50">
             {report.summary.totalProducts}
@@ -44,7 +47,9 @@ export function InventoryReportView({ report }: InventoryReportViewProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-emerald-500" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Valor a Coste</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Valor a Coste
+            </p>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-50">
             {formatCurrency(report.summary.totalValueAtCost)}
@@ -54,7 +59,9 @@ export function InventoryReportView({ report }: InventoryReportViewProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             <DollarSign className="h-5 w-5 text-blue-500" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Valor a Venta</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Valor a Venta
+            </p>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-50">
             {formatCurrency(report.summary.totalValueAtSale)}
@@ -64,7 +71,9 @@ export function InventoryReportView({ report }: InventoryReportViewProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-amber-500" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">En Alarma</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              En Alarma
+            </p>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-50">
             {report.summary.lowStockCount}
@@ -152,3 +161,4 @@ export function InventoryReportView({ report }: InventoryReportViewProps) {
     </div>
   );
 }
+

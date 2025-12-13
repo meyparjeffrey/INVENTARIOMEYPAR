@@ -1,14 +1,14 @@
 /**
  * Componente reutilizable de filtros para informes.
- *
+ * 
  * Proporciona filtros de fecha, producto, categoría, estado y usuario
  * con botones para aplicar, limpiar y resetear.
- *
+ * 
  * @module @presentation/components/reports/ReportFilters
  */
 
 import * as React from 'react';
-import { Filter, X } from 'lucide-react';
+import { Calendar, Filter, X } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
@@ -40,7 +40,7 @@ export function ReportFilters({
   onClear,
   isOpen,
   onClose,
-  availableFilters = ['dateFrom', 'dateTo', 'category', 'product', 'status'],
+  availableFilters = ['dateFrom', 'dateTo', 'category', 'product', 'status']
 }: ReportFiltersProps) {
   if (!isOpen) return null;
 
@@ -71,7 +71,9 @@ export function ReportFilters({
               type="date"
               value={
                 filters.dateFrom
-                  ? new Date(filters.dateFrom as string).toISOString().split('T')[0]
+                  ? new Date(filters.dateFrom as string)
+                      .toISOString()
+                      .split('T')[0]
                   : ''
               }
               onChange={(e) =>
@@ -89,10 +91,14 @@ export function ReportFilters({
               type="date"
               value={
                 filters.dateTo
-                  ? new Date(filters.dateTo as string).toISOString().split('T')[0]
+                  ? new Date(filters.dateTo as string)
+                      .toISOString()
+                      .split('T')[0]
                   : ''
               }
-              onChange={(e) => handleFilterChange('dateTo', e.target.value || undefined)}
+              onChange={(e) =>
+                handleFilterChange('dateTo', e.target.value || undefined)
+              }
             />
           </div>
         )}
@@ -120,7 +126,9 @@ export function ReportFilters({
               type="text"
               placeholder="Código o nombre de producto"
               value={(filters.product as string) || ''}
-              onChange={(e) => handleFilterChange('product', e.target.value || undefined)}
+              onChange={(e) =>
+                handleFilterChange('product', e.target.value || undefined)
+              }
             />
           </div>
         )}
@@ -132,7 +140,9 @@ export function ReportFilters({
               id="status"
               className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-50"
               value={(filters.status as string) || ''}
-              onChange={(e) => handleFilterChange('status', e.target.value || undefined)}
+              onChange={(e) =>
+                handleFilterChange('status', e.target.value || undefined)
+              }
             >
               <option value="">Todos</option>
               <option value="OK">OK</option>
@@ -152,3 +162,4 @@ export function ReportFilters({
     </div>
   );
 }
+

@@ -1,8 +1,8 @@
 /**
  * Vista de informe de movimientos.
- *
+ * 
  * Muestra tabla de movimientos y gráfico temporal.
- *
+ * 
  * @module @presentation/components/reports/MovementsReportView
  */
 
@@ -16,7 +16,7 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
-  ResponsiveContainer,
+  ResponsiveContainer
 } from 'recharts';
 import { ArrowDownRight, ArrowUpRight, RefreshCw } from 'lucide-react';
 
@@ -36,7 +36,9 @@ export function MovementsReportView({ report }: MovementsReportViewProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5 text-gray-500" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Movimientos</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Total Movimientos
+            </p>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-50">
             {report.summary.totalMovements}
@@ -46,7 +48,9 @@ export function MovementsReportView({ report }: MovementsReportViewProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             <ArrowUpRight className="h-5 w-5 text-emerald-500" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Entradas</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Entradas
+            </p>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-50">
             {report.summary.totalEntries}
@@ -59,7 +63,9 @@ export function MovementsReportView({ report }: MovementsReportViewProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             <ArrowDownRight className="h-5 w-5 text-red-500" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Salidas</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Salidas
+            </p>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-50">
             {report.summary.totalExits}
@@ -72,7 +78,9 @@ export function MovementsReportView({ report }: MovementsReportViewProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             <RefreshCw className="h-5 w-5 text-blue-500" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Ajustes</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Ajustes
+            </p>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-50">
             {report.summary.totalAdjustments}
@@ -129,7 +137,10 @@ export function MovementsReportView({ report }: MovementsReportViewProps) {
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
               {report.items.slice(0, 50).map((item) => (
-                <tr key={item.id} className="hover:bg-gray-50 dark:hover:bg-gray-900">
+                <tr
+                  key={item.id}
+                  className="hover:bg-gray-50 dark:hover:bg-gray-900"
+                >
                   <td className="whitespace-nowrap px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                     {new Date(item.movementDate).toLocaleDateString('es-ES')}
                   </td>
@@ -177,3 +188,4 @@ export function MovementsReportView({ report }: MovementsReportViewProps) {
     </div>
   );
 }
+

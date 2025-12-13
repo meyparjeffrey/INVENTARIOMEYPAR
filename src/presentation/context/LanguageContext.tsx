@@ -839,10 +839,12 @@ const translations: Record<LanguageCode, Record<string, string>> = {
       'Clasificación de productos por valor usando el principio de Pareto (80/20)',
     'reports.descriptions.movements':
       'Análisis de movimientos de inventario por período con gráficos temporales',
-    'reports.descriptions.stockRotation': 'Velocidad de consumo y rotación de productos',
+    'reports.descriptions.stockRotation':
+      'Velocidad de consumo y rotación de productos',
     'reports.descriptions.financial':
       'Valor del inventario a coste y venta, márgenes potenciales',
-    'reports.descriptions.batches': 'Estado de todos los lotes con información detallada',
+    'reports.descriptions.batches':
+      'Estado de todos los lotes con información detallada',
     'reports.descriptions.expiringBatches':
       'Lotes que caducan en los próximos días con alertas de urgencia',
     'reports.descriptions.defects':
@@ -855,7 +857,8 @@ const translations: Record<LanguageCode, Record<string, string>> = {
       'Tendencias de consumo y productos más consumidos',
     'reports.descriptions.reorderPredictions':
       'Predicciones de IA sobre productos que necesitarán reposición',
-    'reports.descriptions.batchAnomalies': 'Detección de anomalías en lotes mediante IA',
+    'reports.descriptions.batchAnomalies':
+      'Detección de anomalías en lotes mediante IA',
     'reports.descriptions.stockOptimization':
       'Sugerencias de IA para optimizar niveles de stock',
     'reports.generatedOn': 'Generado el',
@@ -1781,12 +1784,12 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'reports.generating': 'Generant informe...',
     'reports.generate': 'Generar',
     'reports.viewReports': 'Veure informes',
-    'reports.reportTypes': "tipus d'informes",
+    'reports.reportTypes': 'tipus d\'informes',
     'reports.exportExcel': 'Exportar Excel',
     'reports.exportPDF': 'Exportar PDF',
     'reports.exportCSV': 'Exportar CSV',
     'reports.previewPlaceholder':
-      "Vista prèvia de l'informe. Els components de visualització s'implementaran pròximament.",
+      'Vista prèvia de l\'informe. Els components de visualització s\'implementaran pròximament.',
     'reports.categories.inventory': 'Inventari',
     'reports.categories.movements': 'Moviments',
     'reports.categories.batches': 'Lots',
@@ -1797,7 +1800,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'reports.types.inventory': 'Inventari Actual',
     'reports.types.abcAnalysis': 'Anàlisi ABC',
     'reports.types.movements': 'Moviments',
-    'reports.types.stockRotation': "Rotació d'Estoc",
+    'reports.types.stockRotation': 'Rotació d\'Estoc',
     'reports.types.financial': 'Informe Financer',
     'reports.types.batches': 'Estat de Lots',
     'reports.types.expiringBatches': 'Lots Propers a Caducar',
@@ -1807,19 +1810,21 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'reports.types.consumptionTrends': 'Tendències de Consum',
     'reports.types.reorderPredictions': 'Prediccions de Reposició',
     'reports.types.batchAnomalies': 'Anomalies de Lots',
-    'reports.types.stockOptimization': "Optimització d'Estoc",
+    'reports.types.stockOptimization': 'Optimització d\'Estoc',
     'reports.descriptions.inventory':
       'Llista completa de productes amb estoc actual, valors i ubicacions',
     'reports.descriptions.abcAnalysis':
       'Classificació de productes per valor usant el principi de Pareto (80/20)',
     'reports.descriptions.movements':
-      "Anàlisi de moviments d'inventari per període amb gràfics temporals",
-    'reports.descriptions.stockRotation': 'Velocitat de consum i rotació de productes',
+      'Anàlisi de moviments d\'inventari per període amb gràfics temporals',
+    'reports.descriptions.stockRotation':
+      'Velocitat de consum i rotació de productes',
     'reports.descriptions.financial':
-      "Valor de l'inventari a cost i venda, marges potencials",
-    'reports.descriptions.batches': 'Estat de tots els lots amb informació detallada',
+      'Valor de l\'inventari a cost i venda, marges potencials',
+    'reports.descriptions.batches':
+      'Estat de tots els lots amb informació detallada',
     'reports.descriptions.expiringBatches':
-      "Lots que caduquen en els propers dies amb alertes d'urgència",
+      'Lots que caduquen en els propers dies amb alertes d\'urgència',
     'reports.descriptions.defects':
       'Anàlisi de defectes per proveïdor i taxa de defectes',
     'reports.descriptions.lowStock':
@@ -1829,10 +1834,11 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'reports.descriptions.consumptionTrends':
       'Tendències de consum i productes més consumits',
     'reports.descriptions.reorderPredictions':
-      "Prediccions d'IA sobre productes que necessitaran reposició",
-    'reports.descriptions.batchAnomalies': "Detecció d'anomalies en lots mitjançant IA",
+      'Prediccions d\'IA sobre productes que necessitaran reposició',
+    'reports.descriptions.batchAnomalies':
+      'Detecció d\'anomalies en lots mitjançant IA',
     'reports.descriptions.stockOptimization':
-      "Suggeriments d'IA per optimitzar nivells d'estoc",
+      'Suggeriments d\'IA per optimitzar nivells d\'estoc',
     'reports.generatedOn': 'Generat el',
     'reports.print': 'Imprimir',
     'reports.share': 'Compartir',

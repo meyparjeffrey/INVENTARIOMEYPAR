@@ -1,6 +1,6 @@
 /**
  * Tool MCP para obtener lotes próximos a caducar.
- *
+ * 
  * @module mcp-server/tools/getExpiringBatches
  */
 
@@ -20,11 +20,13 @@ export interface ExpiringBatch {
 
 /**
  * Obtiene lotes que caducan en los próximos días.
- *
+ * 
  * @param days - Días de antelación para considerar próximo a caducar (por defecto: 30)
  * @returns Lista de lotes próximos a caducar
  */
-export async function getExpiringBatches(days: number = 30): Promise<ExpiringBatch[]> {
+export async function getExpiringBatches(
+  days: number = 30
+): Promise<ExpiringBatch[]> {
   // Calcular fecha límite
   const limitDate = new Date();
   limitDate.setDate(limitDate.getDate() + days);
@@ -32,8 +34,7 @@ export async function getExpiringBatches(days: number = 30): Promise<ExpiringBat
   // Obtener lotes con fecha de caducidad
   const { data: batches, error: batchesError } = await mcpSupabaseClient
     .from('product_batches')
-    .select(
-      `
+    .select(`
       id,
       batch_code,
       product_id,
@@ -41,8 +42,7 @@ export async function getExpiringBatches(days: number = 30): Promise<ExpiringBat
       quantity_available,
       status,
       products!product_batches_product_id_fkey(code, name)
-    `,
-    )
+    `)
     .not('expiry_date', 'is', null)
     .lte('expiry_date', limitDate.toISOString().split('T')[0])
     .eq('status', 'OK');
@@ -56,11 +56,10 @@ export async function getExpiringBatches(days: number = 30): Promise<ExpiringBat
   }
 
   const now = new Date();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const expiringBatches: ExpiringBatch[] = batches.map((batch: any) => {
     const expiryDate = new Date(batch.expiry_date);
     const daysUntilExpiry = Math.ceil(
-      (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      (expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
     );
 
     return {
@@ -72,7 +71,7 @@ export async function getExpiringBatches(days: number = 30): Promise<ExpiringBat
       expiry_date: batch.expiry_date,
       days_until_expiry: daysUntilExpiry,
       quantity_available: batch.quantity_available,
-      is_urgent: daysUntilExpiry <= 7,
+      is_urgent: daysUntilExpiry <= 7
     };
   });
 
@@ -81,3 +80,4 @@ export async function getExpiringBatches(days: number = 30): Promise<ExpiringBat
 
   return expiringBatches;
 }
+

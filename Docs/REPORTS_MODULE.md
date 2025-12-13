@@ -125,7 +125,6 @@ El módulo de informes proporciona un sistema completo para generar, visualizar 
 ### Filtros
 
 Algunos informes permiten aplicar filtros:
-
 - Fechas (desde/hasta)
 - Categoría de producto
 - Producto específico
@@ -184,7 +183,7 @@ const { generateInventoryReport } = useReports();
 
 const report = await generateInventoryReport({
   lowStockOnly: true,
-  category: 'Electrónica',
+  category: 'Electrónica'
 });
 ```
 
@@ -196,7 +195,7 @@ import { ExportService } from '@application/services/ExportService';
 ExportService.exportInventoryReport(report, {
   fileName: 'inventario_2025',
   format: 'xlsx',
-  language: 'es-ES',
+  language: 'es-ES'
 });
 ```
 
@@ -228,3 +227,4 @@ const predictions = await predictReorderNeeds(7);
 - Compartir informes con otros usuarios
 - Filtros más avanzados
 - Gráficos personalizables
+

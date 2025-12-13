@@ -1,8 +1,8 @@
 /**
  * Vista de informe de stock bajo.
- *
+ * 
  * Muestra productos con stock bajo con días estimados hasta agotarse.
- *
+ * 
  * @module @presentation/components/reports/LowStockReportView
  */
 
@@ -23,7 +23,7 @@ export function LowStockReportView({ report }: LowStockReportViewProps) {
     return new Intl.NumberFormat('es-ES', {
       style: 'currency',
       currency: 'EUR',
-      minimumFractionDigits: 2,
+      minimumFractionDigits: 2
     }).format(value);
   };
 
@@ -34,7 +34,9 @@ export function LowStockReportView({ report }: LowStockReportViewProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5 text-gray-500" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Productos</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Total Productos
+            </p>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-50">
             {report.summary.totalProducts}
@@ -44,34 +46,46 @@ export function LowStockReportView({ report }: LowStockReportViewProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-red-500" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Urgente</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Urgente
+            </p>
           </div>
           <p className="mt-2 text-2xl font-bold text-red-600 dark:text-red-400">
             {report.summary.urgent}
           </p>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{'<'} 7 días</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            {'<'} 7 días
+          </p>
         </div>
 
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             <Clock className="h-5 w-5 text-amber-500" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Advertencia</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Advertencia
+            </p>
           </div>
           <p className="mt-2 text-2xl font-bold text-amber-600 dark:text-amber-400">
             {report.summary.warning}
           </p>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">7-30 días</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            7-30 días
+          </p>
         </div>
 
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             <Package className="h-5 w-5 text-gray-500" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Déficit Total</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Déficit Total
+            </p>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-50">
             {report.summary.totalDeficit}
           </p>
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">unidades</p>
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+            unidades
+          </p>
         </div>
       </div>
 
@@ -158,3 +172,4 @@ export function LowStockReportView({ report }: LowStockReportViewProps) {
     </div>
   );
 }
+

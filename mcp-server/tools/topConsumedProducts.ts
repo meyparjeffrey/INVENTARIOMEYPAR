@@ -1,6 +1,6 @@
 /**
  * Tool MCP para obtener los productos más consumidos.
- *
+ * 
  * @module mcp-server/tools/topConsumedProducts
  */
 
@@ -17,14 +17,14 @@ export interface TopConsumedProduct {
 
 /**
  * Obtiene los productos más consumidos en un período.
- *
+ * 
  * @param period - Período: 'week', 'month', 'quarter'
  * @param limit - Número de productos a retornar (por defecto: 10)
  * @returns Lista de productos más consumidos
  */
 export async function topConsumedProducts(
   period: 'week' | 'month' | 'quarter' = 'month',
-  limit: number = 10,
+  limit: number = 10
 ): Promise<TopConsumedProduct[]> {
   // Calcular fecha de inicio según período
   const now = new Date();
@@ -56,16 +56,19 @@ export async function topConsumedProducts(
   }
 
   // Agrupar por producto
-  const consumptionByProduct = new Map<string, { total: number; count: number }>();
+  const consumptionByProduct = new Map<
+    string,
+    { total: number; count: number }
+  >();
 
   (movements ?? []).forEach((movement) => {
     const current = consumptionByProduct.get(movement.product_id) ?? {
       total: 0,
-      count: 0,
+      count: 0
     };
     consumptionByProduct.set(movement.product_id, {
       total: current.total + movement.quantity,
-      count: current.count + 1,
+      count: current.count + 1
     });
   });
 
@@ -85,16 +88,18 @@ export async function topConsumedProducts(
   }
 
   const productMap = new Map(
-    (products ?? []).map((p) => [p.id, { code: p.code, name: p.name }]),
+    (products ?? []).map((p) => [p.id, { code: p.code, name: p.name }])
   );
 
   // Calcular días del período
   const daysInPeriod = Math.ceil(
-    (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24),
+    (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
   );
 
   // Generar lista de productos consumidos
-  const topProducts: TopConsumedProduct[] = Array.from(consumptionByProduct.entries())
+  const topProducts: TopConsumedProduct[] = Array.from(
+    consumptionByProduct.entries()
+  )
     .map(([productId, data]) => {
       const product = productMap.get(productId);
       if (!product) return null;
@@ -105,7 +110,7 @@ export async function topConsumedProducts(
         product_name: product.name,
         total_consumed: data.total,
         average_daily: data.total / daysInPeriod,
-        movement_count: data.count,
+        movement_count: data.count
       };
     })
     .filter((item): item is TopConsumedProduct => item !== null)
@@ -114,3 +119,4 @@ export async function topConsumedProducts(
 
   return topProducts;
 }
+

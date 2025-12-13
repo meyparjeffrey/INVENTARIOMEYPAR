@@ -1,8 +1,8 @@
 /**
  * Vista de informe de lotes.
- *
+ * 
  * Muestra estado de lotes con información detallada.
- *
+ * 
  * @module @presentation/components/reports/BatchesReportView
  */
 
@@ -40,7 +40,7 @@ export function BatchesReportView({ report }: BatchesReportViewProps) {
       DEFECTIVE: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-200',
       BLOCKED: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-200',
       CONSUMED: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-200',
-      EXPIRED: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-200',
+      EXPIRED: 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-200'
     };
     return badges[status as keyof typeof badges] || badges.OK;
   };
@@ -52,7 +52,9 @@ export function BatchesReportView({ report }: BatchesReportViewProps) {
         <div className="rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
           <div className="flex items-center gap-2">
             <Layers className="h-5 w-5 text-gray-500" />
-            <p className="text-sm text-gray-600 dark:text-gray-400">Total Lotes</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Total Lotes
+            </p>
           </div>
           <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-50">
             {report.summary.totalBatches}
@@ -172,7 +174,7 @@ export function BatchesReportView({ report }: BatchesReportViewProps) {
                   <td className="px-4 py-3 text-center">
                     <span
                       className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-medium ${getStatusBadge(
-                        item.batch.status,
+                        item.batch.status
                       )}`}
                     >
                       {getStatusIcon(item.batch.status)}
@@ -181,7 +183,9 @@ export function BatchesReportView({ report }: BatchesReportViewProps) {
                   </td>
                   <td className="px-4 py-3 text-sm text-gray-600 dark:text-gray-400">
                     {item.batch.expiryDate
-                      ? new Date(item.batch.expiryDate).toLocaleDateString('es-ES')
+                      ? new Date(item.batch.expiryDate).toLocaleDateString(
+                          'es-ES'
+                        )
                       : '-'}
                     {item.daysUntilExpiry !== undefined &&
                       item.daysUntilExpiry !== null &&
@@ -200,3 +204,4 @@ export function BatchesReportView({ report }: BatchesReportViewProps) {
     </div>
   );
 }
+

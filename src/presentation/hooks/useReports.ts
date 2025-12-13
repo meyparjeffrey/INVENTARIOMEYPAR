@@ -1,20 +1,20 @@
 /**
  * Hook para gestionar informes con generación y exportación.
- *
+ * 
  * Proporciona estado, funciones para generar diferentes tipos de informes,
  * cache de informes generados y funciones de exportación.
- *
+ * 
  * @module @presentation/hooks/useReports
  * @requires @application/services/ReportService
  * @requires @domain/entities/Report
- *
+ * 
  * @returns {Object} Objeto con estado de informes, funciones de generación y exportación
  * @example
  * const { report, loading, generateInventoryReport, exportReport } = useReports();
- *
+ * 
  * // Generar informe
  * await generateInventoryReport({ lowStockOnly: true });
- *
+ * 
  * // Exportar informe
  * await exportReport(report, { format: 'EXCEL' });
  */
@@ -34,10 +34,11 @@ import type {
   MovementsReportFilters,
   ReorderPredictionsReport,
   Report,
+  ReportExportConfig,
   ReportType,
   StockOptimizationReport,
   StockRotationReport,
-  SupplierQualityReport,
+  SupplierQualityReport
 } from '@domain/entities/Report';
 import { ReportService } from '@application/services/ReportService';
 
@@ -55,26 +56,26 @@ export interface UseReportsReturn {
   reportCache: Map<ReportType, Report>;
   /** Generar informe de inventario */
   generateInventoryReport: (
-    filters?: InventoryReportFilters,
+    filters?: InventoryReportFilters
   ) => Promise<InventoryReport | null>;
   /** Generar análisis ABC */
   generateABCReport: () => Promise<ABCReport | null>;
   /** Generar informe de movimientos */
   generateMovementsReport: (
-    filters?: MovementsReportFilters,
+    filters?: MovementsReportFilters
   ) => Promise<MovementsReport | null>;
   /** Generar informe de rotación de stock */
   generateStockRotationReport: (
-    period?: 'WEEK' | 'MONTH' | 'QUARTER' | 'YEAR',
+    period?: 'WEEK' | 'MONTH' | 'QUARTER' | 'YEAR'
   ) => Promise<StockRotationReport | null>;
   /** Generar informe financiero */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   generateFinancialReport: (filters?: any) => Promise<FinancialReport | null>;
   /** Generar informe de lotes */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   generateBatchesReport: (filters?: any) => Promise<BatchesReport | null>;
   /** Generar informe de lotes próximos a caducar */
-  generateExpiringBatchesReport: (days?: number) => Promise<ExpiringBatchesReport | null>;
+  generateExpiringBatchesReport: (
+    days?: number
+  ) => Promise<ExpiringBatchesReport | null>;
   /** Generar informe de defectos */
   generateDefectsReport: () => Promise<DefectsReport | null>;
   /** Generar informe de stock bajo */
@@ -83,11 +84,11 @@ export interface UseReportsReturn {
   generateSupplierQualityReport: () => Promise<SupplierQualityReport | null>;
   /** Generar informe de tendencias de consumo */
   generateConsumptionTrendsReport: (
-    period?: 'WEEK' | 'MONTH' | 'QUARTER',
+    period?: 'WEEK' | 'MONTH' | 'QUARTER'
   ) => Promise<ConsumptionTrendsReport | null>;
   /** Generar informe de predicciones de reposición */
   generateReorderPredictionsReport: (
-    daysAhead?: number,
+    daysAhead?: number
   ) => Promise<ReorderPredictionsReport | null>;
   /** Generar informe de anomalías de lotes */
   generateBatchAnomaliesReport: () => Promise<BatchAnomaliesReport | null>;
@@ -109,7 +110,7 @@ export function useReports(): UseReportsReturn {
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [reportCache, setReportCache] = React.useState<Map<ReportType, Report>>(
-    new Map(),
+    new Map()
   );
 
   const serviceRef = React.useRef<ReportService>(new ReportService());
@@ -121,7 +122,7 @@ export function useReports(): UseReportsReturn {
     async <T extends Report>(
       type: ReportType,
       generator: () => Promise<T>,
-      useCache: boolean = true,
+      useCache: boolean = true
     ): Promise<T | null> => {
       // Verificar cache
       if (useCache) {
@@ -149,9 +150,9 @@ export function useReports(): UseReportsReturn {
         }
 
         return generatedReport;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
-        const errorMessage = err?.message ?? 'Error al generar el informe';
+        const errorMessage =
+          err?.message ?? 'Error al generar el informe';
         setError(errorMessage);
         // eslint-disable-next-line no-console
         console.error('Error generando informe:', err);
@@ -160,7 +161,7 @@ export function useReports(): UseReportsReturn {
         setLoading(false);
       }
     },
-    [reportCache],
+    [reportCache]
   );
 
   /**
@@ -171,10 +172,10 @@ export function useReports(): UseReportsReturn {
       return generateReport<InventoryReport>(
         'INVENTORY',
         () => serviceRef.current.generateInventoryReport(filters),
-        false, // No usar cache para inventario (datos cambian frecuentemente)
+        false // No usar cache para inventario (datos cambian frecuentemente)
       );
     },
-    [generateReport],
+    [generateReport]
   );
 
   /**
@@ -184,7 +185,7 @@ export function useReports(): UseReportsReturn {
     return generateReport<ABCReport>(
       'ABC_ANALYSIS',
       () => serviceRef.current.generateABCReport(),
-      true,
+      true
     );
   }, [generateReport]);
 
@@ -196,10 +197,10 @@ export function useReports(): UseReportsReturn {
       return generateReport<MovementsReport>(
         'MOVEMENTS',
         () => serviceRef.current.generateMovementsReport(filters),
-        false, // No usar cache para movimientos (datos cambian frecuentemente)
+        false // No usar cache para movimientos (datos cambian frecuentemente)
       );
     },
-    [generateReport],
+    [generateReport]
   );
 
   /**
@@ -210,40 +211,38 @@ export function useReports(): UseReportsReturn {
       return generateReport<StockRotationReport>(
         'STOCK_ROTATION',
         () => serviceRef.current.generateStockRotationReport(period),
-        false,
+        false
       );
     },
-    [generateReport],
+    [generateReport]
   );
 
   /**
    * Genera informe financiero.
    */
   const generateFinancialReport = React.useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async (filters: any = {}) => {
       return generateReport<FinancialReport>(
         'FINANCIAL',
         () => serviceRef.current.generateFinancialReport(filters),
-        false,
+        false
       );
     },
-    [generateReport],
+    [generateReport]
   );
 
   /**
    * Genera informe de lotes.
    */
   const generateBatchesReport = React.useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     async (filters: any = {}) => {
       return generateReport<BatchesReport>(
         'BATCHES',
         () => serviceRef.current.generateBatchesReport(filters),
-        false,
+        false
       );
     },
-    [generateReport],
+    [generateReport]
   );
 
   /**
@@ -254,10 +253,10 @@ export function useReports(): UseReportsReturn {
       return generateReport<ExpiringBatchesReport>(
         'EXPIRING_BATCHES',
         () => serviceRef.current.generateExpiringBatchesReport(days),
-        false,
+        false
       );
     },
-    [generateReport],
+    [generateReport]
   );
 
   /**
@@ -267,7 +266,7 @@ export function useReports(): UseReportsReturn {
     return generateReport<DefectsReport>(
       'DEFECTS',
       () => serviceRef.current.generateDefectsReport(),
-      false,
+      false
     );
   }, [generateReport]);
 
@@ -278,7 +277,7 @@ export function useReports(): UseReportsReturn {
     return generateReport<LowStockReport>(
       'LOW_STOCK',
       () => serviceRef.current.generateLowStockReport(),
-      false,
+      false
     );
   }, [generateReport]);
 
@@ -289,7 +288,7 @@ export function useReports(): UseReportsReturn {
     return generateReport<SupplierQualityReport>(
       'SUPPLIER_QUALITY',
       () => serviceRef.current.generateSupplierQualityReport(),
-      true, // Puede usar cache (datos no cambian tan frecuentemente)
+      true // Puede usar cache (datos no cambian tan frecuentemente)
     );
   }, [generateReport]);
 
@@ -301,10 +300,10 @@ export function useReports(): UseReportsReturn {
       return generateReport<ConsumptionTrendsReport>(
         'CONSUMPTION_TRENDS',
         () => serviceRef.current.generateConsumptionTrendsReport(period),
-        false,
+        false
       );
     },
-    [generateReport],
+    [generateReport]
   );
 
   /**
@@ -315,10 +314,10 @@ export function useReports(): UseReportsReturn {
       return generateReport<ReorderPredictionsReport>(
         'REORDER_PREDICTIONS',
         () => serviceRef.current.generateReorderPredictionsReport(daysAhead),
-        false,
+        false
       );
     },
-    [generateReport],
+    [generateReport]
   );
 
   /**
@@ -328,7 +327,7 @@ export function useReports(): UseReportsReturn {
     return generateReport<BatchAnomaliesReport>(
       'BATCH_ANOMALIES',
       () => serviceRef.current.generateBatchAnomaliesReport(),
-      false,
+      false
     );
   }, [generateReport]);
 
@@ -339,7 +338,7 @@ export function useReports(): UseReportsReturn {
     return generateReport<StockOptimizationReport>(
       'STOCK_OPTIMIZATION',
       () => serviceRef.current.generateStockOptimizationReport(),
-      false,
+      false
     );
   }, [generateReport]);
 
@@ -365,7 +364,7 @@ export function useReports(): UseReportsReturn {
     (type: ReportType): Report | undefined => {
       return reportCache.get(type);
     },
-    [reportCache],
+    [reportCache]
   );
 
   return {
@@ -389,6 +388,7 @@ export function useReports(): UseReportsReturn {
     generateStockOptimizationReport,
     clearReport,
     clearCache,
-    getCachedReport,
+    getCachedReport
   };
 }
+
