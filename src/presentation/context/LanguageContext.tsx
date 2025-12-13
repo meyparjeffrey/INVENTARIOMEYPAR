@@ -797,6 +797,74 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'scanner.tip1': 'Conecta un escáner USB y escanea directamente',
     'scanner.tip2': 'También puedes escribir el código manualmente',
     'scanner.tip3': 'Presiona Enter para buscar',
+    // Informes
+    'reports.title': 'Informes',
+    'reports.subtitle': 'Genera y exporta informes detallados de tu inventario',
+    'reports.noPermission': 'Sin permisos',
+    'reports.noPermissionMessage':
+      'No tienes permisos para ver informes. Contacta con un administrador.',
+    'reports.generating': 'Generando informe...',
+    'reports.generate': 'Generar',
+    'reports.viewReports': 'Ver informes',
+    'reports.reportTypes': 'tipos de informes',
+    'reports.exportExcel': 'Exportar Excel',
+    'reports.exportPDF': 'Exportar PDF',
+    'reports.exportCSV': 'Exportar CSV',
+    'reports.previewPlaceholder':
+      'Vista previa del informe. Los componentes de visualización se implementarán próximamente.',
+    'reports.categories.inventory': 'Inventario',
+    'reports.categories.movements': 'Movimientos',
+    'reports.categories.batches': 'Lotes',
+    'reports.categories.financial': 'Financiero',
+    'reports.categories.suppliers': 'Proveedores',
+    'reports.categories.analysis': 'Análisis',
+    'reports.categories.ai': 'IA',
+    'reports.types.inventory': 'Inventario Actual',
+    'reports.types.abcAnalysis': 'Análisis ABC',
+    'reports.types.movements': 'Movimientos',
+    'reports.types.stockRotation': 'Rotación de Stock',
+    'reports.types.financial': 'Informe Financiero',
+    'reports.types.batches': 'Estado de Lotes',
+    'reports.types.expiringBatches': 'Lotes Próximos a Caducar',
+    'reports.types.defects': 'Análisis de Defectos',
+    'reports.types.lowStock': 'Stock Bajo',
+    'reports.types.supplierQuality': 'Calidad de Proveedores',
+    'reports.types.consumptionTrends': 'Tendencias de Consumo',
+    'reports.types.reorderPredictions': 'Predicciones de Reposición',
+    'reports.types.batchAnomalies': 'Anomalías de Lotes',
+    'reports.types.stockOptimization': 'Optimización de Stock',
+    'reports.descriptions.inventory':
+      'Lista completa de productos con stock actual, valores y ubicaciones',
+    'reports.descriptions.abcAnalysis':
+      'Clasificación de productos por valor usando el principio de Pareto (80/20)',
+    'reports.descriptions.movements':
+      'Análisis de movimientos de inventario por período con gráficos temporales',
+    'reports.descriptions.stockRotation': 'Velocidad de consumo y rotación de productos',
+    'reports.descriptions.financial':
+      'Valor del inventario a coste y venta, márgenes potenciales',
+    'reports.descriptions.batches': 'Estado de todos los lotes con información detallada',
+    'reports.descriptions.expiringBatches':
+      'Lotes que caducan en los próximos días con alertas de urgencia',
+    'reports.descriptions.defects':
+      'Análisis de defectos por proveedor y tasa de defectos',
+    'reports.descriptions.lowStock':
+      'Productos con stock bajo o en alarma con días estimados hasta agotarse',
+    'reports.descriptions.supplierQuality':
+      'Calidad y rendimiento de proveedores basado en lotes y defectos',
+    'reports.descriptions.consumptionTrends':
+      'Tendencias de consumo y productos más consumidos',
+    'reports.descriptions.reorderPredictions':
+      'Predicciones de IA sobre productos que necesitarán reposición',
+    'reports.descriptions.batchAnomalies': 'Detección de anomalías en lotes mediante IA',
+    'reports.descriptions.stockOptimization':
+      'Sugerencias de IA para optimizar niveles de stock',
+    'reports.generatedOn': 'Generado el',
+    'reports.print': 'Imprimir',
+    'reports.share': 'Compartir',
+    'reports.exportError': 'Error al exportar el informe',
+    'reports.printError': 'No se pudo abrir la ventana de impresión',
+    'reports.copiedToClipboard': 'Enlace copiado al portapapeles',
+    'reports.shareError': 'Error al compartir el informe',
     'scanner.tip4': 'Presiona V para ver el producto',
     'scanner.tip5': 'Presiona M para añadir movimiento',
     'scanner.tip6': 'Presiona Esc para limpiar',
@@ -1704,6 +1772,74 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'scanner.tip1': 'Connecta un escàner USB i escaneja directament',
     'scanner.tip2': 'També pots escriure el codi manualment',
     'scanner.tip3': 'Prem Enter per buscar',
+    // Informes
+    'reports.title': 'Informes',
+    'reports.subtitle': 'Genera i exporta informes detallats del teu inventari',
+    'reports.noPermission': 'Sense permisos',
+    'reports.noPermissionMessage':
+      'No tens permisos per veure informes. Contacta amb un administrador.',
+    'reports.generating': 'Generant informe...',
+    'reports.generate': 'Generar',
+    'reports.viewReports': 'Veure informes',
+    'reports.reportTypes': "tipus d'informes",
+    'reports.exportExcel': 'Exportar Excel',
+    'reports.exportPDF': 'Exportar PDF',
+    'reports.exportCSV': 'Exportar CSV',
+    'reports.previewPlaceholder':
+      "Vista prèvia de l'informe. Els components de visualització s'implementaran pròximament.",
+    'reports.categories.inventory': 'Inventari',
+    'reports.categories.movements': 'Moviments',
+    'reports.categories.batches': 'Lots',
+    'reports.categories.financial': 'Financer',
+    'reports.categories.suppliers': 'Proveïdors',
+    'reports.categories.analysis': 'Anàlisi',
+    'reports.categories.ai': 'IA',
+    'reports.types.inventory': 'Inventari Actual',
+    'reports.types.abcAnalysis': 'Anàlisi ABC',
+    'reports.types.movements': 'Moviments',
+    'reports.types.stockRotation': "Rotació d'Estoc",
+    'reports.types.financial': 'Informe Financer',
+    'reports.types.batches': 'Estat de Lots',
+    'reports.types.expiringBatches': 'Lots Propers a Caducar',
+    'reports.types.defects': 'Anàlisi de Defectes',
+    'reports.types.lowStock': 'Estoc Baix',
+    'reports.types.supplierQuality': 'Qualitat de Proveïdors',
+    'reports.types.consumptionTrends': 'Tendències de Consum',
+    'reports.types.reorderPredictions': 'Prediccions de Reposició',
+    'reports.types.batchAnomalies': 'Anomalies de Lots',
+    'reports.types.stockOptimization': "Optimització d'Estoc",
+    'reports.descriptions.inventory':
+      'Llista completa de productes amb estoc actual, valors i ubicacions',
+    'reports.descriptions.abcAnalysis':
+      'Classificació de productes per valor usant el principi de Pareto (80/20)',
+    'reports.descriptions.movements':
+      "Anàlisi de moviments d'inventari per període amb gràfics temporals",
+    'reports.descriptions.stockRotation': 'Velocitat de consum i rotació de productes',
+    'reports.descriptions.financial':
+      "Valor de l'inventari a cost i venda, marges potencials",
+    'reports.descriptions.batches': 'Estat de tots els lots amb informació detallada',
+    'reports.descriptions.expiringBatches':
+      "Lots que caduquen en els propers dies amb alertes d'urgència",
+    'reports.descriptions.defects':
+      'Anàlisi de defectes per proveïdor i taxa de defectes',
+    'reports.descriptions.lowStock':
+      'Productes amb estoc baix o en alarma amb dies estimats fins a esgotar-se',
+    'reports.descriptions.supplierQuality':
+      'Qualitat i rendiment de proveïdors basat en lots i defectes',
+    'reports.descriptions.consumptionTrends':
+      'Tendències de consum i productes més consumits',
+    'reports.descriptions.reorderPredictions':
+      "Prediccions d'IA sobre productes que necessitaran reposició",
+    'reports.descriptions.batchAnomalies': "Detecció d'anomalies en lots mitjançant IA",
+    'reports.descriptions.stockOptimization':
+      "Suggeriments d'IA per optimitzar nivells d'estoc",
+    'reports.generatedOn': 'Generat el',
+    'reports.print': 'Imprimir',
+    'reports.share': 'Compartir',
+    'reports.exportError': 'Error al exportar el informe',
+    'reports.printError': 'No se pudo abrir la ventana de impresión',
+    'reports.copiedToClipboard': 'Enlace copiado al portapapeles',
+    'reports.shareError': 'Error al compartir el informe',
     'scanner.tip4': 'Prem V per veure el producte',
     'scanner.tip5': 'Prem M per afegir moviment',
     'scanner.tip6': 'Prem Esc per netejar',

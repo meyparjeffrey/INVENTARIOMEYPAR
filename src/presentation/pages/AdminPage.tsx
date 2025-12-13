@@ -1,19 +1,31 @@
-import * as React from "react";
-import { useNavigate } from "react-router-dom";
-import { Users, Shield, Settings, FileText, Search, Plus, Edit, Trash2, CheckCircle2, XCircle, Upload } from "lucide-react";
-import { useAuth } from "../context/AuthContext";
-import { useLanguage } from "../context/LanguageContext";
-import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
-import { Button } from "../components/ui/Button";
-import { Input } from "../components/ui/Input";
-import { motion, AnimatePresence } from "framer-motion";
-import type { UserProfile } from "@domain/entities";
-import { highlightText } from "../utils/highlightText";
-import { ImportProductsDialog } from "../components/admin/ImportProductsDialog";
-import { UserFormDialog } from "../components/admin/UserFormDialog";
-import { ConfirmDialog } from "../components/ui/ConfirmDialog";
+import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  Users,
+  Shield,
+  Settings,
+  FileText,
+  Search,
+  Plus,
+  Edit,
+  Trash2,
+  CheckCircle2,
+  XCircle,
+  Upload,
+} from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { supabaseClient } from '@infrastructure/supabase/supabaseClient';
+import { Button } from '../components/ui/Button';
+import { Input } from '../components/ui/Input';
+import { motion, AnimatePresence } from 'framer-motion';
+import type { UserProfile } from '@domain/entities';
+import { highlightText } from '../utils/highlightText';
+import { ImportProductsDialog } from '../components/admin/ImportProductsDialog';
+import { UserFormDialog } from '../components/admin/UserFormDialog';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 
-type Tab = "users" | "permissions" | "settings" | "audit" | "import";
+type Tab = 'users' | 'permissions' | 'settings' | 'audit' | 'import';
 
 export interface UserRow extends UserProfile {
   email?: string;
@@ -24,10 +36,10 @@ export function AdminPage() {
   const { authContext } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = React.useState<Tab>("users");
+  const [activeTab, setActiveTab] = React.useState<Tab>('users');
   const [users, setUsers] = React.useState<UserRow[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [searchQuery, setSearchQuery] = React.useState("");
+  const [searchQuery, setSearchQuery] = React.useState('');
   const [selectedUser, setSelectedUser] = React.useState<UserRow | null>(null);
   const [importDialogOpen, setImportDialogOpen] = React.useState(false);
   const [userFormOpen, setUserFormOpen] = React.useState(false);
@@ -37,18 +49,18 @@ export function AdminPage() {
   // Verificar que solo ADMIN puede acceder
   React.useEffect(() => {
     if (!authContext) {
-      navigate("/login");
+      navigate('/login');
       return;
     }
-    if (authContext.profile.role !== "ADMIN") {
-      navigate("/dashboard");
+    if (authContext.profile.role !== 'ADMIN') {
+      navigate('/dashboard');
       return;
     }
   }, [authContext, navigate]);
 
   // Cargar usuarios
   React.useEffect(() => {
-    if (activeTab === "users" && authContext?.profile.role === "ADMIN") {
+    if (activeTab === 'users' && authContext?.profile.role === 'ADMIN') {
       loadUsers();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -59,26 +71,30 @@ export function AdminPage() {
       setLoading(true);
       // Obtener perfiles
       const { data: profiles, error: profilesError } = await supabaseClient
-        .from("profiles")
-        .select("*")
-        .order("created_at", { ascending: false });
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
 
       if (profilesError) throw profilesError;
 
       // Obtener emails
       const currentUserEmail = authContext?.session?.user?.email;
-      let emailMap: Record<string, string> = {};
+      const emailMap: Record<string, string> = {};
 
       // 1. Intentar usar la función SQL get_user_emails()
       try {
-        const { data: sqlEmails, error: sqlError } = await supabaseClient.rpc("get_user_emails");
+        const { data: sqlEmails, error: sqlError } =
+          await supabaseClient.rpc('get_user_emails');
         if (!sqlError && sqlEmails) {
           sqlEmails.forEach((row: { user_id: string; email: string }) => {
             emailMap[row.user_id] = row.email;
           });
         }
       } catch (sqlFunctionError) {
-        console.debug("[AdminPage] SQL function get_user_emails no disponible:", sqlFunctionError);
+        console.debug(
+          '[AdminPage] SQL function get_user_emails no disponible:',
+          sqlFunctionError,
+        );
       }
       // 2. Al menos guardar el email del usuario actual
       if (currentUserEmail && authContext?.profile.id) {
@@ -92,14 +108,14 @@ export function AdminPage() {
           if (!email && profile.id === authContext?.profile.id) {
             email = currentUserEmail;
           }
-          
+
           // Obtener último login desde user_login_events
           const { data: loginEvents } = await supabaseClient
-            .from("user_login_events")
-            .select("login_at")
-            .eq("user_id", profile.id)
-            .eq("success", true)
-            .order("login_at", { ascending: false })
+            .from('user_login_events')
+            .select('login_at')
+            .eq('user_id', profile.id)
+            .eq('success', true)
+            .order('login_at', { ascending: false })
             .limit(1)
             .maybeSingle();
 
@@ -117,14 +133,14 @@ export function AdminPage() {
             createdAt: profile.created_at,
             updatedAt: profile.updated_at,
             email,
-            lastLogin: lastAccess
+            lastLogin: lastAccess,
           };
-        })
+        }),
       );
 
       setUsers(usersWithEmail);
     } catch (error) {
-      console.error("[AdminPage] Error cargando usuarios:", error);
+      console.error('[AdminPage] Error cargando usuarios:', error);
     } finally {
       setLoading(false);
     }
@@ -138,19 +154,19 @@ export function AdminPage() {
         user.firstName.toLowerCase().includes(query) ||
         user.lastName.toLowerCase().includes(query) ||
         user.email?.toLowerCase().includes(query) ||
-        user.role.toLowerCase().includes(query)
+        user.role.toLowerCase().includes(query),
     );
   }, [users, searchQuery]);
 
   const tabs = [
-    { id: "users" as Tab, label: t("admin.users"), icon: Users },
-    { id: "permissions" as Tab, label: t("admin.permissions"), icon: Shield },
-    { id: "settings" as Tab, label: t("admin.settings"), icon: Settings },
-    { id: "audit" as Tab, label: t("admin.audit"), icon: FileText },
-    { id: "import" as Tab, label: t("admin.import") || "Importar", icon: Upload }
+    { id: 'users' as Tab, label: t('admin.users'), icon: Users },
+    { id: 'permissions' as Tab, label: t('admin.permissions'), icon: Shield },
+    { id: 'settings' as Tab, label: t('admin.settings'), icon: Settings },
+    { id: 'audit' as Tab, label: t('admin.audit'), icon: FileText },
+    { id: 'import' as Tab, label: t('admin.import') || 'Importar', icon: Upload },
   ];
 
-  if (!authContext || authContext.profile.role !== "ADMIN") {
+  if (!authContext || authContext.profile.role !== 'ADMIN') {
     return null;
   }
 
@@ -159,10 +175,10 @@ export function AdminPage() {
       {/* Header */}
       <div className="border-b border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-950">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">
-          {t("admin.title")}
+          {t('admin.title')}
         </h1>
         <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-          {t("admin.users.title")}
+          {t('admin.users.title')}
         </p>
       </div>
 
@@ -179,8 +195,8 @@ export function AdminPage() {
                   flex items-center space-x-2 border-b-2 px-4 py-3 text-sm font-medium transition-colors
                   ${
                     activeTab === tab.id
-                      ? "border-primary-600 text-primary-600 dark:border-primary-500 dark:text-primary-500"
-                      : "border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300"
+                      ? 'border-primary-600 text-primary-600 dark:border-primary-500 dark:text-primary-500'
+                      : 'border-transparent text-gray-600 hover:border-gray-300 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-300'
                   }
                 `}
               >
@@ -195,7 +211,7 @@ export function AdminPage() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         <AnimatePresence mode="wait">
-          {activeTab === "users" && (
+          {activeTab === 'users' && (
             <motion.div
               key="users"
               initial={{ opacity: 0, y: 10 }}
@@ -225,7 +241,7 @@ export function AdminPage() {
             </motion.div>
           )}
 
-          {activeTab === "permissions" && (
+          {activeTab === 'permissions' && (
             <motion.div
               key="permissions"
               initial={{ opacity: 0, y: 10 }}
@@ -237,7 +253,7 @@ export function AdminPage() {
             </motion.div>
           )}
 
-          {activeTab === "settings" && (
+          {activeTab === 'settings' && (
             <motion.div
               key="settings"
               initial={{ opacity: 0, y: 10 }}
@@ -249,7 +265,7 @@ export function AdminPage() {
             </motion.div>
           )}
 
-          {activeTab === "audit" && (
+          {activeTab === 'audit' && (
             <motion.div
               key="audit"
               initial={{ opacity: 0, y: 10 }}
@@ -261,7 +277,7 @@ export function AdminPage() {
             </motion.div>
           )}
 
-          {activeTab === "import" && (
+          {activeTab === 'import' && (
             <motion.div
               key="import"
               initial={{ opacity: 0, y: 10 }}
@@ -276,7 +292,10 @@ export function AdminPage() {
       </div>
 
       {/* Import Dialog */}
-      <ImportProductsDialog isOpen={importDialogOpen} onClose={() => setImportDialogOpen(false)} />
+      <ImportProductsDialog
+        isOpen={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+      />
 
       {/* User Form Dialog */}
       <UserFormDialog
@@ -303,15 +322,15 @@ export function AdminPage() {
 
           try {
             // Eliminar usuario mediante Edge Function (elimina de auth.users y profiles)
-            const { data, error } = await supabaseClient.functions.invoke("delete-user", {
+            const { data, error } = await supabaseClient.functions.invoke('delete-user', {
               body: {
-                userId: userToDelete.id
+                userId: userToDelete.id,
               },
-              method: "POST"
+              method: 'POST',
             });
 
             if (error) {
-              throw new Error(error.message || "Error al eliminar el usuario");
+              throw new Error(error.message || 'Error al eliminar el usuario');
             }
 
             // Verificar si la respuesta tiene error
@@ -323,19 +342,20 @@ export function AdminPage() {
 
             loadUsers();
           } catch (error: unknown) {
-            console.error("[AdminPage] Error eliminando usuario:", error);
-            const errorMessage = error instanceof Error ? error.message : "Error al eliminar el usuario";
+            console.error('[AdminPage] Error eliminando usuario:', error);
+            const errorMessage =
+              error instanceof Error ? error.message : 'Error al eliminar el usuario';
             alert(errorMessage);
           }
         }}
-        title={t("admin.users.delete") || "Eliminar Usuario"}
+        title={t('admin.users.delete') || 'Eliminar Usuario'}
         message={
           userToDelete
             ? `¿Estás seguro de eliminar a ${userToDelete.firstName} ${userToDelete.lastName}? Esta acción no se puede deshacer.`
-            : ""
+            : ''
         }
-        confirmText={t("common.delete") || "Eliminar"}
-        cancelText={t("common.cancel") || "Cancelar"}
+        confirmText={t('common.delete') || 'Eliminar'}
+        cancelText={t('common.cancel') || 'Cancelar'}
       />
     </div>
   );
@@ -343,7 +363,7 @@ export function AdminPage() {
 
 function ImportTab({
   onOpenDialog,
-  t
+  t,
 }: {
   onOpenDialog: () => void;
   t: (key: string) => string;
@@ -354,28 +374,38 @@ function ImportTab({
         <div className="flex items-start justify-between">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
-              {t("admin.import.title") || "Importación Masiva de Productos"}
+              {t('admin.import.title') || 'Importación Masiva de Productos'}
             </h2>
             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-              {t("admin.import.description") || "Importa productos desde un archivo Excel. Los productos existentes se actualizarán y los nuevos se crearán automáticamente."}
+              {t('admin.import.description') ||
+                'Importa productos desde un archivo Excel. Los productos existentes se actualizarán y los nuevos se crearán automáticamente.'}
             </p>
           </div>
           <Button onClick={onOpenDialog} className="gap-2">
             <Upload className="h-4 w-4" />
-            {t("admin.import.button") || "Importar desde Excel"}
+            {t('admin.import.button') || 'Importar desde Excel'}
           </Button>
         </div>
 
         <div className="mt-6 space-y-4">
           <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 p-4">
             <h3 className="text-sm font-medium text-blue-900 dark:text-blue-200 mb-2">
-              {t("admin.import.instructions.title") || "Instrucciones"}
+              {t('admin.import.instructions.title') || 'Instrucciones'}
             </h3>
             <ul className="list-disc list-inside space-y-1 text-sm text-blue-800 dark:text-blue-300">
-              <li>{t("admin.import.instructions.format") || "El archivo debe ser un Excel (.xlsx o .xls)"}</li>
-              <li>{t("admin.import.instructions.columns") || "Debe contener las columnas: CODIGO, NOMBRE, COD. PRODUCTO PROVEEDOR (opcional)"}</li>
-              <li>{t("admin.import.instructions.size") || "Tamaño máximo: 10MB"}</li>
-              <li>{t("admin.import.instructions.update") || "Los productos existentes se actualizarán, los nuevos se crearán"}</li>
+              <li>
+                {t('admin.import.instructions.format') ||
+                  'El archivo debe ser un Excel (.xlsx o .xls)'}
+              </li>
+              <li>
+                {t('admin.import.instructions.columns') ||
+                  'Debe contener las columnas: CODIGO, NOMBRE, COD. PRODUCTO PROVEEDOR (opcional)'}
+              </li>
+              <li>{t('admin.import.instructions.size') || 'Tamaño máximo: 10MB'}</li>
+              <li>
+                {t('admin.import.instructions.update') ||
+                  'Los productos existentes se actualizarán, los nuevos se crearán'}
+              </li>
             </ul>
           </div>
         </div>
@@ -392,7 +422,7 @@ function UsersTab({
   onNewUser,
   onEditUser,
   onDeleteUser,
-  t
+  t,
 }: {
   users: UserRow[];
   loading: boolean;
@@ -411,7 +441,7 @@ function UsersTab({
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
           <Input
             type="text"
-            placeholder={t("admin.users.search")}
+            placeholder={t('admin.users.search')}
             value={searchQuery}
             onChange={(e) => onSearchChange(e.target.value)}
             className="pl-10"
@@ -419,7 +449,7 @@ function UsersTab({
         </div>
         <Button onClick={onNewUser} variant="primary">
           <Plus className="mr-2 h-4 w-4" />
-          {t("admin.users.new")}
+          {t('admin.users.new')}
         </Button>
       </div>
 
@@ -430,9 +460,7 @@ function UsersTab({
         </div>
       ) : users.length === 0 ? (
         <div className="flex h-64 items-center justify-center rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
-          <p className="text-gray-600 dark:text-gray-400">
-            {t("common.noResults")}
-          </p>
+          <p className="text-gray-600 dark:text-gray-400">{t('common.noResults')}</p>
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-950">
@@ -440,22 +468,22 @@ function UsersTab({
             <thead className="bg-gray-50 dark:bg-gray-900">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("admin.users.name")}
+                  {t('admin.users.name')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("admin.users.email")}
+                  {t('admin.users.email')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("admin.users.role")}
+                  {t('admin.users.role')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("admin.users.status")}
+                  {t('admin.users.status')}
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("admin.users.lastLogin")}
+                  {t('admin.users.lastLogin')}
                 </th>
                 <th className="px-6 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {t("admin.users.actions")}
+                  {t('admin.users.actions')}
                 </th>
               </tr>
             </thead>
@@ -472,24 +500,27 @@ function UsersTab({
                       </div>
                       <div className="ml-4">
                         <div className="text-sm font-medium text-gray-900 dark:text-gray-50">
-                          {highlightText(`${user.firstName} ${user.lastName}`, searchQuery)}
+                          {highlightText(
+                            `${user.firstName} ${user.lastName}`,
+                            searchQuery,
+                          )}
                         </div>
                       </div>
                     </div>
                   </td>
                   <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
-                    {user.email ? highlightText(user.email, searchQuery) : "-"}
+                    {user.email ? highlightText(user.email, searchQuery) : '-'}
                   </td>
                   <td className="whitespace-nowrap px-6 py-4">
                     <span
                       className={`
                         inline-flex rounded-full px-2 py-1 text-xs font-medium
                         ${
-                          user.role === "ADMIN"
-                            ? "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300"
-                            : user.role === "WAREHOUSE"
-                            ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300"
-                            : "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300"
+                          user.role === 'ADMIN'
+                            ? 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300'
+                            : user.role === 'WAREHOUSE'
+                              ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+                              : 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300'
                         }
                       `}
                     >
@@ -500,12 +531,12 @@ function UsersTab({
                     {user.isActive ? (
                       <span className="inline-flex items-center text-sm text-green-600 dark:text-green-400">
                         <CheckCircle2 className="mr-1 h-4 w-4" />
-                        {t("admin.users.active")}
+                        {t('admin.users.active')}
                       </span>
                     ) : (
                       <span className="inline-flex items-center text-sm text-red-600 dark:text-red-400">
                         <XCircle className="mr-1 h-4 w-4" />
-                        {t("admin.users.inactive")}
+                        {t('admin.users.inactive')}
                       </span>
                     )}
                   </td>
@@ -513,22 +544,22 @@ function UsersTab({
                     {user.lastLogin ? (
                       <div className="flex flex-col">
                         <span>
-                          {new Date(user.lastLogin).toLocaleDateString("es-ES", {
-                            year: "numeric",
-                            month: "2-digit",
-                            day: "2-digit"
+                          {new Date(user.lastLogin).toLocaleDateString('es-ES', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
                           })}
                         </span>
                         <span className="text-xs text-gray-500 dark:text-gray-400">
-                          {new Date(user.lastLogin).toLocaleTimeString("es-ES", {
-                            hour: "2-digit",
-                            minute: "2-digit"
+                          {new Date(user.lastLogin).toLocaleTimeString('es-ES', {
+                            hour: '2-digit',
+                            minute: '2-digit',
                           })}
                         </span>
                       </div>
                     ) : (
                       <span className="text-gray-400 dark:text-gray-500 italic">
-                        {t("admin.users.never") || "Nunca"}
+                        {t('admin.users.never') || 'Nunca'}
                       </span>
                     )}
                   </td>
@@ -538,7 +569,7 @@ function UsersTab({
                         variant="ghost"
                         size="sm"
                         onClick={() => onEditUser(user)}
-                        title={t("common.edit") || "Editar"}
+                        title={t('common.edit') || 'Editar'}
                       >
                         <Edit className="h-4 w-4" />
                       </Button>
@@ -546,7 +577,7 @@ function UsersTab({
                         variant="ghost"
                         size="sm"
                         onClick={() => onDeleteUser(user)}
-                        title={t("common.delete") || "Eliminar"}
+                        title={t('common.delete') || 'Eliminar'}
                       >
                         <Trash2 className="h-4 w-4 text-red-600 dark:text-red-400" />
                       </Button>
@@ -567,9 +598,7 @@ function PermissionsTab({ t }: { t: (key: string) => string }) {
     <div className="flex h-64 items-center justify-center rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
       <div className="text-center">
         <Shield className="mx-auto h-12 w-12 text-gray-400" />
-        <p className="mt-4 text-gray-600 dark:text-gray-400">
-          {t("common.comingSoon")}
-        </p>
+        <p className="mt-4 text-gray-600 dark:text-gray-400">{t('common.comingSoon')}</p>
       </div>
     </div>
   );
@@ -580,9 +609,7 @@ function SystemSettingsTab({ t }: { t: (key: string) => string }) {
     <div className="flex h-64 items-center justify-center rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
       <div className="text-center">
         <Settings className="mx-auto h-12 w-12 text-gray-400" />
-        <p className="mt-4 text-gray-600 dark:text-gray-400">
-          {t("common.comingSoon")}
-        </p>
+        <p className="mt-4 text-gray-600 dark:text-gray-400">{t('common.comingSoon')}</p>
       </div>
     </div>
   );
@@ -593,11 +620,8 @@ function AuditTab({ t }: { t: (key: string) => string }) {
     <div className="flex h-64 items-center justify-center rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
       <div className="text-center">
         <FileText className="mx-auto h-12 w-12 text-gray-400" />
-        <p className="mt-4 text-gray-600 dark:text-gray-400">
-          {t("common.comingSoon")}
-        </p>
+        <p className="mt-4 text-gray-600 dark:text-gray-400">{t('common.comingSoon')}</p>
       </div>
     </div>
   );
 }
-

@@ -85,14 +85,8 @@ const DashboardPage = React.lazy(() =>
   import('../pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
 );
 
-// Placeholders para otras páginas
-const PlaceholderPage = ({ title }: { title: string }) => (
-  <div className="flex h-full items-center justify-center">
-    <div className="text-center">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">{title}</h1>
-      <p className="mt-2 text-gray-600 dark:text-gray-400">Próximamente...</p>
-    </div>
-  </div>
+const ReportsPage = React.lazy(() =>
+  import('../pages/ReportsPage').then((m) => ({ default: m.ReportsPage })),
 );
 
 const routes: RouteObject[] = [
@@ -281,7 +275,17 @@ const routes: RouteObject[] = [
       },
       {
         path: '/reports',
-        element: <PlaceholderPage title="Reportes" />,
+        element: (
+          <React.Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+              </div>
+            }
+          >
+            <ReportsPage />
+          </React.Suspense>
+        ),
       },
       {
         path: '/profile',
