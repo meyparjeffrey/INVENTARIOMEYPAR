@@ -52,35 +52,37 @@ export function buildLabelSvg(
   const code = escapeXml(product.code);
   const nameLine = escapeXml(truncate(product.name, 32));
   const barcode = escapeXml(product.barcode ?? '');
-  const location = escapeXml(
-    `${product.aisle}-${product.shelf}${product.warehouse ? ` (${product.warehouse})` : ''}`,
-  );
+  const location = escapeXml(`${product.aisle}-${product.shelf}`);
+  const warehouse = escapeXml(product.warehouse ?? '');
 
   const yCode = paddingPx + cfg.codeFontPx;
-  const yBarcode = yCode + cfg.codeFontPx + 2;
-  const yLocation = yBarcode + Math.max(10, cfg.nameFontPx);
   const yName = heightPx - paddingPx;
 
   const topLines: string[] = [];
+  let y = yCode;
+  const lineH = Math.max(10, cfg.nameFontPx);
+
   if (cfg.showCode) {
     topLines.push(
-      `<text x="${rightX}" y="${yCode}" font-family="Arial, sans-serif" font-size="${cfg.codeFontPx}" font-weight="700">${code}</text>`,
+      `<text x="${rightX}" y="${y}" font-family="Arial, sans-serif" font-size="${cfg.codeFontPx}" font-weight="700">${code}</text>`,
     );
   }
   if (cfg.showBarcode && product.barcode) {
+    y += cfg.codeFontPx + 2;
     topLines.push(
-      `<text x="${rightX}" y="${yBarcode}" font-family="Arial, sans-serif" font-size="${cfg.codeFontPx}">${barcode}</text>`,
+      `<text x="${rightX}" y="${y}" font-family="Arial, sans-serif" font-size="${cfg.codeFontPx}">${barcode}</text>`,
     );
   }
   if (cfg.showLocation) {
+    y += lineH;
     topLines.push(
-      `<text x="${rightX}" y="${yLocation}" font-family="Arial, sans-serif" font-size="${Math.max(9, cfg.nameFontPx - 1)}">${location}</text>`,
+      `<text x="${rightX}" y="${y}" font-family="Arial, sans-serif" font-size="${Math.max(9, cfg.nameFontPx - 1)}">${location}</text>`,
     );
   }
   if (cfg.showWarehouse && product.warehouse) {
-    // warehouse ya va incluido en location, pero el toggle permite repetirlo si se quiere explícito
+    y += lineH;
     topLines.push(
-      `<text x="${rightX}" y="${yLocation + Math.max(9, cfg.nameFontPx - 1) + 2}" font-family="Arial, sans-serif" font-size="${Math.max(9, cfg.nameFontPx - 1)}">${escapeXml(product.warehouse)}</text>`,
+      `<text x="${rightX}" y="${y}" font-family="Arial, sans-serif" font-size="${Math.max(9, cfg.nameFontPx - 1)}">${warehouse}</text>`,
     );
   }
 

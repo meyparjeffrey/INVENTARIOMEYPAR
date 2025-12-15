@@ -1,7 +1,7 @@
 import { Download, FileArchive, Loader2, Package, QrCode, Save, Tag } from 'lucide-react';
 import * as React from 'react';
 import { toPng } from 'html-to-image';
-import type { Product, ProductQrAsset } from '@domain/entities';
+import type { Product, ProductLocation, ProductQrAsset } from '@domain/entities';
 import { QrCodeService } from '@application/services/QrCodeService';
 import QRCode from 'qrcode';
 import JSZip from 'jszip';
@@ -155,6 +155,9 @@ export function LabelsQrPage() {
 
   const [labelQrDataUrl, setLabelQrDataUrl] = React.useState<string | null>(null);
 
+  const [productLocations, setProductLocations] = React.useState<ProductLocation[]>([]);
+  const [selectedLocationId, setSelectedLocationId] = React.useState<string>('legacy');
+
   const [labelConfig, setLabelConfig] = React.useState<LabelConfig>({
     widthMm: 30,
     heightMm: 20,
@@ -220,6 +223,64 @@ export function LabelsQrPage() {
     let cancelled = false;
 
     const run = async () => {
+      const productId = selectedProduct?.id;
+      if (!productId) {
+        setProductLocations([]);
+        setSelectedLocationId('legacy');
+        return;
+      }
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('product_locations')
+          .select(
+            'id,product_id,warehouse,aisle,shelf,is_primary,created_at,updated_at,created_by,updated_by',
+          )
+          .eq('product_id', productId)
+          .order('is_primary', { ascending: false })
+          .order('warehouse', { ascending: true })
+          .order('aisle', { ascending: true })
+          .order('shelf', { ascending: true });
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        const mapped: ProductLocation[] = (data ?? []).map((row) => ({
+          id: row.id,
+          productId: row.product_id,
+          warehouse: row.warehouse,
+          aisle: row.aisle,
+          shelf: row.shelf,
+          isPrimary: row.is_primary,
+          createdAt: row.created_at,
+          updatedAt: row.updated_at,
+          createdBy: row.created_by,
+          updatedBy: row.updated_by,
+        }));
+
+        if (cancelled) return;
+        setProductLocations(mapped);
+
+        const primary = mapped.find((l) => l.isPrimary);
+        setSelectedLocationId(primary?.id ?? mapped[0]?.id ?? 'legacy');
+      } catch {
+        if (cancelled) return;
+        setProductLocations([]);
+        setSelectedLocationId('legacy');
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedProduct?.id]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
       const barcode = (selectedProduct?.barcode ?? '').trim();
       if (!barcode) {
         setLabelQrDataUrl(null);
@@ -245,6 +306,11 @@ export function LabelsQrPage() {
       cancelled = true;
     };
   }, [selectedProduct?.barcode]);
+
+  const selectedLocation = React.useMemo(() => {
+    if (selectedLocationId === 'legacy') return null;
+    return productLocations.find((l) => l.id === selectedLocationId) ?? null;
+  }, [productLocations, selectedLocationId]);
 
   const toggleSelected = (id: string) => {
     setSelectedIds((prev) => {
@@ -414,10 +480,15 @@ export function LabelsQrPage() {
 
   const locationText = React.useMemo(() => {
     if (!selectedProduct) return '';
-    const base = `${selectedProduct.aisle}-${selectedProduct.shelf}`;
-    const wh = selectedProduct.warehouse ? ` (${selectedProduct.warehouse})` : '';
-    return `${base}${wh}`;
-  }, [selectedProduct]);
+    const aisle = selectedLocation?.aisle ?? selectedProduct.aisle;
+    const shelf = selectedLocation?.shelf ?? selectedProduct.shelf;
+    return `${aisle}-${shelf}`;
+  }, [selectedProduct, selectedLocation]);
+
+  const warehouseText = React.useMemo(() => {
+    if (!selectedProduct) return '';
+    return selectedLocation?.warehouse ?? selectedProduct.warehouse ?? '';
+  }, [selectedProduct, selectedLocation]);
 
   return (
     <div className="space-y-6">
@@ -802,6 +873,30 @@ export function LabelsQrPage() {
                 <p className="text-sm text-gray-600 dark:text-gray-400">—</p>
               ) : (
                 <div className="space-y-4">
+                  {productLocations.length > 1 && (
+                    <div>
+                      <label className="text-xs text-gray-500 dark:text-gray-400">
+                        Ubicación a imprimir
+                      </label>
+                      <select
+                        className="mt-1 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                        value={selectedLocationId}
+                        onChange={(e) => setSelectedLocationId(e.target.value)}
+                      >
+                        {productLocations.map((loc) => (
+                          <option key={loc.id} value={loc.id}>
+                            {loc.warehouse}: {loc.aisle}-{loc.shelf}
+                            {loc.isPrimary ? ' (principal)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                        Si un producto tiene varias ubicaciones, elige cuál imprimir en la
+                        etiqueta.
+                      </p>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs text-gray-500 dark:text-gray-400">
@@ -999,13 +1094,13 @@ export function LabelsQrPage() {
                                 {locationText}
                               </div>
                             )}
-                            {labelConfig.showWarehouse && selectedProduct.warehouse && (
+                            {labelConfig.showWarehouse && warehouseText && (
                               <div
                                 style={{
                                   fontSize: Math.max(9, labelConfig.nameFontPx - 1),
                                 }}
                               >
-                                {selectedProduct.warehouse}
+                                {warehouseText}
                               </div>
                             )}
                           </div>

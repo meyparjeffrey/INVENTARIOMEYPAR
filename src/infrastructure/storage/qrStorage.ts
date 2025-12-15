@@ -9,9 +9,29 @@ export type UploadProductQrInput = {
 };
 
 export function buildProductQrPath(productId: string, barcode: string): string {
+  const safeBarcode = sanitizeStorageFileName(barcode);
   // Guardamos por productId para evitar colisiones entre productos,
   // y por barcode para trazabilidad humana.
-  return `${productId}/${barcode}.png`;
+  return `${productId}/${safeBarcode}.png`;
+}
+
+/**
+ * Supabase Storage valida el "key"/path y puede rechazar caracteres especiales.
+ * NO modificamos el contenido del QR (sigue siendo el barcode original),
+ * solo saneamos el nombre del fichero para Storage.
+ */
+export function sanitizeStorageFileName(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return 'barcode';
+
+  // Reemplazar cualquier cosa que no sea alfanumérico o . _ - por _
+  const normalized = trimmed.normalize('NFKD');
+  const safe = normalized.replace(/[^a-zA-Z0-9._-]+/g, '_');
+
+  // Evitar extremos raros y límites razonables
+  const collapsed = safe.replace(/_+/g, '_').replace(/^[_.]+|[_.]+$/g, '');
+  const limited = collapsed.slice(0, 120);
+  return limited || 'barcode';
 }
 
 export async function uploadProductQr({
