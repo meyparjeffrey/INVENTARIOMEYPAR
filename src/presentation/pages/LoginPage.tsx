@@ -12,6 +12,13 @@ import { useTheme } from "../context/ThemeContext";
 import { cn } from "../lib/cn";
 
 /**
+ * Versión de la aplicación mostrada al usuario.
+ *
+ * Nota: Se mantiene en sincronía con `package.json` (versión usada en el build Windows).
+ */
+const APP_VERSION = "0.4.0";
+
+/**
  * Pantalla de inicio de sesión moderna y profesional con diseño de dos columnas.
  * Izquierda: Logo, nombre de la aplicación, versión y características.
  * Derecha: Formulario de inicio de sesión.
@@ -314,7 +321,9 @@ export function LoginPage() {
             </p>
             <div className="flex items-center justify-center gap-2 text-sm text-gray-500 dark:text-gray-400">
               <span>{t("login.version")}</span>
-              <span className="font-semibold text-primary-600 dark:text-primary-400">v0.1.0</span>
+              <span className="font-semibold text-primary-600 dark:text-primary-400">
+                v{APP_VERSION}
+              </span>
             </div>
           </motion.div>
 

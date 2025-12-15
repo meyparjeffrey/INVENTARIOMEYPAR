@@ -11,8 +11,38 @@ const { existsSync } = require('fs');
 
 const isDev = process.env.NODE_ENV === "development";
 
+/**
+ * Obtiene la ruta del icono de la app para Windows.
+ *
+ * Objetivo: evitar que Windows muestre el icono por defecto de Electron en:
+ * - Barra de tareas / título de ventana
+ * - Búsqueda del menú Inicio (cuando la AppUserModelId coincide)
+ *
+ * En build, `electron-builder` copia `build/icon.ico` a `resources/icon.ico`
+ * mediante `extraResources` (configurado en `package.json`).
+ */
+function getAppIconPath(): string | null {
+    // `resourcesPath` existe en Electron, pero no está en los typings estándar de Node.
+    // Lo leemos de forma segura para no romper el build TypeScript.
+    const resourcesPath = (process as unknown as { resourcesPath?: string })
+        .resourcesPath;
+
+    const candidates: string[] = [
+        // En producción empaquetada: resources/icon.ico
+        ...(resourcesPath ? [path.join(resourcesPath, "icon.ico")] : []),
+        // En desarrollo: build/icon.ico en raíz del proyecto
+        path.join(process.cwd(), "build", "icon.ico"),
+        // Fallback adicional (por si el cwd no es el root)
+        path.join(__dirname, "..", "..", "..", "build", "icon.ico"),
+    ];
+
+    const found = candidates.find((p) => existsSync(p));
+    return found ?? null;
+}
+
 // Crear ventana de splash/loading
 function createSplashWindow() {
+    const iconPath = getAppIconPath();
     const splash = new BrowserWindow({
         width: 500,
         height: 400,
@@ -20,6 +50,7 @@ function createSplashWindow() {
         transparent: true,
         alwaysOnTop: true,
         resizable: false,
+        ...(iconPath ? { icon: iconPath } : {}),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true
@@ -45,6 +76,13 @@ async function createWindow() {
     // Crear splash screen primero
     const splash = createSplashWindow();
 
+    // En Windows, esta línea ayuda a que el sistema asocie correctamente el icono
+    // con el acceso directo y la búsqueda del menú Inicio (evita icono genérico).
+    if (process.platform === "win32") {
+        app.setAppUserModelId("com.inventario.almacen");
+    }
+
+    const iconPath = getAppIconPath();
     const win = new BrowserWindow({
         width: 1280,
         height: 800,
@@ -52,6 +90,7 @@ async function createWindow() {
         minHeight: 680,
         title: "ALMACÉN MEYPAR",
         show: false,
+        ...(iconPath ? { icon: iconPath } : {}),
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true

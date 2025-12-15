@@ -1,6 +1,6 @@
 {
   "name": "inventario-almacen",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "private": true,
   "type": "module",
   "description": "Aplicación de inventario con Electron, React, Supabase e IA.",
@@ -104,6 +104,12 @@
       "buildResources": "build"
     },
     "npmRebuild": false,
+    "extraResources": [
+      {
+        "from": "build/icon.ico",
+        "to": "icon.ico"
+      }
+    ],
     "files": [
       "dist/**/*",
       "package.json",
@@ -128,8 +134,7 @@
       ],
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "icon": "build/icon.ico",
-      "requestedExecutionLevel": "asInvoker",
-      "signAndEditExecutable": false
+      "requestedExecutionLevel": "asInvoker"
     },
     "nsis": {
       "oneClick": false,
@@ -142,6 +147,8 @@
       "runAfterFinish": true,
       "menuCategory": false,
       "warningsAsErrors": false,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
       "installerLanguages": [
         "es_ES",
         "en_US"

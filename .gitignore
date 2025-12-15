@@ -7,6 +7,10 @@ out/
 build/
 release/
 
+# Archivos Excel de importación (no se versionan)
+Docs/*.xlsx
+Docs/~$*.xlsx
+
 # Logs and coverage
 *.log
 logs/
