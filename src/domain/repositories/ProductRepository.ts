@@ -125,7 +125,13 @@ export interface UpdateProductInput {
   weightKg?: number | null;
   dimensionsCm?: Product['dimensionsCm'];
   notes?: string | null;
-  updatedBy: UUID;
+  /**
+   * Usuario que realiza la modificación.
+   *
+   * Nota: en el frontend normalmente se obtiene de la sesión y se rellena
+   * automáticamente; por eso aquí es opcional para no forzar a las vistas.
+   */
+  updatedBy?: UUID;
 }
 
 export interface ProductRepository {

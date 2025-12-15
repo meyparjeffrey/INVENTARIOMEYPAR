@@ -1,7 +1,8 @@
 import { Download, FileArchive, Loader2, Package, QrCode, Save, Tag } from 'lucide-react';
 import * as React from 'react';
 import { toPng } from 'html-to-image';
-import type { Product, ProductLocation, ProductQrAsset } from '@domain/entities';
+import type { Product, ProductLocation } from '@domain/entities';
+import type { ProductQrAsset } from '@domain/entities/ProductQrAsset';
 import { QrCodeService } from '@application/services/QrCodeService';
 import QRCode from 'qrcode';
 import JSZip from 'jszip';
@@ -16,6 +17,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { SearchInput } from '../components/ui/SearchInput';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { Dialog, DialogFooter } from '../components/ui/Dialog';
 import { useToast } from '../components/ui/Toast';
 import { supabaseClient } from '@infrastructure/supabase/supabaseClient';
 import { SupabaseProductQrRepository } from '@infrastructure/repositories/SupabaseProductQrRepository';
@@ -27,6 +29,14 @@ import {
 import { cn } from '../lib/cn';
 
 type BulkZipMode = 'qr' | 'labels' | 'both';
+
+function withQrPrefix(code: string) {
+  return `QR-${code}.png`;
+}
+
+function withEtPrefix(code: string) {
+  return `ET-${code}.png`;
+}
 
 function downloadBlob(blob: Blob, fileName: string) {
   const url = URL.createObjectURL(blob);
@@ -145,6 +155,8 @@ export function LabelsQrPage() {
     done: number;
     total: number;
   } | null>(null);
+  const [bulkZipDialogOpen, setBulkZipDialogOpen] = React.useState(false);
+  const [bulkLabelConfig, setBulkLabelConfig] = React.useState<LabelConfig | null>(null);
 
   const [barcodeDraft, setBarcodeDraft] = React.useState('');
   const [savingBarcode, setSavingBarcode] = React.useState(false);
@@ -433,7 +445,7 @@ export function LabelsQrPage() {
       const signed = await createProductQrSignedUrl(selectedAsset.qrPath, 60 * 10);
       const res = await fetch(signed);
       const blob = await res.blob();
-      downloadBlob(blob, `${selectedProduct.code}.png`);
+      downloadBlob(blob, withQrPrefix(selectedProduct.code));
     } catch (err) {
       toast.error('QR', err instanceof Error ? err.message : 'Error descargando QR');
     }
@@ -467,7 +479,7 @@ export function LabelsQrPage() {
       });
       const res = await fetch(dataUrl);
       const blob = await res.blob();
-      downloadBlob(blob, `${selectedProduct.code}.png`);
+      downloadBlob(blob, withEtPrefix(selectedProduct.code));
     } catch (err) {
       toast.error('Etiqueta', err instanceof Error ? err.message : 'Error generando PNG');
     }
@@ -527,94 +539,9 @@ export function LabelsQrPage() {
             onClick={async () => {
               if (bulkDownloading) return;
               if (selectedIds.size === 0) return;
-
-              const selectedProducts = products.filter((p) => selectedIds.has(p.id));
-              const total = selectedProducts.length;
-              setBulkDownloading(true);
-              setBulkProgress({ done: 0, total });
-
-              try {
-                const zip = new JSZip();
-                const needQr = bulkZipMode === 'qr' || bulkZipMode === 'both';
-                const needLabels = bulkZipMode === 'labels' || bulkZipMode === 'both';
-
-                const widthPx = mmToPx(labelConfig.widthMm, labelConfig.dpi);
-                const heightPx = mmToPx(labelConfig.heightMm, labelConfig.dpi);
-
-                const folderQr = bulkZipMode === 'both' ? zip.folder('qr') : zip;
-                const folderLabels = bulkZipMode === 'both' ? zip.folder('labels') : zip;
-
-                const barcodeQrCache = new Map<string, string>();
-
-                await asyncPool(6, selectedProducts, async (p) => {
-                  // QR
-                  if (needQr) {
-                    const barcode = (p.barcode ?? '').trim();
-                    if (barcode) {
-                      const asset = assetsByProductId.get(p.id);
-                      let qrBlob: Blob | null = null;
-
-                      if (asset) {
-                        const signed = await createProductQrSignedUrl(
-                          asset.qrPath,
-                          60 * 10,
-                        );
-                        const res = await fetch(signed);
-                        qrBlob = await res.blob();
-                      } else {
-                        // Fallback: generar localmente (sin tocar BD/Storage) para no bloquear la descarga.
-                        qrBlob = await QrCodeService.generateQrPngBlob(barcode, {
-                          sizePx: 1024,
-                        });
-                      }
-
-                      folderQr?.file(`${p.code}.png`, qrBlob);
-                    }
-                  }
-
-                  // Etiquetas
-                  if (needLabels) {
-                    const barcode = (p.barcode ?? '').trim();
-                    let qrDataUrl: string | null = null;
-
-                    if (labelConfig.showQr && barcode) {
-                      if (barcodeQrCache.has(barcode)) {
-                        qrDataUrl = barcodeQrCache.get(barcode)!;
-                      } else {
-                        qrDataUrl = await QRCode.toDataURL(barcode, {
-                          type: 'image/png',
-                          width: 512,
-                          margin: 4,
-                          errorCorrectionLevel: 'M',
-                          color: { dark: '#000000', light: '#FFFFFF' },
-                        });
-                        barcodeQrCache.set(barcode, qrDataUrl);
-                      }
-                    }
-
-                    const svg = buildLabelSvg(p, qrDataUrl, labelConfig);
-                    const labelBlob = await svgToPngBlob(svg, widthPx, heightPx);
-                    folderLabels?.file(`${p.code}.png`, labelBlob);
-                  }
-
-                  setBulkProgress((prev) =>
-                    prev ? { ...prev, done: prev.done + 1 } : null,
-                  );
-                });
-
-                const zipBlob = await zip.generateAsync({ type: 'blob' });
-                const today = new Date().toISOString().split('T')[0];
-                downloadBlob(zipBlob, `etiquetas_qr_${today}.zip`);
-                toast.success('ZIP', 'Descarga preparada.');
-              } catch (err) {
-                toast.error(
-                  'ZIP',
-                  err instanceof Error ? err.message : 'Error generando ZIP',
-                );
-              } finally {
-                setBulkDownloading(false);
-                setBulkProgress(null);
-              }
+              // Antes de descargar, abrir diálogo para elegir campos + dimensiones (si incluye etiquetas)
+              setBulkLabelConfig(labelConfig);
+              setBulkZipDialogOpen(true);
             }}
             disabled={selectedIds.size === 0 || bulkDownloading}
           >
@@ -637,6 +564,282 @@ export function LabelsQrPage() {
           </Button>
         </div>
       </div>
+
+      <Dialog
+        isOpen={bulkZipDialogOpen}
+        onClose={() => setBulkZipDialogOpen(false)}
+        title="Descarga masiva (ZIP)"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+            <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
+              Contenido del ZIP
+            </div>
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="text-sm text-gray-700 dark:text-gray-200">Incluir:</label>
+              <select
+                className="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                value={bulkZipMode}
+                onChange={(e) => setBulkZipMode(e.target.value as BulkZipMode)}
+              >
+                <option value="qr">QR</option>
+                <option value="labels">Etiquetas</option>
+                <option value="both">Ambos</option>
+              </select>
+              <span className="text-sm text-gray-500 dark:text-gray-400">
+                Archivos: QR = <code>QR-CODIGO.png</code>, Etiqueta ={' '}
+                <code>ET-CODIGO.png</code>
+              </span>
+            </div>
+          </div>
+
+          {(bulkZipMode === 'labels' || bulkZipMode === 'both') && bulkLabelConfig && (
+            <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+              <div className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                Configuración de etiquetas (aplica al ZIP)
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">
+                    Ancho (mm)
+                  </label>
+                  <Input
+                    type="number"
+                    min={10}
+                    step={1}
+                    value={bulkLabelConfig.widthMm}
+                    onChange={(e) =>
+                      setBulkLabelConfig((p) =>
+                        p ? { ...p, widthMm: Number(e.target.value) } : p,
+                      )
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">
+                    Alto (mm)
+                  </label>
+                  <Input
+                    type="number"
+                    min={10}
+                    step={1}
+                    value={bulkLabelConfig.heightMm}
+                    onChange={(e) =>
+                      setBulkLabelConfig((p) =>
+                        p ? { ...p, heightMm: Number(e.target.value) } : p,
+                      )
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">DPI</label>
+                  <select
+                    className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                    value={bulkLabelConfig.dpi}
+                    onChange={(e) =>
+                      setBulkLabelConfig((p) =>
+                        p ? { ...p, dpi: Number(e.target.value) as 203 | 300 } : p,
+                      )
+                    }
+                  >
+                    <option value={203}>203</option>
+                    <option value={300}>300</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">
+                    QR (mm)
+                  </label>
+                  <Input
+                    type="number"
+                    min={6}
+                    step={1}
+                    value={bulkLabelConfig.qrSizeMm}
+                    onChange={(e) =>
+                      setBulkLabelConfig((p) =>
+                        p ? { ...p, qrSizeMm: Number(e.target.value) } : p,
+                      )
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                {(
+                  [
+                    ['showQr', 'QR'],
+                    ['showCode', 'Código'],
+                    ['showBarcode', 'Barcode'],
+                    ['showName', 'Nombre'],
+                    ['showLocation', 'Ubicación'],
+                    ['showWarehouse', 'Almacén'],
+                  ] as const
+                ).map(([key, label]) => (
+                  <label
+                    key={key}
+                    className="flex items-center gap-2 text-gray-700 dark:text-gray-200"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={bulkLabelConfig[key]}
+                      onChange={(e) =>
+                        setBulkLabelConfig((p) =>
+                          p ? { ...p, [key]: e.target.checked } : p,
+                        )
+                      }
+                    />
+                    {label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setBulkZipDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={async () => {
+                if (bulkDownloading) return;
+                if (selectedIds.size === 0) return;
+
+                const selectedProducts = products.filter((p) => selectedIds.has(p.id));
+                const total = selectedProducts.length;
+                setBulkZipDialogOpen(false);
+                setBulkDownloading(true);
+                setBulkProgress({ done: 0, total });
+
+                try {
+                  const zip = new JSZip();
+                  const needQr = bulkZipMode === 'qr' || bulkZipMode === 'both';
+                  const needLabels = bulkZipMode === 'labels' || bulkZipMode === 'both';
+
+                  const labelCfg = bulkLabelConfig ?? labelConfig;
+                  const widthPx = mmToPx(labelCfg.widthMm, labelCfg.dpi);
+                  const heightPx = mmToPx(labelCfg.heightMm, labelCfg.dpi);
+
+                  const folderQr = bulkZipMode === 'both' ? zip.folder('qr') : zip;
+                  const folderLabels =
+                    bulkZipMode === 'both' ? zip.folder('labels') : zip;
+
+                  const barcodeQrCache = new Map<string, string>();
+
+                  // Para etiquetas masivas: usar ubicación primaria si existe (si no, fallback a aisle/shelf del producto)
+                  const locationsByProductId = new Map<string, ProductLocation>();
+                  if (needLabels) {
+                    const ids = selectedProducts.map((p) => p.id);
+                    const { data, error } = await supabaseClient
+                      .from('product_locations')
+                      .select(
+                        'id,product_id,warehouse,aisle,shelf,is_primary,created_at,updated_at',
+                      )
+                      .in('product_id', ids);
+                    if (!error && data) {
+                      for (const row of data) {
+                        const existing = locationsByProductId.get(row.product_id);
+                        if (!existing || row.is_primary) {
+                          locationsByProductId.set(row.product_id, {
+                            id: row.id,
+                            productId: row.product_id,
+                            warehouse: row.warehouse,
+                            aisle: row.aisle,
+                            shelf: row.shelf,
+                            isPrimary: row.is_primary,
+                            createdAt: row.created_at,
+                            updatedAt: row.updated_at,
+                          });
+                        }
+                      }
+                    }
+                  }
+
+                  await asyncPool(6, selectedProducts, async (p) => {
+                    // QR
+                    if (needQr) {
+                      const barcode = (p.barcode ?? '').trim();
+                      if (barcode) {
+                        const asset = assetsByProductId.get(p.id);
+                        let qrBlob: Blob | null = null;
+
+                        if (asset) {
+                          const signed = await createProductQrSignedUrl(
+                            asset.qrPath,
+                            60 * 10,
+                          );
+                          const res = await fetch(signed);
+                          qrBlob = await res.blob();
+                        } else {
+                          qrBlob = await QrCodeService.generateQrPngBlob(barcode, {
+                            sizePx: 1024,
+                          });
+                        }
+
+                        folderQr?.file(withQrPrefix(p.code), qrBlob);
+                      }
+                    }
+
+                    // Etiquetas
+                    if (needLabels) {
+                      const barcode = (p.barcode ?? '').trim();
+                      let qrDataUrl: string | null = null;
+
+                      if (labelCfg.showQr && barcode) {
+                        if (barcodeQrCache.has(barcode)) {
+                          qrDataUrl = barcodeQrCache.get(barcode)!;
+                        } else {
+                          qrDataUrl = await QRCode.toDataURL(barcode, {
+                            type: 'image/png',
+                            width: 512,
+                            margin: 4,
+                            errorCorrectionLevel: 'M',
+                            color: { dark: '#000000', light: '#FFFFFF' },
+                          });
+                          barcodeQrCache.set(barcode, qrDataUrl);
+                        }
+                      }
+
+                      const loc = locationsByProductId.get(p.id);
+                      const labelProduct: Product = {
+                        ...p,
+                        aisle: loc?.aisle ?? p.aisle,
+                        shelf: loc?.shelf ?? p.shelf,
+                        warehouse: loc?.warehouse ?? p.warehouse,
+                      };
+
+                      const svg = buildLabelSvg(labelProduct, qrDataUrl, labelCfg);
+                      const labelBlob = await svgToPngBlob(svg, widthPx, heightPx);
+                      folderLabels?.file(withEtPrefix(p.code), labelBlob);
+                    }
+
+                    setBulkProgress((prev) =>
+                      prev ? { ...prev, done: prev.done + 1 } : null,
+                    );
+                  });
+
+                  const zipBlob = await zip.generateAsync({ type: 'blob' });
+                  const today = new Date().toISOString().split('T')[0];
+                  downloadBlob(zipBlob, `etiquetas_qr_${today}.zip`);
+                  toast.success('ZIP', 'Descarga preparada.');
+                } catch (err) {
+                  toast.error(
+                    'ZIP',
+                    err instanceof Error ? err.message : 'Error generando ZIP',
+                  );
+                } finally {
+                  setBulkDownloading(false);
+                  setBulkProgress(null);
+                }
+              }}
+              disabled={bulkDownloading || selectedIds.size === 0}
+            >
+              Descargar ZIP
+            </Button>
+          </DialogFooter>
+        </div>
+      </Dialog>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Lista */}
