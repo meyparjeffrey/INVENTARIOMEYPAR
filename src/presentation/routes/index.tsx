@@ -80,6 +80,10 @@ const SearchResultsPage = React.lazy(() =>
   })),
 );
 
+const LabelsQrPage = React.lazy(() =>
+  import('../pages/LabelsQrPage').then((module) => ({ default: module.LabelsQrPage })),
+);
+
 // Lazy load de páginas
 const DashboardPage = React.lazy(() =>
   import('../pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
@@ -276,6 +280,20 @@ const routes: RouteObject[] = [
             }
           >
             <ScannerPage />
+          </React.Suspense>
+        ),
+      },
+      {
+        path: '/labels-qr',
+        element: (
+          <React.Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+              </div>
+            }
+          >
+            <LabelsQrPage />
           </React.Suspense>
         ),
       },

@@ -2,6 +2,7 @@ export * from './common';
 export * from './User';
 export * from './Supplier';
 export * from './Product';
+export * from './ProductQrAsset';
 export * from './InventoryMovement';
 export * from './Ai';
 export * from './Audit';
