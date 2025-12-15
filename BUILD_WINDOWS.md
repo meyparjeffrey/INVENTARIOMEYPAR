@@ -1,61 +1,50 @@
-# Guía de Build para Windows - INVENTARI MEYPAR (Instalador)
+# Build Windows (Release) - INVENTARI MEYPAR
 
-Esta guía documenta el proceso para generar el **INSTALADOR** de Windows de la aplicación INVENTARI MEYPAR.
+Esta es la **única guía oficial** para generar el instalador de Windows.
 
-## 📋 Requisitos Previos
+## Requisitos
 
-- Node.js instalado
-- Dependencias instaladas (`npm install`)
+- Node.js **>= 18.19.0** (recomendado LTS)
+- Dependencias instaladas: `npm install`
+- Windows 10/11
 
-## 🚀 Proceso de Build Manual
+## Importante (Modo Desarrollador)
 
-Para generar el instalador correctamente, evitando errores de firma y configuración, usa el siguiente comando unificado:
+Electron Builder puede necesitar crear enlaces simbólicos durante la descarga/extracción de utilidades (p.ej. `winCodeSign`).
 
-```cmd
-cmd /c "npm run build && node scripts/build-win.cjs"
+- Activa **Modo desarrollador**: Configuración → Privacidad y seguridad → Para desarrolladores → **Modo de desarrollador**.
+- Si tu empresa lo bloquea, ejecuta el build en una consola **como Administrador**.
+
+## Build automático (recomendado)
+
+Ejecuta este script (es el flujo que usamos para evitar errores típicos):
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-windows-release.ps1
 ```
 
-### ¿Qué hace este comando?
+## Qué hace el script
 
-1. **`npm run build`**: Compila el código fuente (React + Electron) a la carpeta `dist`.
-2. **`node scripts/build-win.cjs`**: Ejecuta el script de empaquetado personalizado que:
-   - Configura el entorno para saltar la firma de código (evita error `signtool.exe`).
-   - Genera el instalador NSIS en español.
-   - Empaqueta todo en un archivo `.exe`.
+1. Limpia la caché de `winCodeSign` (si quedó corrupta por un intento anterior).
+2. Genera un `build/icon.ico` válido (a partir de `src/assets/logochat.svg`).
+3. Ejecuta el build del proyecto (`npm run build`).
+4. Empaqueta el instalador NSIS (`node scripts/build-win.cjs`).
 
-## 📦 Resultado
+## Resultado
 
-El instalador se generará en:
-```
-release/INVENTARI MEYPAR-0.1.0-x64.exe
-```
+El instalador se genera en:
 
-- **Tipo:** Instalador de Windows (NSIS)
-- **Tamaño:** ~93 MB
-- **Ubicación:** Carpeta `release` en la raíz del proyecto.
+- `release/INVENTARI MEYPAR-<version>-x64.exe`
 
-## ⚙️ Configuración
+Para la versión actual:
 
-La configuración del build se encuentra controlada principalmente por:
+- `release/INVENTARI MEYPAR-0.4.0-x64.exe`
 
-1. **[scripts/build-win.cjs](file:///scripts/build-win.cjs)**: Define la configuración de Electron Builder, overrides de firma y configuración NSIS.
-2. **package.json**: Define metadatos básicos, aunque el script `build-win.cjs` tiene precedencia para la configuración de build.
+## Si falla
 
-## 🔧 Solución de Problemas Comunes
-
-### Error: "signtool.exe not found" o errores de firma
-El script `scripts/build-win.cjs` inyecta automáticamente un "shim" (simulador) de `signtool` en el PATH. Si ves este error, asegúrate de estar ejecutando el build a través de `node scripts/build-win.cjs` y no directamente con `electron-builder`.
-
-### Error: "LoadLanguageFile not valid" (NSIS)
-Esto ocurre si hay conflictos con scripts NSIS personalizados. El script de build utiliza una configuración limpia. Si modificas configuraciones de idioma, asegúrate de no reintroducir `installer.nsh` conflictivos.
-
-### El instalador está en inglés
-Por defecto está configurado en `es_ES` (Español). Si aparece en inglés, verifica la configuración `installerLanguages` en `scripts/build-win.cjs`.
-
-## 🔄 Actualizar Versión
-
-1. Edita `package.json` y cambia `"version": "0.X.X"`.
-2. Ejecuta el comando de build nuevamente.
+- Error típico: `Cannot create symbolic link ... privilegio requerido`
+  - Solución: activar **Modo desarrollador** o ejecutar en consola **Administrador**.
 
 ---
-**Versión de guía:** 2.0 (Instalador NSIS)
+
+Nota: `build/` y `release/` están ignorados por git; el script genera el icono y artefactos localmente.
