@@ -55,6 +55,14 @@ describe('LabelPngService', () => {
       paddingMm: 1,
       codeFontPx: 12,
       nameFontPx: 10,
+      offsetsMm: {
+        qr: { x: 0, y: 0 },
+        code: { x: 0, y: 0 },
+        barcode: { x: 0, y: 0 },
+        location: { x: 0, y: 0 },
+        warehouse: { x: 0, y: 0 },
+        name: { x: 0, y: 0 },
+      },
     };
 
     const svg = buildLabelSvg(product, 'data:image/png;base64,AAAA', cfg);

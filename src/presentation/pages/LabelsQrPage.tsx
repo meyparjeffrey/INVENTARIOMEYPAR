@@ -213,6 +213,14 @@ export function LabelsQrPage() {
     paddingMm: 1,
     codeFontPx: 12,
     nameFontPx: 10,
+    offsetsMm: {
+      qr: { x: 0, y: 0 },
+      code: { x: 0, y: 0 },
+      barcode: { x: 0, y: 0 },
+      location: { x: 0, y: 0 },
+      warehouse: { x: 0, y: 0 },
+      name: { x: 0, y: 0 },
+    },
   });
 
   const labelRef = React.useRef<HTMLDivElement>(null);
@@ -612,6 +620,23 @@ export function LabelsQrPage() {
   const labelHeightPx = mmToPx(labelConfig.heightMm, labelConfig.dpi);
   const qrSizePx = mmToPx(labelConfig.qrSizeMm, labelConfig.dpi);
   const paddingPx = mmToPx(labelConfig.paddingMm, labelConfig.dpi);
+  const pxOff = React.useCallback(
+    (mm: number) => mmToPx(mm, labelConfig.dpi),
+    [labelConfig.dpi],
+  );
+
+  const updateOffset = React.useCallback(
+    (key: keyof LabelConfig['offsetsMm'], axis: 'x' | 'y', value: number) => {
+      setLabelConfig((p) => ({
+        ...p,
+        offsetsMm: {
+          ...p.offsetsMm,
+          [key]: { ...p.offsetsMm[key], [axis]: value },
+        },
+      }));
+    },
+    [],
+  );
 
   const locationText = React.useMemo(() => {
     if (!selectedProduct) return '';
@@ -831,6 +856,83 @@ export function LabelsQrPage() {
                 ))}
               </div>
 
+              <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                  {tt(t, 'labelsQr.position.title', 'Posición (mm)')}
+                </div>
+                <div className="grid grid-cols-1 gap-3 text-sm">
+                  {(
+                    [
+                      ['qr', tt(t, 'labelsQr.toggles.qr', 'QR')],
+                      ['code', tt(t, 'labelsQr.toggles.code', 'Código')],
+                      ['barcode', tt(t, 'labelsQr.toggles.barcode', 'Barcode')],
+                      ['location', tt(t, 'labelsQr.toggles.location', 'Ubicación')],
+                      ['warehouse', tt(t, 'labelsQr.toggles.warehouse', 'Almacén')],
+                      ['name', tt(t, 'labelsQr.toggles.name', 'Nombre')],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <div
+                      key={key}
+                      className="grid grid-cols-[1fr,1fr,1fr] items-center gap-2"
+                    >
+                      <div className="text-gray-700 dark:text-gray-200">{label}</div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">
+                          {tt(t, 'labelsQr.position.x', 'X')}
+                        </label>
+                        <Input
+                          type="number"
+                          step={0.5}
+                          value={bulkLabelConfig.offsetsMm[key].x}
+                          onChange={(e) =>
+                            setBulkLabelConfig((p) =>
+                              p
+                                ? {
+                                    ...p,
+                                    offsetsMm: {
+                                      ...p.offsetsMm,
+                                      [key]: {
+                                        ...p.offsetsMm[key],
+                                        x: Number(e.target.value),
+                                      },
+                                    },
+                                  }
+                                : p,
+                            )
+                          }
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">
+                          {tt(t, 'labelsQr.position.y', 'Y')}
+                        </label>
+                        <Input
+                          type="number"
+                          step={0.5}
+                          value={bulkLabelConfig.offsetsMm[key].y}
+                          onChange={(e) =>
+                            setBulkLabelConfig((p) =>
+                              p
+                                ? {
+                                    ...p,
+                                    offsetsMm: {
+                                      ...p.offsetsMm,
+                                      [key]: {
+                                        ...p.offsetsMm[key],
+                                        y: Number(e.target.value),
+                                      },
+                                    },
+                                  }
+                                : p,
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-gray-500 dark:text-gray-400">
@@ -906,8 +1008,8 @@ export function LabelsQrPage() {
                               <div
                                 style={{
                                   position: 'absolute',
-                                  left: `${paddingPx}px`,
-                                  top: `${paddingPx}px`,
+                                  left: `${paddingPx + mmToPx(bulkLabelConfig.offsetsMm.qr.x, bulkLabelConfig.dpi)}px`,
+                                  top: `${paddingPx + mmToPx(bulkLabelConfig.offsetsMm.qr.y, bulkLabelConfig.dpi)}px`,
                                   width: `${qrSizePx}px`,
                                   height: `${qrSizePx}px`,
                                   background: '#ffffff',
@@ -940,71 +1042,136 @@ export function LabelsQrPage() {
                               </div>
                             )}
 
-                          <div
-                            style={{
-                              position: 'absolute',
-                              left: `${paddingPx + (bulkLabelConfig.showQr ? qrSizePx + paddingPx : 0)}px`,
-                              top: `${paddingPx}px`,
-                              right: `${paddingPx}px`,
-                              bottom: `${paddingPx}px`,
-                              display: 'flex',
-                              flexDirection: 'column',
-                              justifyContent: 'space-between',
-                            }}
-                          >
-                            <div
-                              style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
-                            >
-                              {bulkLabelConfig.showCode && (
-                                <div
-                                  style={{
-                                    fontSize: bulkLabelConfig.codeFontPx,
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  {bulkPreviewProduct.code}
-                                </div>
-                              )}
-                              {bulkLabelConfig.showBarcode && (
-                                <div style={{ fontSize: bulkLabelConfig.codeFontPx }}>
-                                  {bulkPreviewProduct.barcode ?? ''}
-                                </div>
-                              )}
-                              {bulkLabelConfig.showLocation && (
-                                <div
-                                  style={{
-                                    fontSize: Math.max(9, bulkLabelConfig.nameFontPx - 1),
-                                  }}
-                                >
-                                  {bulkPreviewProduct.aisle}-{bulkPreviewProduct.shelf}
-                                </div>
-                              )}
-                              {bulkLabelConfig.showWarehouse &&
-                                bulkPreviewProduct.warehouse && (
+                          {(() => {
+                            const pxOff = (mm: number) => mmToPx(mm, bulkLabelConfig.dpi);
+                            const rightX =
+                              paddingPx +
+                              (bulkLabelConfig.showQr ? qrSizePx + paddingPx : 0);
+                            const lineH = Math.max(10, bulkLabelConfig.nameFontPx);
+
+                            const xCode =
+                              rightX + pxOff(bulkLabelConfig.offsetsMm.code.x);
+                            const yCode =
+                              paddingPx + pxOff(bulkLabelConfig.offsetsMm.code.y);
+
+                            const xBarcode =
+                              rightX + pxOff(bulkLabelConfig.offsetsMm.barcode.x);
+                            const yBarcode =
+                              paddingPx +
+                              bulkLabelConfig.codeFontPx +
+                              2 +
+                              pxOff(bulkLabelConfig.offsetsMm.barcode.y);
+
+                            const xLocation =
+                              rightX + pxOff(bulkLabelConfig.offsetsMm.location.x);
+                            const yLocation =
+                              paddingPx +
+                              bulkLabelConfig.codeFontPx +
+                              2 +
+                              lineH +
+                              pxOff(bulkLabelConfig.offsetsMm.location.y);
+
+                            const xWarehouse =
+                              rightX + pxOff(bulkLabelConfig.offsetsMm.warehouse.x);
+                            const yWarehouse =
+                              paddingPx +
+                              bulkLabelConfig.codeFontPx +
+                              2 +
+                              lineH +
+                              lineH +
+                              pxOff(bulkLabelConfig.offsetsMm.warehouse.y);
+
+                            const xName =
+                              rightX + pxOff(bulkLabelConfig.offsetsMm.name.x);
+                            const yName =
+                              heightPx -
+                              paddingPx -
+                              bulkLabelConfig.nameFontPx +
+                              pxOff(bulkLabelConfig.offsetsMm.name.y);
+
+                            return (
+                              <>
+                                {bulkLabelConfig.showCode && (
                                   <div
                                     style={{
+                                      position: 'absolute',
+                                      left: `${xCode}px`,
+                                      top: `${yCode}px`,
+                                      right: `${paddingPx}px`,
+                                      fontSize: bulkLabelConfig.codeFontPx,
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {bulkPreviewProduct.code}
+                                  </div>
+                                )}
+
+                                {bulkLabelConfig.showBarcode && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: `${xBarcode}px`,
+                                      top: `${yBarcode}px`,
+                                      right: `${paddingPx}px`,
+                                      fontSize: bulkLabelConfig.codeFontPx,
+                                    }}
+                                  >
+                                    {bulkPreviewProduct.barcode ?? ''}
+                                  </div>
+                                )}
+
+                                {bulkLabelConfig.showLocation && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: `${xLocation}px`,
+                                      top: `${yLocation}px`,
+                                      right: `${paddingPx}px`,
                                       fontSize: Math.max(
                                         9,
                                         bulkLabelConfig.nameFontPx - 1,
                                       ),
                                     }}
                                   >
-                                    {bulkPreviewProduct.warehouse}
+                                    {bulkPreviewProduct.aisle}-{bulkPreviewProduct.shelf}
                                   </div>
                                 )}
-                            </div>
 
-                            {bulkLabelConfig.showName && (
-                              <div
-                                style={{
-                                  fontSize: bulkLabelConfig.nameFontPx,
-                                  fontWeight: 600,
-                                }}
-                              >
-                                {bulkPreviewProduct.name}
-                              </div>
-                            )}
-                          </div>
+                                {bulkLabelConfig.showWarehouse &&
+                                  bulkPreviewProduct.warehouse && (
+                                    <div
+                                      style={{
+                                        position: 'absolute',
+                                        left: `${xWarehouse}px`,
+                                        top: `${yWarehouse}px`,
+                                        right: `${paddingPx}px`,
+                                        fontSize: Math.max(
+                                          9,
+                                          bulkLabelConfig.nameFontPx - 1,
+                                        ),
+                                      }}
+                                    >
+                                      {bulkPreviewProduct.warehouse}
+                                    </div>
+                                  )}
+
+                                {bulkLabelConfig.showName && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: `${xName}px`,
+                                      top: `${yName}px`,
+                                      right: `${paddingPx}px`,
+                                      fontSize: bulkLabelConfig.nameFontPx,
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {bulkPreviewProduct.name}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
                       );
                     })()}
@@ -1591,6 +1758,57 @@ export function LabelsQrPage() {
                     ))}
                   </div>
 
+                  <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                    <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                      {tt(t, 'labelsQr.position.title', 'Posición (mm)')}
+                    </div>
+                    <div className="grid grid-cols-1 gap-3 text-sm">
+                      {(
+                        [
+                          ['qr', tt(t, 'labelsQr.toggles.qr', 'QR')],
+                          ['code', tt(t, 'labelsQr.toggles.code', 'Código')],
+                          ['barcode', tt(t, 'labelsQr.toggles.barcode', 'Barcode')],
+                          ['location', tt(t, 'labelsQr.toggles.location', 'Ubicación')],
+                          ['warehouse', tt(t, 'labelsQr.toggles.warehouse', 'Almacén')],
+                          ['name', tt(t, 'labelsQr.toggles.name', 'Nombre')],
+                        ] as const
+                      ).map(([key, label]) => (
+                        <div
+                          key={key}
+                          className="grid grid-cols-[1fr,1fr,1fr] items-center gap-2"
+                        >
+                          <div className="text-gray-700 dark:text-gray-200">{label}</div>
+                          <div>
+                            <label className="text-xs text-gray-500 dark:text-gray-400">
+                              {tt(t, 'labelsQr.position.x', 'X')}
+                            </label>
+                            <Input
+                              type="number"
+                              step={0.5}
+                              value={labelConfig.offsetsMm[key].x}
+                              onChange={(e) =>
+                                updateOffset(key, 'x', Number(e.target.value))
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 dark:text-gray-400">
+                              {tt(t, 'labelsQr.position.y', 'Y')}
+                            </label>
+                            <Input
+                              type="number"
+                              step={0.5}
+                              value={labelConfig.offsetsMm[key].y}
+                              onChange={(e) =>
+                                updateOffset(key, 'y', Number(e.target.value))
+                              }
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
                     <div className="mb-2 text-xs text-gray-500 dark:text-gray-400">
                       {tt(t, 'labelsQr.label.preview', 'Preview')} ({labelConfig.widthMm}×
@@ -1614,8 +1832,8 @@ export function LabelsQrPage() {
                           <div
                             style={{
                               position: 'absolute',
-                              left: `${paddingPx}px`,
-                              top: `${paddingPx}px`,
+                              left: `${paddingPx + pxOff(labelConfig.offsetsMm.qr.x)}px`,
+                              top: `${paddingPx + pxOff(labelConfig.offsetsMm.qr.y)}px`,
                               width: `${qrSizePx}px`,
                               height: `${qrSizePx}px`,
                               background: '#ffffff',
@@ -1649,68 +1867,124 @@ export function LabelsQrPage() {
                           </div>
                         )}
 
-                        {/* Texto derecha */}
-                        <div
-                          style={{
-                            position: 'absolute',
-                            left: `${paddingPx + qrSizePx + paddingPx}px`,
-                            top: `${paddingPx}px`,
-                            right: `${paddingPx}px`,
-                            bottom: `${paddingPx}px`,
-                            display: 'flex',
-                            flexDirection: 'column',
-                            justifyContent: 'space-between',
-                          }}
-                        >
-                          <div
-                            style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
-                          >
-                            {labelConfig.showCode && (
-                              <div
-                                style={{
-                                  fontSize: labelConfig.codeFontPx,
-                                  fontWeight: 700,
-                                }}
-                              >
-                                {selectedProduct.code}
-                              </div>
-                            )}
-                            {labelConfig.showBarcode && (
-                              <div style={{ fontSize: labelConfig.codeFontPx }}>
-                                {selectedProduct.barcode ?? ''}
-                              </div>
-                            )}
-                            {labelConfig.showLocation && (
-                              <div
-                                style={{
-                                  fontSize: Math.max(9, labelConfig.nameFontPx - 1),
-                                }}
-                              >
-                                {locationText}
-                              </div>
-                            )}
-                            {labelConfig.showWarehouse && warehouseText && (
-                              <div
-                                style={{
-                                  fontSize: Math.max(9, labelConfig.nameFontPx - 1),
-                                }}
-                              >
-                                {warehouseText}
-                              </div>
-                            )}
-                          </div>
+                        {(() => {
+                          const rightX =
+                            paddingPx + (labelConfig.showQr ? qrSizePx + paddingPx : 0);
+                          const lineH = Math.max(10, labelConfig.nameFontPx);
 
-                          {labelConfig.showName && (
-                            <div
-                              style={{
-                                fontSize: labelConfig.nameFontPx,
-                                fontWeight: 600,
-                              }}
-                            >
-                              {selectedProduct.name}
-                            </div>
-                          )}
-                        </div>
+                          const xCode = rightX + pxOff(labelConfig.offsetsMm.code.x);
+                          const yCode = paddingPx + pxOff(labelConfig.offsetsMm.code.y);
+
+                          const xBarcode =
+                            rightX + pxOff(labelConfig.offsetsMm.barcode.x);
+                          const yBarcode =
+                            paddingPx +
+                            labelConfig.codeFontPx +
+                            2 +
+                            pxOff(labelConfig.offsetsMm.barcode.y);
+
+                          const xLocation =
+                            rightX + pxOff(labelConfig.offsetsMm.location.x);
+                          const yLocation =
+                            paddingPx +
+                            labelConfig.codeFontPx +
+                            2 +
+                            lineH +
+                            pxOff(labelConfig.offsetsMm.location.y);
+
+                          const xWarehouse =
+                            rightX + pxOff(labelConfig.offsetsMm.warehouse.x);
+                          const yWarehouse =
+                            paddingPx +
+                            labelConfig.codeFontPx +
+                            2 +
+                            lineH +
+                            lineH +
+                            pxOff(labelConfig.offsetsMm.warehouse.y);
+
+                          const xName = rightX + pxOff(labelConfig.offsetsMm.name.x);
+                          const yName =
+                            labelHeightPx -
+                            paddingPx -
+                            labelConfig.nameFontPx +
+                            pxOff(labelConfig.offsetsMm.name.y);
+
+                          return (
+                            <>
+                              {labelConfig.showCode && (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    left: `${xCode}px`,
+                                    top: `${yCode}px`,
+                                    right: `${paddingPx}px`,
+                                    fontSize: labelConfig.codeFontPx,
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {selectedProduct.code}
+                                </div>
+                              )}
+
+                              {labelConfig.showBarcode && (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    left: `${xBarcode}px`,
+                                    top: `${yBarcode}px`,
+                                    right: `${paddingPx}px`,
+                                    fontSize: labelConfig.codeFontPx,
+                                  }}
+                                >
+                                  {selectedProduct.barcode ?? ''}
+                                </div>
+                              )}
+
+                              {labelConfig.showLocation && (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    left: `${xLocation}px`,
+                                    top: `${yLocation}px`,
+                                    right: `${paddingPx}px`,
+                                    fontSize: Math.max(9, labelConfig.nameFontPx - 1),
+                                  }}
+                                >
+                                  {locationText}
+                                </div>
+                              )}
+
+                              {labelConfig.showWarehouse && warehouseText && (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    left: `${xWarehouse}px`,
+                                    top: `${yWarehouse}px`,
+                                    right: `${paddingPx}px`,
+                                    fontSize: Math.max(9, labelConfig.nameFontPx - 1),
+                                  }}
+                                >
+                                  {warehouseText}
+                                </div>
+                              )}
+
+                              {labelConfig.showName && (
+                                <div
+                                  style={{
+                                    position: 'absolute',
+                                    left: `${xName}px`,
+                                    top: `${yName}px`,
+                                    right: `${paddingPx}px`,
+                                    fontSize: labelConfig.nameFontPx,
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {selectedProduct.name}
+                                </div>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     </div>
                   </div>
