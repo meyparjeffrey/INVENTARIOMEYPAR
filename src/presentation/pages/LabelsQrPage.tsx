@@ -30,12 +30,25 @@ import { cn } from '../lib/cn';
 
 type BulkZipMode = 'qr' | 'labels' | 'both';
 
+type PngQuality = 'default' | 'better' | 'max';
+
+function qualityScale(q: PngQuality): number {
+  if (q === 'better') return 2;
+  if (q === 'max') return 3;
+  return 1;
+}
+
 function withQrPrefix(code: string) {
   return `QR-${code}.png`;
 }
 
 function withEtPrefix(code: string) {
   return `ET-${code}.png`;
+}
+
+function tt(t: (k: string) => string, key: string, fallback: string) {
+  const v = t(key);
+  return v === key ? fallback : v;
 }
 
 function downloadBlob(blob: Blob, fileName: string) {
@@ -72,8 +85,20 @@ async function svgToPngBlob(
   svg: string,
   widthPx: number,
   heightPx: number,
+  scale: number = 1,
 ): Promise<Blob> {
-  const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+  const scaledW = Math.max(1, Math.round(widthPx * scale));
+  const scaledH = Math.max(1, Math.round(heightPx * scale));
+
+  const svgForRender =
+    scale === 1
+      ? svg
+      : svg.replace(
+          `width="${widthPx}" height="${heightPx}"`,
+          `width="${scaledW}" height="${scaledH}"`,
+        );
+
+  const svgBlob = new Blob([svgForRender], { type: 'image/svg+xml;charset=utf-8' });
   const svgUrl = URL.createObjectURL(svgBlob);
 
   try {
@@ -87,14 +112,14 @@ async function svgToPngBlob(
     });
 
     const canvas = document.createElement('canvas');
-    canvas.width = widthPx;
-    canvas.height = heightPx;
+    canvas.width = scaledW;
+    canvas.height = scaledH;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('No se pudo obtener contexto de canvas');
 
     ctx.fillStyle = '#FFFFFF';
-    ctx.fillRect(0, 0, widthPx, heightPx);
-    ctx.drawImage(img, 0, 0, widthPx, heightPx);
+    ctx.fillRect(0, 0, scaledW, scaledH);
+    ctx.drawImage(img, 0, 0, scaledW, scaledH);
 
     const blob = await new Promise<Blob>((resolve, reject) => {
       canvas.toBlob(
@@ -157,6 +182,10 @@ export function LabelsQrPage() {
   } | null>(null);
   const [bulkZipDialogOpen, setBulkZipDialogOpen] = React.useState(false);
   const [bulkLabelConfig, setBulkLabelConfig] = React.useState<LabelConfig | null>(null);
+  const [bulkLabelQuality, setBulkLabelQuality] = React.useState<PngQuality>('default');
+  const [bulkPreviewQrDataUrl, setBulkPreviewQrDataUrl] = React.useState<string | null>(
+    null,
+  );
 
   const [barcodeDraft, setBarcodeDraft] = React.useState('');
   const [savingBarcode, setSavingBarcode] = React.useState(false);
@@ -187,6 +216,51 @@ export function LabelsQrPage() {
   });
 
   const labelRef = React.useRef<HTMLDivElement>(null);
+
+  const [labelQuality, setLabelQuality] = React.useState<PngQuality>('default');
+
+  const bulkPreviewProduct = React.useMemo(() => {
+    if (selectedProduct && selectedIds.has(selectedProduct.id)) return selectedProduct;
+    return products.find((p) => selectedIds.has(p.id)) ?? null;
+  }, [products, selectedIds, selectedProduct]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!bulkZipDialogOpen) {
+        setBulkPreviewQrDataUrl(null);
+        return;
+      }
+      if (bulkZipMode !== 'labels' && bulkZipMode !== 'both') {
+        setBulkPreviewQrDataUrl(null);
+        return;
+      }
+      const barcode = (bulkPreviewProduct?.barcode ?? '').trim();
+      if (!barcode) {
+        setBulkPreviewQrDataUrl(null);
+        return;
+      }
+      try {
+        const scale = qualityScale(bulkLabelQuality);
+        const url = await QRCode.toDataURL(barcode, {
+          type: 'image/png',
+          width: 512 * scale,
+          margin: 4,
+          errorCorrectionLevel: 'M',
+          color: { dark: '#000000', light: '#FFFFFF' },
+        });
+        if (!cancelled) setBulkPreviewQrDataUrl(url);
+      } catch {
+        if (!cancelled) setBulkPreviewQrDataUrl(null);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [bulkZipDialogOpen, bulkZipMode, bulkPreviewProduct?.barcode, bulkLabelQuality]);
 
   const selectedAsset = selectedProduct
     ? (assetsByProductId.get(selectedProduct.id) ?? null)
@@ -300,9 +374,10 @@ export function LabelsQrPage() {
       }
 
       try {
+        const scale = qualityScale(labelQuality);
         const dataUrl = await QRCode.toDataURL(barcode, {
           type: 'image/png',
-          width: 512,
+          width: 512 * scale,
           margin: 4,
           errorCorrectionLevel: 'M',
           color: { dark: '#000000', light: '#FFFFFF' },
@@ -317,7 +392,7 @@ export function LabelsQrPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedProduct?.barcode]);
+  }, [selectedProduct?.barcode, labelQuality]);
 
   const selectedLocation = React.useMemo(() => {
     if (selectedLocationId === 'legacy') return null;
@@ -350,7 +425,10 @@ export function LabelsQrPage() {
     if (!selectedProduct) return;
     const nextBarcode = barcodeDraft.trim();
     if (!nextBarcode) {
-      toast.error('Barcode', 'El barcode no puede estar vacío.');
+      toast.error(
+        tt(t, 'labelsQr.toast.barcode.title', 'Barcode'),
+        tt(t, 'labelsQr.toast.barcode.empty', 'El barcode no puede estar vacío.'),
+      );
       return;
     }
 
@@ -359,19 +437,30 @@ export function LabelsQrPage() {
       const conflict = await checkBarcodeConflicts(nextBarcode, selectedProduct.id);
       if (conflict) {
         toast.error(
-          'Barcode duplicado',
-          `Ya está usado por ${conflict.code} - ${conflict.name}.`,
+          tt(t, 'labelsQr.toast.barcode.duplicateTitle', 'Barcode duplicado'),
+          tt(
+            t,
+            'labelsQr.toast.barcode.duplicateDesc',
+            'Ya está usado por {{code}} - {{name}}.',
+          )
+            .replace('{{code}}', conflict.code)
+            .replace('{{name}}', conflict.name),
         );
         return;
       }
 
       const updated = await update(selectedProduct.id, { barcode: nextBarcode });
       setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-      toast.success('Barcode', 'Guardado correctamente.');
+      toast.success(
+        tt(t, 'labelsQr.toast.barcode.title', 'Barcode'),
+        tt(t, 'labelsQr.toast.barcode.saved', 'Guardado correctamente.'),
+      );
     } catch (err) {
       toast.error(
-        'Barcode',
-        err instanceof Error ? err.message : 'Error guardando barcode',
+        tt(t, 'labelsQr.toast.barcode.title', 'Barcode'),
+        err instanceof Error
+          ? err.message
+          : tt(t, 'labelsQr.toast.barcode.saveError', 'Error guardando barcode'),
       );
     } finally {
       setSavingBarcode(false);
@@ -392,7 +481,14 @@ export function LabelsQrPage() {
     if (!selectedProduct) return;
     const barcode = (selectedProduct.barcode ?? '').trim();
     if (!barcode) {
-      toast.error('QR', 'El producto no tiene barcode. Guárdalo primero.');
+      toast.error(
+        tt(t, 'labelsQr.toast.qr.title', 'QR'),
+        tt(
+          t,
+          'labelsQr.toast.qr.noBarcode',
+          'El producto no tiene barcode. Guárdalo primero.',
+        ),
+      );
       return;
     }
 
@@ -428,12 +524,20 @@ export function LabelsQrPage() {
         next.set(asset.productId, asset);
         return next;
       });
-      toast.success('QR', 'QR generado correctamente.');
+      toast.success(
+        tt(t, 'labelsQr.toast.qr.title', 'QR'),
+        tt(t, 'labelsQr.toast.qr.generated', 'QR generado correctamente.'),
+      );
       // refrescar preview
       const signed = await createProductQrSignedUrl(qrPath, 60 * 10);
       setQrPreviewUrl(signed);
     } catch (err) {
-      toast.error('QR', err instanceof Error ? err.message : 'Error generando QR');
+      toast.error(
+        tt(t, 'labelsQr.toast.qr.title', 'QR'),
+        err instanceof Error
+          ? err.message
+          : tt(t, 'labelsQr.toast.qr.generateError', 'Error generando QR'),
+      );
     } finally {
       setGeneratingQr(false);
     }
@@ -447,7 +551,12 @@ export function LabelsQrPage() {
       const blob = await res.blob();
       downloadBlob(blob, withQrPrefix(selectedProduct.code));
     } catch (err) {
-      toast.error('QR', err instanceof Error ? err.message : 'Error descargando QR');
+      toast.error(
+        tt(t, 'labelsQr.toast.qr.title', 'QR'),
+        err instanceof Error
+          ? err.message
+          : tt(t, 'labelsQr.toast.qr.downloadError', 'Error descargando QR'),
+      );
     }
   };
 
@@ -462,9 +571,17 @@ export function LabelsQrPage() {
         return next;
       });
       setQrPreviewUrl(null);
-      toast.success('QR', 'QR eliminado.');
+      toast.success(
+        tt(t, 'labelsQr.toast.qr.title', 'QR'),
+        tt(t, 'labelsQr.toast.qr.deleted', 'QR eliminado.'),
+      );
     } catch (err) {
-      toast.error('QR', err instanceof Error ? err.message : 'Error eliminando QR');
+      toast.error(
+        tt(t, 'labelsQr.toast.qr.title', 'QR'),
+        err instanceof Error
+          ? err.message
+          : tt(t, 'labelsQr.toast.qr.deleteError', 'Error eliminando QR'),
+      );
     }
   };
 
@@ -473,15 +590,21 @@ export function LabelsQrPage() {
     if (!labelRef.current) return;
 
     try {
+      const scale = qualityScale(labelQuality);
       const dataUrl = await toPng(labelRef.current, {
         cacheBust: true,
-        pixelRatio: 1,
+        pixelRatio: scale,
       });
       const res = await fetch(dataUrl);
       const blob = await res.blob();
       downloadBlob(blob, withEtPrefix(selectedProduct.code));
     } catch (err) {
-      toast.error('Etiqueta', err instanceof Error ? err.message : 'Error generando PNG');
+      toast.error(
+        tt(t, 'labelsQr.toast.label.title', 'Etiqueta'),
+        err instanceof Error
+          ? err.message
+          : tt(t, 'labelsQr.toast.label.generateError', 'Error generando PNG'),
+      );
     }
   };
 
@@ -541,6 +664,7 @@ export function LabelsQrPage() {
               if (selectedIds.size === 0) return;
               // Antes de descargar, abrir diálogo para elegir campos + dimensiones (si incluye etiquetas)
               setBulkLabelConfig(labelConfig);
+              setBulkLabelQuality(labelQuality);
               setBulkZipDialogOpen(true);
             }}
             disabled={selectedIds.size === 0 || bulkDownloading}
@@ -548,7 +672,7 @@ export function LabelsQrPage() {
             {bulkDownloading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Generando ZIP…
+                {tt(t, 'labelsQr.zip.generating', 'Generando ZIP…')}
                 {bulkProgress ? (
                   <span className="ml-2 text-xs text-gray-600 dark:text-gray-300">
                     {bulkProgress.done}/{bulkProgress.total}
@@ -558,7 +682,7 @@ export function LabelsQrPage() {
             ) : (
               <>
                 <FileArchive className="mr-2 h-4 w-4" />
-                Descargar ZIP ({selectedIds.size})
+                {tt(t, 'labelsQr.zip.download', 'Descargar ZIP')} ({selectedIds.size})
               </>
             )}
           </Button>
@@ -568,27 +692,33 @@ export function LabelsQrPage() {
       <Dialog
         isOpen={bulkZipDialogOpen}
         onClose={() => setBulkZipDialogOpen(false)}
-        title="Descarga masiva (ZIP)"
+        title={tt(t, 'labelsQr.zipDialog.title', 'Descarga masiva (ZIP)')}
         size="lg"
       >
         <div className="space-y-4">
           <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
             <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
-              Contenido del ZIP
+              {tt(t, 'labelsQr.zipDialog.section.content', 'Contenido del ZIP')}
             </div>
             <div className="flex flex-wrap items-center gap-3">
-              <label className="text-sm text-gray-700 dark:text-gray-200">Incluir:</label>
+              <label className="text-sm text-gray-700 dark:text-gray-200">
+                {tt(t, 'labelsQr.zipDialog.include', 'Incluir:')}
+              </label>
               <select
                 className="h-10 rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                 value={bulkZipMode}
                 onChange={(e) => setBulkZipMode(e.target.value as BulkZipMode)}
               >
-                <option value="qr">QR</option>
-                <option value="labels">Etiquetas</option>
-                <option value="both">Ambos</option>
+                <option value="qr">{tt(t, 'labelsQr.zip.mode.qr', 'QR')}</option>
+                <option value="labels">
+                  {tt(t, 'labelsQr.zip.mode.labels', 'Etiquetas')}
+                </option>
+                <option value="both">{tt(t, 'labelsQr.zip.mode.both', 'Ambos')}</option>
               </select>
               <span className="text-sm text-gray-500 dark:text-gray-400">
-                Archivos: QR = <code>QR-CODIGO.png</code>, Etiqueta ={' '}
+                {tt(t, 'labelsQr.zipDialog.filesHint', 'Archivos:')} QR ={' '}
+                <code>QR-CODIGO.png</code>,{' '}
+                {tt(t, 'labelsQr.zipDialog.filesHint.label', 'Etiqueta')} ={' '}
                 <code>ET-CODIGO.png</code>
               </span>
             </div>
@@ -597,13 +727,17 @@ export function LabelsQrPage() {
           {(bulkZipMode === 'labels' || bulkZipMode === 'both') && bulkLabelConfig && (
             <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
               <div className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-50">
-                Configuración de etiquetas (aplica al ZIP)
+                {tt(
+                  t,
+                  'labelsQr.zipDialog.section.labelsConfig',
+                  'Configuración de etiquetas (aplica al ZIP)',
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-gray-500 dark:text-gray-400">
-                    Ancho (mm)
+                    {tt(t, 'labelsQr.label.widthMm', 'Ancho (mm)')}
                   </label>
                   <Input
                     type="number"
@@ -619,7 +753,7 @@ export function LabelsQrPage() {
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 dark:text-gray-400">
-                    Alto (mm)
+                    {tt(t, 'labelsQr.label.heightMm', 'Alto (mm)')}
                   </label>
                   <Input
                     type="number"
@@ -634,7 +768,9 @@ export function LabelsQrPage() {
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 dark:text-gray-400">DPI</label>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">
+                    {tt(t, 'labelsQr.label.dpi', 'DPI')}
+                  </label>
                   <select
                     className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
                     value={bulkLabelConfig.dpi}
@@ -650,7 +786,7 @@ export function LabelsQrPage() {
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 dark:text-gray-400">
-                    QR (mm)
+                    {tt(t, 'labelsQr.label.qrMm', 'QR (mm)')}
                   </label>
                   <Input
                     type="number"
@@ -669,12 +805,12 @@ export function LabelsQrPage() {
               <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                 {(
                   [
-                    ['showQr', 'QR'],
-                    ['showCode', 'Código'],
-                    ['showBarcode', 'Barcode'],
-                    ['showName', 'Nombre'],
-                    ['showLocation', 'Ubicación'],
-                    ['showWarehouse', 'Almacén'],
+                    ['showQr', tt(t, 'labelsQr.toggles.qr', 'QR')],
+                    ['showCode', tt(t, 'labelsQr.toggles.code', 'Código')],
+                    ['showBarcode', tt(t, 'labelsQr.toggles.barcode', 'Barcode')],
+                    ['showName', tt(t, 'labelsQr.toggles.name', 'Nombre')],
+                    ['showLocation', tt(t, 'labelsQr.toggles.location', 'Ubicación')],
+                    ['showWarehouse', tt(t, 'labelsQr.toggles.warehouse', 'Almacén')],
                   ] as const
                 ).map(([key, label]) => (
                   <label
@@ -694,12 +830,193 @@ export function LabelsQrPage() {
                   </label>
                 ))}
               </div>
+
+              <div className="mt-4 grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500 dark:text-gray-400">
+                    {tt(t, 'labelsQr.quality.label', 'Calidad PNG')}
+                  </label>
+                  <select
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                    value={bulkLabelQuality}
+                    onChange={(e) => setBulkLabelQuality(e.target.value as PngQuality)}
+                  >
+                    <option value="default">
+                      {tt(t, 'labelsQr.quality.default', 'Por defecto (x1)')}
+                    </option>
+                    <option value="better">
+                      {tt(t, 'labelsQr.quality.better', 'Mejor calidad (x2)')}
+                    </option>
+                    <option value="max">
+                      {tt(t, 'labelsQr.quality.max', 'Máxima calidad (x3)')}
+                    </option>
+                  </select>
+                </div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">
+                  <div className="mt-6">
+                    {tt(
+                      t,
+                      'labelsQr.quality.hint',
+                      'Afecta a la resolución del PNG (recomendado para impresión).',
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {bulkPreviewProduct && (
+                <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
+                  <div className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                    {tt(t, 'labelsQr.label.preview', 'Preview')} (
+                    {bulkLabelConfig.widthMm}×{bulkLabelConfig.heightMm}mm @{' '}
+                    {bulkLabelConfig.dpi}dpi)
+                  </div>
+                  <div className="overflow-auto">
+                    {(() => {
+                      const widthPx = mmToPx(
+                        bulkLabelConfig.widthMm,
+                        bulkLabelConfig.dpi,
+                      );
+                      const heightPx = mmToPx(
+                        bulkLabelConfig.heightMm,
+                        bulkLabelConfig.dpi,
+                      );
+                      const qrSizePx = mmToPx(
+                        bulkLabelConfig.qrSizeMm,
+                        bulkLabelConfig.dpi,
+                      );
+                      const paddingPx = mmToPx(
+                        bulkLabelConfig.paddingMm,
+                        bulkLabelConfig.dpi,
+                      );
+
+                      return (
+                        <div
+                          style={{
+                            width: `${widthPx}px`,
+                            height: `${heightPx}px`,
+                            background: '#ffffff',
+                            color: '#000000',
+                            position: 'relative',
+                            boxSizing: 'border-box',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {bulkLabelConfig.showQr &&
+                            (bulkPreviewProduct.barcode ?? '').trim() && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  left: `${paddingPx}px`,
+                                  top: `${paddingPx}px`,
+                                  width: `${qrSizePx}px`,
+                                  height: `${qrSizePx}px`,
+                                  background: '#ffffff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                {bulkPreviewQrDataUrl ? (
+                                  <img
+                                    src={bulkPreviewQrDataUrl}
+                                    alt="QR"
+                                    style={{ width: '100%', height: '100%' }}
+                                  />
+                                ) : (
+                                  <div
+                                    style={{
+                                      width: '100%',
+                                      height: '100%',
+                                      border: '1px solid #eee',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: 10,
+                                    }}
+                                  >
+                                    QR
+                                  </div>
+                                )}
+                              </div>
+                            )}
+
+                          <div
+                            style={{
+                              position: 'absolute',
+                              left: `${paddingPx + (bulkLabelConfig.showQr ? qrSizePx + paddingPx : 0)}px`,
+                              top: `${paddingPx}px`,
+                              right: `${paddingPx}px`,
+                              bottom: `${paddingPx}px`,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <div
+                              style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+                            >
+                              {bulkLabelConfig.showCode && (
+                                <div
+                                  style={{
+                                    fontSize: bulkLabelConfig.codeFontPx,
+                                    fontWeight: 700,
+                                  }}
+                                >
+                                  {bulkPreviewProduct.code}
+                                </div>
+                              )}
+                              {bulkLabelConfig.showBarcode && (
+                                <div style={{ fontSize: bulkLabelConfig.codeFontPx }}>
+                                  {bulkPreviewProduct.barcode ?? ''}
+                                </div>
+                              )}
+                              {bulkLabelConfig.showLocation && (
+                                <div
+                                  style={{
+                                    fontSize: Math.max(9, bulkLabelConfig.nameFontPx - 1),
+                                  }}
+                                >
+                                  {bulkPreviewProduct.aisle}-{bulkPreviewProduct.shelf}
+                                </div>
+                              )}
+                              {bulkLabelConfig.showWarehouse &&
+                                bulkPreviewProduct.warehouse && (
+                                  <div
+                                    style={{
+                                      fontSize: Math.max(
+                                        9,
+                                        bulkLabelConfig.nameFontPx - 1,
+                                      ),
+                                    }}
+                                  >
+                                    {bulkPreviewProduct.warehouse}
+                                  </div>
+                                )}
+                            </div>
+
+                            {bulkLabelConfig.showName && (
+                              <div
+                                style={{
+                                  fontSize: bulkLabelConfig.nameFontPx,
+                                  fontWeight: 600,
+                                }}
+                              >
+                                {bulkPreviewProduct.name}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setBulkZipDialogOpen(false)}>
-              Cancelar
+              {tt(t, 'common.cancel', 'Cancelar')}
             </Button>
             <Button
               onClick={async () => {
@@ -720,6 +1037,7 @@ export function LabelsQrPage() {
                   const labelCfg = bulkLabelConfig ?? labelConfig;
                   const widthPx = mmToPx(labelCfg.widthMm, labelCfg.dpi);
                   const heightPx = mmToPx(labelCfg.heightMm, labelCfg.dpi);
+                  const labelScale = qualityScale(bulkLabelQuality);
 
                   const folderQr = bulkZipMode === 'both' ? zip.folder('qr') : zip;
                   const folderLabels =
@@ -792,7 +1110,7 @@ export function LabelsQrPage() {
                         } else {
                           qrDataUrl = await QRCode.toDataURL(barcode, {
                             type: 'image/png',
-                            width: 512,
+                            width: 512 * labelScale,
                             margin: 4,
                             errorCorrectionLevel: 'M',
                             color: { dark: '#000000', light: '#FFFFFF' },
@@ -810,7 +1128,12 @@ export function LabelsQrPage() {
                       };
 
                       const svg = buildLabelSvg(labelProduct, qrDataUrl, labelCfg);
-                      const labelBlob = await svgToPngBlob(svg, widthPx, heightPx);
+                      const labelBlob = await svgToPngBlob(
+                        svg,
+                        widthPx,
+                        heightPx,
+                        labelScale,
+                      );
                       folderLabels?.file(withEtPrefix(p.code), labelBlob);
                     }
 
@@ -835,7 +1158,7 @@ export function LabelsQrPage() {
               }}
               disabled={bulkDownloading || selectedIds.size === 0}
             >
-              Descargar ZIP
+              {tt(t, 'labelsQr.zip.download', 'Descargar ZIP')}
             </Button>
           </DialogFooter>
         </div>
@@ -848,7 +1171,9 @@ export function LabelsQrPage() {
             <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-2 text-gray-900 dark:text-gray-50">
                 <Package className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                <h2 className="font-semibold">Productos</h2>
+                <h2 className="font-semibold">
+                  {tt(t, 'labelsQr.products.title', 'Productos')}
+                </h2>
                 <span className="text-sm text-gray-500 dark:text-gray-400">
                   ({filtered.length})
                 </span>
@@ -857,7 +1182,11 @@ export function LabelsQrPage() {
                 <SearchInput
                   value={search}
                   onChange={setSearch}
-                  placeholder="Buscar por código, nombre o barcode…"
+                  placeholder={tt(
+                    t,
+                    'labelsQr.products.searchPlaceholder',
+                    'Buscar por código, nombre o barcode…',
+                  )}
                 />
               </div>
             </div>
@@ -865,7 +1194,7 @@ export function LabelsQrPage() {
             {loading ? (
               <div className="flex items-center justify-center py-10 text-gray-600 dark:text-gray-400">
                 <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                Cargando…
+                {tt(t, 'labelsQr.loading', 'Cargando…')}
               </div>
             ) : (
               <div className="overflow-x-auto">
@@ -882,10 +1211,16 @@ export function LabelsQrPage() {
                           onChange={toggleSelectAllFiltered}
                         />
                       </th>
-                      <th className="py-2 pr-4">Código</th>
-                      <th className="py-2 pr-4">Nombre</th>
-                      <th className="py-2 pr-4">Barcode</th>
-                      <th className="py-2 pr-4">QR</th>
+                      <th className="py-2 pr-4">
+                        {tt(t, 'labelsQr.table.code', 'Código')}
+                      </th>
+                      <th className="py-2 pr-4">
+                        {tt(t, 'labelsQr.table.name', 'Nombre')}
+                      </th>
+                      <th className="py-2 pr-4">
+                        {tt(t, 'labelsQr.table.barcode', 'Barcode')}
+                      </th>
+                      <th className="py-2 pr-4">{tt(t, 'labelsQr.table.qr', 'QR')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -921,17 +1256,19 @@ export function LabelsQrPage() {
                           </td>
                           <td className="py-2 pr-4 text-gray-600 dark:text-gray-300">
                             {p.barcode || (
-                              <span className="text-amber-600">Sin barcode</span>
+                              <span className="text-amber-600">
+                                {tt(t, 'labelsQr.products.noBarcode', 'Sin barcode')}
+                              </span>
                             )}
                           </td>
                           <td className="py-2 pr-4">
                             {hasQr ? (
                               <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
-                                OK
+                                {tt(t, 'labelsQr.products.qrStatus.ok', 'OK')}
                               </span>
                             ) : (
                               <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
-                                No
+                                {tt(t, 'labelsQr.products.qrStatus.no', 'No')}
                               </span>
                             )}
                           </td>
@@ -952,12 +1289,18 @@ export function LabelsQrPage() {
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
               <div className="mb-3 flex items-center gap-2 text-gray-900 dark:text-gray-50">
                 <Tag className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                <h2 className="font-semibold">Barcode</h2>
+                <h2 className="font-semibold">
+                  {tt(t, 'labelsQr.barcode.title', 'Barcode')}
+                </h2>
               </div>
 
               {!selectedProduct ? (
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Selecciona un producto para editar y generar QR/etiquetas.
+                  {tt(
+                    t,
+                    'labelsQr.selectProductHint',
+                    'Selecciona un producto para editar y generar QR/etiquetas.',
+                  )}
                 </p>
               ) : (
                 <div className="space-y-3">
@@ -971,7 +1314,11 @@ export function LabelsQrPage() {
                   <Input
                     value={barcodeDraft}
                     onChange={(e) => setBarcodeDraft(e.target.value)}
-                    placeholder="Introduce barcode…"
+                    placeholder={tt(
+                      t,
+                      'labelsQr.barcode.inputPlaceholder',
+                      'Introduce barcode…',
+                    )}
                     autoComplete="off"
                   />
 
@@ -982,12 +1329,12 @@ export function LabelsQrPage() {
                     {savingBarcode ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Guardando…
+                        {tt(t, 'labelsQr.barcode.saving', 'Guardando…')}
                       </>
                     ) : (
                       <>
                         <Save className="mr-2 h-4 w-4" />
-                        Guardar barcode
+                        {tt(t, 'labelsQr.barcode.save', 'Guardar barcode')}
                       </>
                     )}
                   </Button>
@@ -999,7 +1346,7 @@ export function LabelsQrPage() {
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
               <div className="mb-3 flex items-center gap-2 text-gray-900 dark:text-gray-50">
                 <QrCode className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                <h2 className="font-semibold">QR</h2>
+                <h2 className="font-semibold">{tt(t, 'labelsQr.qr.title', 'QR')}</h2>
               </div>
 
               {!selectedProduct ? (
@@ -1020,7 +1367,9 @@ export function LabelsQrPage() {
                       ) : (
                         <>
                           <QrCode className="mr-2 h-4 w-4" />
-                          {selectedAsset ? 'Reemplazar QR' : 'Generar QR'}
+                          {selectedAsset
+                            ? tt(t, 'labelsQr.qr.replace', 'Reemplazar QR')
+                            : tt(t, 'labelsQr.qr.generate', 'Generar QR')}
                         </>
                       )}
                     </Button>
@@ -1031,7 +1380,7 @@ export function LabelsQrPage() {
                       disabled={!selectedAsset || !selectedProduct}
                     >
                       <Download className="mr-2 h-4 w-4" />
-                      Descargar
+                      {tt(t, 'labelsQr.qr.download', 'Descargar')}
                     </Button>
 
                     <Button
@@ -1039,13 +1388,13 @@ export function LabelsQrPage() {
                       onClick={handleDeleteQr}
                       disabled={!selectedAsset || generatingQr}
                     >
-                      Eliminar
+                      {tt(t, 'labelsQr.qr.delete', 'Eliminar')}
                     </Button>
                   </div>
 
                   {selectedAsset && !qrPreviewUrl && (
                     <Button variant="outline" onClick={loadQrPreview}>
-                      Cargar preview
+                      {tt(t, 'labelsQr.qr.loadPreview', 'Cargar preview')}
                     </Button>
                   )}
 
@@ -1057,7 +1406,11 @@ export function LabelsQrPage() {
                         className="mx-auto h-44 w-44"
                       />
                       <p className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
-                        Contenido QR: {selectedProduct.barcode}
+                        {tt(
+                          t,
+                          'labelsQr.qr.content',
+                          'Contenido QR: {{barcode}}',
+                        ).replace('{{barcode}}', String(selectedProduct.barcode ?? ''))}
                       </p>
                     </div>
                   )}
@@ -1069,7 +1422,9 @@ export function LabelsQrPage() {
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
               <div className="mb-3 flex items-center gap-2 text-gray-900 dark:text-gray-50">
                 <Tag className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                <h2 className="font-semibold">Etiqueta</h2>
+                <h2 className="font-semibold">
+                  {tt(t, 'labelsQr.label.title', 'Etiqueta')}
+                </h2>
               </div>
 
               {!selectedProduct ? (
@@ -1079,7 +1434,7 @@ export function LabelsQrPage() {
                   {productLocations.length > 1 && (
                     <div>
                       <label className="text-xs text-gray-500 dark:text-gray-400">
-                        Ubicación a imprimir
+                        {tt(t, 'labelsQr.label.locationToPrint', 'Ubicación a imprimir')}
                       </label>
                       <select
                         className="mt-1 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
@@ -1089,13 +1444,18 @@ export function LabelsQrPage() {
                         {productLocations.map((loc) => (
                           <option key={loc.id} value={loc.id}>
                             {loc.warehouse}: {loc.aisle}-{loc.shelf}
-                            {loc.isPrimary ? ' (principal)' : ''}
+                            {loc.isPrimary
+                              ? tt(t, 'labelsQr.location.primarySuffix', ' (principal)')
+                              : ''}
                           </option>
                         ))}
                       </select>
                       <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        Si un producto tiene varias ubicaciones, elige cuál imprimir en la
-                        etiqueta.
+                        {tt(
+                          t,
+                          'labelsQr.label.locationHelp',
+                          'Si un producto tiene varias ubicaciones, elige cuál imprimir en la etiqueta.',
+                        )}
                       </p>
                     </div>
                   )}
@@ -1103,7 +1463,7 @@ export function LabelsQrPage() {
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs text-gray-500 dark:text-gray-400">
-                        Ancho (mm)
+                        {tt(t, 'labelsQr.label.widthMm', 'Ancho (mm)')}
                       </label>
                       <Input
                         type="number"
@@ -1120,7 +1480,7 @@ export function LabelsQrPage() {
                     </div>
                     <div>
                       <label className="text-xs text-gray-500 dark:text-gray-400">
-                        Alto (mm)
+                        {tt(t, 'labelsQr.label.heightMm', 'Alto (mm)')}
                       </label>
                       <Input
                         type="number"
@@ -1137,7 +1497,7 @@ export function LabelsQrPage() {
                     </div>
                     <div>
                       <label className="text-xs text-gray-500 dark:text-gray-400">
-                        DPI
+                        {tt(t, 'labelsQr.label.dpi', 'DPI')}
                       </label>
                       <select
                         className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
@@ -1155,7 +1515,7 @@ export function LabelsQrPage() {
                     </div>
                     <div>
                       <label className="text-xs text-gray-500 dark:text-gray-400">
-                        QR (mm)
+                        {tt(t, 'labelsQr.label.qrMm', 'QR (mm)')}
                       </label>
                       <Input
                         type="number"
@@ -1172,15 +1532,47 @@ export function LabelsQrPage() {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-gray-500 dark:text-gray-400">
+                        {tt(t, 'labelsQr.quality.label', 'Calidad PNG')}
+                      </label>
+                      <select
+                        className="mt-1 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                        value={labelQuality}
+                        onChange={(e) => setLabelQuality(e.target.value as PngQuality)}
+                      >
+                        <option value="default">
+                          {tt(t, 'labelsQr.quality.default', 'Por defecto (x1)')}
+                        </option>
+                        <option value="better">
+                          {tt(t, 'labelsQr.quality.better', 'Mejor calidad (x2)')}
+                        </option>
+                        <option value="max">
+                          {tt(t, 'labelsQr.quality.max', 'Máxima calidad (x3)')}
+                        </option>
+                      </select>
+                    </div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">
+                      <div className="mt-6">
+                        {tt(
+                          t,
+                          'labelsQr.quality.hint',
+                          'Afecta a la resolución del PNG (recomendado para impresión).',
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-2 text-sm">
                     {(
                       [
-                        ['showQr', 'QR'],
-                        ['showCode', 'Código'],
-                        ['showBarcode', 'Barcode'],
-                        ['showName', 'Nombre'],
-                        ['showLocation', 'Ubicación'],
-                        ['showWarehouse', 'Almacén'],
+                        ['showQr', tt(t, 'labelsQr.toggles.qr', 'QR')],
+                        ['showCode', tt(t, 'labelsQr.toggles.code', 'Código')],
+                        ['showBarcode', tt(t, 'labelsQr.toggles.barcode', 'Barcode')],
+                        ['showName', tt(t, 'labelsQr.toggles.name', 'Nombre')],
+                        ['showLocation', tt(t, 'labelsQr.toggles.location', 'Ubicación')],
+                        ['showWarehouse', tt(t, 'labelsQr.toggles.warehouse', 'Almacén')],
                       ] as const
                     ).map(([key, label]) => (
                       <label
@@ -1201,8 +1593,8 @@ export function LabelsQrPage() {
 
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
                     <div className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                      Preview ({labelConfig.widthMm}×{labelConfig.heightMm}mm @{' '}
-                      {labelConfig.dpi}dpi)
+                      {tt(t, 'labelsQr.label.preview', 'Preview')} ({labelConfig.widthMm}×
+                      {labelConfig.heightMm}mm @ {labelConfig.dpi}dpi)
                     </div>
                     <div className="overflow-auto">
                       <div
@@ -1325,7 +1717,7 @@ export function LabelsQrPage() {
 
                   <Button onClick={handleDownloadLabelPng} variant="secondary">
                     <Download className="mr-2 h-4 w-4" />
-                    Descargar etiqueta PNG
+                    {tt(t, 'labelsQr.label.downloadPng', 'Descargar etiqueta PNG')}
                   </Button>
                 </div>
               )}
@@ -1341,10 +1733,14 @@ export function LabelsQrPage() {
           // Si existe QR, reemplazamos (subida con upsert + upsert en tabla)
           await doGenerateQr();
         }}
-        title="Reemplazar QR"
-        message="Este producto ya tiene un QR generado. ¿Quieres reemplazarlo?"
-        confirmText="Reemplazar"
-        cancelText="Cancelar"
+        title={tt(t, 'labelsQr.confirmReplaceQr.title', 'Reemplazar QR')}
+        message={tt(
+          t,
+          'labelsQr.confirmReplaceQr.message',
+          'Este producto ya tiene un QR generado. ¿Quieres reemplazarlo?',
+        )}
+        confirmText={tt(t, 'labelsQr.confirmReplaceQr.confirm', 'Reemplazar')}
+        cancelText={tt(t, 'labelsQr.confirmReplaceQr.cancel', 'Cancelar')}
         variant="destructive"
       />
     </div>
