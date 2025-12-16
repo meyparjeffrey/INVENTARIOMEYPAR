@@ -1,4 +1,14 @@
-import { Download, FileArchive, Loader2, Package, QrCode, Tag } from 'lucide-react';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Download,
+  FileArchive,
+  Loader2,
+  Package,
+  QrCode,
+  Tag,
+} from 'lucide-react';
 import * as React from 'react';
 import { toPng } from 'html-to-image';
 import type { Product, ProductLocation } from '@domain/entities';
@@ -37,6 +47,8 @@ import { cn } from '../lib/cn';
 type BulkZipMode = 'qr' | 'labels' | 'both';
 
 type PngQuality = 'auto' | 'default' | 'better' | 'max';
+
+type StatusFilter = 'all' | 'ok' | 'no';
 
 function qualityScale(q: PngQuality, dpi: number): number {
   if (q === 'better') return 2;
@@ -202,6 +214,8 @@ export function LabelsQrPage() {
   >(() => new Map());
 
   const [search, setSearch] = React.useState('');
+  const [qrFilter, setQrFilter] = React.useState<StatusFilter>('all');
+  const [labelFilter, setLabelFilter] = React.useState<StatusFilter>('all');
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
   const selectedProduct = React.useMemo(
     () => products.find((p) => p.id === selectedId) ?? null,
@@ -390,17 +404,74 @@ export function LabelsQrPage() {
     ? (assetsByProductId.get(selectedProduct.id) ?? null)
     : null;
 
+  const cycleStatusFilter = React.useCallback((cur: StatusFilter): StatusFilter => {
+    if (cur === 'all') return 'ok';
+    if (cur === 'ok') return 'no';
+    return 'all';
+  }, []);
+
+  const statusFilterIcon = React.useCallback((cur: StatusFilter) => {
+    if (cur === 'ok') return ArrowUp;
+    if (cur === 'no') return ArrowDown;
+    return ArrowUpDown;
+  }, []);
+
+  const statusFilterTitle = React.useCallback(
+    (kind: 'qr' | 'label', cur: StatusFilter) => {
+      const base =
+        kind === 'qr'
+          ? tt(t, 'labelsQr.table.filter.qr', 'Filtrar QR')
+          : tt(t, 'labelsQr.table.filter.label', 'Filtrar etiqueta');
+      const mode =
+        cur === 'ok'
+          ? tt(t, 'labelsQr.table.filter.mode.ok', 'Solo OK')
+          : cur === 'no'
+            ? tt(t, 'labelsQr.table.filter.mode.no', 'Solo No')
+            : tt(t, 'labelsQr.table.filter.mode.all', 'Todos');
+      return `${base}: ${mode}`;
+    },
+    [t],
+  );
+
   const filtered = React.useMemo(() => {
     const term = search.trim().toLowerCase();
-    if (!term) return products;
-    return products.filter((p) => {
-      return (
-        p.code.toLowerCase().includes(term) ||
-        p.name.toLowerCase().includes(term) ||
-        (p.barcode ?? '').toLowerCase().includes(term)
-      );
-    });
-  }, [products, search]);
+    const byTerm = !term
+      ? products
+      : products.filter((p) => {
+          return (
+            p.code.toLowerCase().includes(term) ||
+            p.name.toLowerCase().includes(term) ||
+            (p.barcode ?? '').toLowerCase().includes(term)
+          );
+        });
+
+    const byQr =
+      qrFilter === 'all'
+        ? byTerm
+        : byTerm.filter((p) =>
+            qrFilter === 'ok'
+              ? assetsByProductId.has(p.id)
+              : !assetsByProductId.has(p.id),
+          );
+
+    const byLabel =
+      labelFilter === 'all'
+        ? byQr
+        : byQr.filter((p) =>
+            labelFilter === 'ok'
+              ? labelAssetsByProductId.has(p.id)
+              : !labelAssetsByProductId.has(p.id),
+          );
+
+    return byLabel;
+  }, [
+    assetsByProductId,
+    labelAssetsByProductId,
+    labelFilter,
+    products,
+    qrFilter,
+    search,
+  ]);
 
   const reload = React.useCallback(async () => {
     setLoading(true);
@@ -1798,9 +1869,41 @@ export function LabelsQrPage() {
                       <th className="py-2 pr-4">
                         {tt(t, 'labelsQr.table.name', 'Nombre')}
                       </th>
-                      <th className="py-2 pr-4">{tt(t, 'labelsQr.table.qr', 'QR')}</th>
                       <th className="py-2 pr-4">
-                        {tt(t, 'labelsQr.table.label', 'Etiqueta')}
+                        <button
+                          type="button"
+                          className={cn(
+                            'inline-flex items-center gap-1 font-normal',
+                            qrFilter !== 'all' &&
+                              'rounded-md bg-blue-50 px-2 py-0.5 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200',
+                          )}
+                          onClick={() => setQrFilter((cur) => cycleStatusFilter(cur))}
+                          title={statusFilterTitle('qr', qrFilter)}
+                        >
+                          {tt(t, 'labelsQr.table.qr', 'QR')}
+                          {(() => {
+                            const Icon = statusFilterIcon(qrFilter);
+                            return <Icon className="h-3.5 w-3.5 opacity-80" />;
+                          })()}
+                        </button>
+                      </th>
+                      <th className="py-2 pr-4">
+                        <button
+                          type="button"
+                          className={cn(
+                            'inline-flex items-center gap-1 font-normal',
+                            labelFilter !== 'all' &&
+                              'rounded-md bg-blue-50 px-2 py-0.5 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200',
+                          )}
+                          onClick={() => setLabelFilter((cur) => cycleStatusFilter(cur))}
+                          title={statusFilterTitle('label', labelFilter)}
+                        >
+                          {tt(t, 'labelsQr.table.label', 'Etiqueta')}
+                          {(() => {
+                            const Icon = statusFilterIcon(labelFilter);
+                            return <Icon className="h-3.5 w-3.5 opacity-80" />;
+                          })()}
+                        </button>
                       </th>
                     </tr>
                   </thead>
