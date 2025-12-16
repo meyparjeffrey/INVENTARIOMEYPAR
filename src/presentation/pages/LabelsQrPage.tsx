@@ -1877,7 +1877,12 @@ export function LabelsQrPage() {
                             qrFilter !== 'all' &&
                               'rounded-md bg-blue-50 px-2 py-0.5 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200',
                           )}
-                          onClick={() => setQrFilter((cur) => cycleStatusFilter(cur))}
+                          onClick={() => {
+                            const next = cycleStatusFilter(qrFilter);
+                            setQrFilter(next);
+                            // Evitar "sin resultados" por combinación de filtros en columnas
+                            if (next !== 'all') setLabelFilter('all');
+                          }}
                           title={statusFilterTitle('qr', qrFilter)}
                         >
                           {tt(t, 'labelsQr.table.qr', 'QR')}
@@ -1895,7 +1900,12 @@ export function LabelsQrPage() {
                             labelFilter !== 'all' &&
                               'rounded-md bg-blue-50 px-2 py-0.5 text-blue-700 dark:bg-blue-900/20 dark:text-blue-200',
                           )}
-                          onClick={() => setLabelFilter((cur) => cycleStatusFilter(cur))}
+                          onClick={() => {
+                            const next = cycleStatusFilter(labelFilter);
+                            setLabelFilter(next);
+                            // Evitar "sin resultados" por combinación de filtros en columnas
+                            if (next !== 'all') setQrFilter('all');
+                          }}
                           title={statusFilterTitle('label', labelFilter)}
                         >
                           {tt(t, 'labelsQr.table.label', 'Etiqueta')}
