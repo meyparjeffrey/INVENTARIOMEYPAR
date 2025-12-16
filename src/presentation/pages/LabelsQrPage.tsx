@@ -268,11 +268,11 @@ export function LabelsQrPage() {
     nameBold: false,
     offsetsMm: {
       qr: { x: 0, y: 0 },
-      code: { x: -0.5, y: 0 },
+      code: { x: -0.5, y: 2 },
       barcode: { x: 0, y: 0 },
       location: { x: 0, y: 0 },
       warehouse: { x: 0, y: 0 },
-      name: { x: -0.5, y: -2.5 },
+      name: { x: -0.5, y: -3.5 },
     },
   });
 
