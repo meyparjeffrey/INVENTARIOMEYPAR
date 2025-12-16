@@ -72,7 +72,7 @@ function buildQrPayload(product: Product): string {
     .replaceAll('|', ' ');
 
   // QR compacto para etiquetas pequeñas: CODE|NAME_TRUNC
-  return `${code}|${truncateWithEllipsis(name, 40)}`;
+  return `${code}|${truncateWithEllipsis(name, 60)}`;
 }
 
 function tt(t: (k: string) => string, key: string, fallback: string) {
@@ -1854,9 +1854,6 @@ export function LabelsQrPage() {
                       <th className="py-2 pr-4">
                         {tt(t, 'labelsQr.table.name', 'Nombre')}
                       </th>
-                      <th className="py-2 pr-4">
-                        {tt(t, 'labelsQr.table.barcode', 'Barcode')}
-                      </th>
                       <th className="py-2 pr-4">{tt(t, 'labelsQr.table.qr', 'QR')}</th>
                       <th className="py-2 pr-4">
                         {tt(t, 'labelsQr.table.label', 'Etiqueta')}
@@ -1895,13 +1892,6 @@ export function LabelsQrPage() {
                           </td>
                           <td className="py-2 pr-4 text-gray-700 dark:text-gray-200">
                             {p.name}
-                          </td>
-                          <td className="py-2 pr-4 text-gray-600 dark:text-gray-300">
-                            {p.barcode || (
-                              <span className="text-amber-600">
-                                {tt(t, 'labelsQr.products.noBarcode', 'Sin barcode')}
-                              </span>
-                            )}
                           </td>
                           <td className="py-2 pr-4">
                             {hasQr ? (
