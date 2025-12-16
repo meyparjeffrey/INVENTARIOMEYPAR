@@ -856,82 +856,99 @@ export function LabelsQrPage() {
                 ))}
               </div>
 
-              <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-                <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
-                  {tt(t, 'labelsQr.position.title', 'Posición (mm)')}
+              {(bulkLabelConfig.showQr ||
+                bulkLabelConfig.showCode ||
+                bulkLabelConfig.showBarcode ||
+                bulkLabelConfig.showLocation ||
+                bulkLabelConfig.showWarehouse ||
+                bulkLabelConfig.showName) && (
+                <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                  <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    {tt(t, 'labelsQr.position.title', 'Posición (mm)')}
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 text-sm">
+                    {(
+                      [
+                        ['qr', tt(t, 'labelsQr.toggles.qr', 'QR')],
+                        ['code', tt(t, 'labelsQr.toggles.code', 'Código')],
+                        ['barcode', tt(t, 'labelsQr.toggles.barcode', 'Barcode')],
+                        ['location', tt(t, 'labelsQr.toggles.location', 'Ubicación')],
+                        ['warehouse', tt(t, 'labelsQr.toggles.warehouse', 'Almacén')],
+                        ['name', tt(t, 'labelsQr.toggles.name', 'Nombre')],
+                      ] as const
+                    )
+                      .filter(([key]) => {
+                        if (key === 'qr') return bulkLabelConfig.showQr;
+                        if (key === 'code') return bulkLabelConfig.showCode;
+                        if (key === 'barcode') return bulkLabelConfig.showBarcode;
+                        if (key === 'location') return bulkLabelConfig.showLocation;
+                        if (key === 'warehouse') return bulkLabelConfig.showWarehouse;
+                        if (key === 'name') return bulkLabelConfig.showName;
+                        return false;
+                      })
+                      .map(([key, label]) => (
+                        <div
+                          key={key}
+                          className="grid grid-cols-[1fr,1fr,1fr] items-center gap-2"
+                        >
+                          <div className="text-gray-700 dark:text-gray-200">{label}</div>
+                          <div>
+                            <label className="text-xs text-gray-500 dark:text-gray-400">
+                              {tt(t, 'labelsQr.position.x', 'X')}
+                            </label>
+                            <Input
+                              type="number"
+                              step={0.5}
+                              value={bulkLabelConfig.offsetsMm[key].x}
+                              onChange={(e) =>
+                                setBulkLabelConfig((p) =>
+                                  p
+                                    ? {
+                                        ...p,
+                                        offsetsMm: {
+                                          ...p.offsetsMm,
+                                          [key]: {
+                                            ...p.offsetsMm[key],
+                                            x: Number(e.target.value),
+                                          },
+                                        },
+                                      }
+                                    : p,
+                                )
+                              }
+                            />
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 dark:text-gray-400">
+                              {tt(t, 'labelsQr.position.y', 'Y')}
+                            </label>
+                            <Input
+                              type="number"
+                              step={0.5}
+                              value={bulkLabelConfig.offsetsMm[key].y}
+                              onChange={(e) =>
+                                setBulkLabelConfig((p) =>
+                                  p
+                                    ? {
+                                        ...p,
+                                        offsetsMm: {
+                                          ...p.offsetsMm,
+                                          [key]: {
+                                            ...p.offsetsMm[key],
+                                            y: Number(e.target.value),
+                                          },
+                                        },
+                                      }
+                                    : p,
+                                )
+                              }
+                            />
+                          </div>
+                        </div>
+                      ))}
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 gap-3 text-sm">
-                  {(
-                    [
-                      ['qr', tt(t, 'labelsQr.toggles.qr', 'QR')],
-                      ['code', tt(t, 'labelsQr.toggles.code', 'Código')],
-                      ['barcode', tt(t, 'labelsQr.toggles.barcode', 'Barcode')],
-                      ['location', tt(t, 'labelsQr.toggles.location', 'Ubicación')],
-                      ['warehouse', tt(t, 'labelsQr.toggles.warehouse', 'Almacén')],
-                      ['name', tt(t, 'labelsQr.toggles.name', 'Nombre')],
-                    ] as const
-                  ).map(([key, label]) => (
-                    <div
-                      key={key}
-                      className="grid grid-cols-[1fr,1fr,1fr] items-center gap-2"
-                    >
-                      <div className="text-gray-700 dark:text-gray-200">{label}</div>
-                      <div>
-                        <label className="text-xs text-gray-500 dark:text-gray-400">
-                          {tt(t, 'labelsQr.position.x', 'X')}
-                        </label>
-                        <Input
-                          type="number"
-                          step={0.5}
-                          value={bulkLabelConfig.offsetsMm[key].x}
-                          onChange={(e) =>
-                            setBulkLabelConfig((p) =>
-                              p
-                                ? {
-                                    ...p,
-                                    offsetsMm: {
-                                      ...p.offsetsMm,
-                                      [key]: {
-                                        ...p.offsetsMm[key],
-                                        x: Number(e.target.value),
-                                      },
-                                    },
-                                  }
-                                : p,
-                            )
-                          }
-                        />
-                      </div>
-                      <div>
-                        <label className="text-xs text-gray-500 dark:text-gray-400">
-                          {tt(t, 'labelsQr.position.y', 'Y')}
-                        </label>
-                        <Input
-                          type="number"
-                          step={0.5}
-                          value={bulkLabelConfig.offsetsMm[key].y}
-                          onChange={(e) =>
-                            setBulkLabelConfig((p) =>
-                              p
-                                ? {
-                                    ...p,
-                                    offsetsMm: {
-                                      ...p.offsetsMm,
-                                      [key]: {
-                                        ...p.offsetsMm[key],
-                                        y: Number(e.target.value),
-                                      },
-                                    },
-                                  }
-                                : p,
-                            )
-                          }
-                        />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              )}
 
               <div className="mt-4 grid grid-cols-2 gap-3">
                 <div>
@@ -1758,56 +1775,75 @@ export function LabelsQrPage() {
                     ))}
                   </div>
 
-                  <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-                    <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
-                      {tt(t, 'labelsQr.position.title', 'Posición (mm)')}
+                  {(labelConfig.showQr ||
+                    labelConfig.showCode ||
+                    labelConfig.showBarcode ||
+                    labelConfig.showLocation ||
+                    labelConfig.showWarehouse ||
+                    labelConfig.showName) && (
+                    <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                      <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                        {tt(t, 'labelsQr.position.title', 'Posición (mm)')}
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 text-sm">
+                        {(
+                          [
+                            ['qr', tt(t, 'labelsQr.toggles.qr', 'QR')],
+                            ['code', tt(t, 'labelsQr.toggles.code', 'Código')],
+                            ['barcode', tt(t, 'labelsQr.toggles.barcode', 'Barcode')],
+                            ['location', tt(t, 'labelsQr.toggles.location', 'Ubicación')],
+                            ['warehouse', tt(t, 'labelsQr.toggles.warehouse', 'Almacén')],
+                            ['name', tt(t, 'labelsQr.toggles.name', 'Nombre')],
+                          ] as const
+                        )
+                          .filter(([key]) => {
+                            if (key === 'qr') return labelConfig.showQr;
+                            if (key === 'code') return labelConfig.showCode;
+                            if (key === 'barcode') return labelConfig.showBarcode;
+                            if (key === 'location') return labelConfig.showLocation;
+                            if (key === 'warehouse') return labelConfig.showWarehouse;
+                            if (key === 'name') return labelConfig.showName;
+                            return false;
+                          })
+                          .map(([key, label]) => (
+                            <div
+                              key={key}
+                              className="grid grid-cols-[1fr,1fr,1fr] items-center gap-2"
+                            >
+                              <div className="text-gray-700 dark:text-gray-200">
+                                {label}
+                              </div>
+                              <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400">
+                                  {tt(t, 'labelsQr.position.x', 'X')}
+                                </label>
+                                <Input
+                                  type="number"
+                                  step={0.5}
+                                  value={labelConfig.offsetsMm[key].x}
+                                  onChange={(e) =>
+                                    updateOffset(key, 'x', Number(e.target.value))
+                                  }
+                                />
+                              </div>
+                              <div>
+                                <label className="text-xs text-gray-500 dark:text-gray-400">
+                                  {tt(t, 'labelsQr.position.y', 'Y')}
+                                </label>
+                                <Input
+                                  type="number"
+                                  step={0.5}
+                                  value={labelConfig.offsetsMm[key].y}
+                                  onChange={(e) =>
+                                    updateOffset(key, 'y', Number(e.target.value))
+                                  }
+                                />
+                              </div>
+                            </div>
+                          ))}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-1 gap-3 text-sm">
-                      {(
-                        [
-                          ['qr', tt(t, 'labelsQr.toggles.qr', 'QR')],
-                          ['code', tt(t, 'labelsQr.toggles.code', 'Código')],
-                          ['barcode', tt(t, 'labelsQr.toggles.barcode', 'Barcode')],
-                          ['location', tt(t, 'labelsQr.toggles.location', 'Ubicación')],
-                          ['warehouse', tt(t, 'labelsQr.toggles.warehouse', 'Almacén')],
-                          ['name', tt(t, 'labelsQr.toggles.name', 'Nombre')],
-                        ] as const
-                      ).map(([key, label]) => (
-                        <div
-                          key={key}
-                          className="grid grid-cols-[1fr,1fr,1fr] items-center gap-2"
-                        >
-                          <div className="text-gray-700 dark:text-gray-200">{label}</div>
-                          <div>
-                            <label className="text-xs text-gray-500 dark:text-gray-400">
-                              {tt(t, 'labelsQr.position.x', 'X')}
-                            </label>
-                            <Input
-                              type="number"
-                              step={0.5}
-                              value={labelConfig.offsetsMm[key].x}
-                              onChange={(e) =>
-                                updateOffset(key, 'x', Number(e.target.value))
-                              }
-                            />
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-500 dark:text-gray-400">
-                              {tt(t, 'labelsQr.position.y', 'Y')}
-                            </label>
-                            <Input
-                              type="number"
-                              step={0.5}
-                              value={labelConfig.offsetsMm[key].y}
-                              onChange={(e) =>
-                                updateOffset(key, 'y', Number(e.target.value))
-                              }
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  )}
 
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
                     <div className="mb-2 text-xs text-gray-500 dark:text-gray-400">

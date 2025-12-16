@@ -487,7 +487,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'labelsQr.quality.better': 'Mejor calidad (x2)',
     'labelsQr.quality.max': 'Máxima calidad (x3)',
     'labelsQr.quality.hint':
-      'Afecta a la resolución del PNG (recomendado para impresión).',
+      'DPI define el tamaño/escala de la etiqueta. La calidad PNG aumenta la resolución del archivo (puede tardar más).',
     'labelsQr.position.title': 'Posición (mm)',
     'labelsQr.position.x': 'X',
     'labelsQr.position.y': 'Y',
@@ -1488,7 +1488,8 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'labelsQr.quality.default': 'Per defecte (x1)',
     'labelsQr.quality.better': 'Millor qualitat (x2)',
     'labelsQr.quality.max': 'Qualitat màxima (x3)',
-    'labelsQr.quality.hint': 'Afecta la resolució del PNG (recomanat per a impressió).',
+    'labelsQr.quality.hint':
+      "El DPI defineix la mida/escala de l'etiqueta. La qualitat PNG augmenta la resolució del fitxer (pot trigar més).",
     'labelsQr.position.title': 'Posició (mm)',
     'labelsQr.position.x': 'X',
     'labelsQr.position.y': 'Y',
