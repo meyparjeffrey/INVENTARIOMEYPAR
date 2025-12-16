@@ -245,8 +245,8 @@ export function LabelsQrPage() {
   const [selectedLocationId, setSelectedLocationId] = React.useState<string>('legacy');
 
   const [labelConfig, setLabelConfig] = React.useState<LabelConfig>({
-    widthMm: 30,
-    heightMm: 20,
+    widthMm: 35,
+    heightMm: 15,
     dpi: 203,
     showQr: true,
     showCode: true,
