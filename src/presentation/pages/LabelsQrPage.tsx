@@ -1,4 +1,4 @@
-import { Download, FileArchive, Loader2, Package, QrCode, Save, Tag } from 'lucide-react';
+import { Download, FileArchive, Loader2, Package, QrCode, Tag } from 'lucide-react';
 import * as React from 'react';
 import { toPng } from 'html-to-image';
 import type { Product, ProductLocation } from '@domain/entities';
@@ -183,29 +183,10 @@ async function svgToPngBlob(
   }
 }
 
-async function checkBarcodeConflicts(barcode: string, excludeProductId?: string) {
-  const term = barcode.trim();
-  if (!term) return null;
-
-  const { data, error } = await supabaseClient
-    .from('products')
-    .select('id,code,name,barcode')
-    .or(`code.eq.${term},barcode.eq.${term}`);
-
-  if (error) {
-    throw new Error(`Error comprobando duplicados: ${error.message}`);
-  }
-
-  const conflict = (data ?? []).find((p) => p.id !== excludeProductId);
-  return conflict
-    ? (conflict as { id: string; code: string; name: string; barcode: string | null })
-    : null;
-}
-
 export function LabelsQrPage() {
   const { t } = useLanguage();
   const toast = useToast();
-  const { getAll, update } = useProducts();
+  const { getAll } = useProducts();
 
   const qrRepo = React.useMemo(() => new SupabaseProductQrRepository(), []);
   const labelRepo = React.useMemo(() => new SupabaseProductLabelRepository(), []);
@@ -249,9 +230,6 @@ export function LabelsQrPage() {
   const [bulkPreviewQrDataUrl, setBulkPreviewQrDataUrl] = React.useState<string | null>(
     null,
   );
-
-  const [barcodeDraft, setBarcodeDraft] = React.useState('');
-  const [savingBarcode, setSavingBarcode] = React.useState(false);
 
   const [qrPreviewUrl, setQrPreviewUrl] = React.useState<string | null>(null);
   const [generatingQr, setGeneratingQr] = React.useState(false);
@@ -468,8 +446,7 @@ export function LabelsQrPage() {
 
   React.useEffect(() => {
     setQrPreviewUrl(null);
-    setBarcodeDraft(selectedProduct?.barcode ?? '');
-  }, [selectedProduct?.id, selectedProduct?.barcode]);
+  }, [selectedProduct?.id]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -592,52 +569,6 @@ export function LabelsQrPage() {
       }
       return next;
     });
-  };
-
-  const handleSaveBarcode = async () => {
-    if (!selectedProduct) return;
-    const nextBarcode = barcodeDraft.trim();
-    if (!nextBarcode) {
-      toast.error(
-        tt(t, 'labelsQr.toast.barcode.title', 'Barcode'),
-        tt(t, 'labelsQr.toast.barcode.empty', 'El barcode no puede estar vacío.'),
-      );
-      return;
-    }
-
-    setSavingBarcode(true);
-    try {
-      const conflict = await checkBarcodeConflicts(nextBarcode, selectedProduct.id);
-      if (conflict) {
-        toast.error(
-          tt(t, 'labelsQr.toast.barcode.duplicateTitle', 'Barcode duplicado'),
-          tt(
-            t,
-            'labelsQr.toast.barcode.duplicateDesc',
-            'Ya está usado por {{code}} - {{name}}.',
-          )
-            .replace('{{code}}', conflict.code)
-            .replace('{{name}}', conflict.name),
-        );
-        return;
-      }
-
-      const updated = await update(selectedProduct.id, { barcode: nextBarcode });
-      setProducts((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
-      toast.success(
-        tt(t, 'labelsQr.toast.barcode.title', 'Barcode'),
-        tt(t, 'labelsQr.toast.barcode.saved', 'Guardado correctamente.'),
-      );
-    } catch (err) {
-      toast.error(
-        tt(t, 'labelsQr.toast.barcode.title', 'Barcode'),
-        err instanceof Error
-          ? err.message
-          : tt(t, 'labelsQr.toast.barcode.saveError', 'Error guardando barcode'),
-      );
-    } finally {
-      setSavingBarcode(false);
-    }
   };
 
   const loadQrPreview = React.useCallback(async () => {
@@ -1928,63 +1859,6 @@ export function LabelsQrPage() {
         {/* Detalle */}
         <div className="lg:col-span-1">
           <div className="space-y-6">
-            {/* Barcode */}
-            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-              <div className="mb-3 flex items-center gap-2 text-gray-900 dark:text-gray-50">
-                <Tag className="h-5 w-5 text-gray-500 dark:text-gray-400" />
-                <h2 className="font-semibold">
-                  {tt(t, 'labelsQr.barcode.title', 'Barcode')}
-                </h2>
-              </div>
-
-              {!selectedProduct ? (
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  {tt(
-                    t,
-                    'labelsQr.selectProductHint',
-                    'Selecciona un producto para editar y generar QR/etiquetas.',
-                  )}
-                </p>
-              ) : (
-                <div className="space-y-3">
-                  <div className="text-sm text-gray-700 dark:text-gray-200">
-                    <div className="font-medium">{selectedProduct.code}</div>
-                    <div className="text-gray-500 dark:text-gray-400">
-                      {selectedProduct.name}
-                    </div>
-                  </div>
-
-                  <Input
-                    value={barcodeDraft}
-                    onChange={(e) => setBarcodeDraft(e.target.value)}
-                    placeholder={tt(
-                      t,
-                      'labelsQr.barcode.inputPlaceholder',
-                      'Introduce barcode…',
-                    )}
-                    autoComplete="off"
-                  />
-
-                  <Button
-                    onClick={handleSaveBarcode}
-                    disabled={savingBarcode || !barcodeDraft.trim()}
-                  >
-                    {savingBarcode ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        {tt(t, 'labelsQr.barcode.saving', 'Guardando…')}
-                      </>
-                    ) : (
-                      <>
-                        <Save className="mr-2 h-4 w-4" />
-                        {tt(t, 'labelsQr.barcode.save', 'Guardar barcode')}
-                      </>
-                    )}
-                  </Button>
-                </div>
-              )}
-            </div>
-
             {/* QR */}
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
               <div className="mb-3 flex items-center gap-2 text-gray-900 dark:text-gray-50">
