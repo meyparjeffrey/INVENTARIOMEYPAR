@@ -54,27 +54,87 @@ export function MovementsPage() {
   const [isDetailOpen, setIsDetailOpen] = React.useState(false);
   const [orderBy, setOrderBy] = React.useState<'date' | 'product'>('date');
   const [orderDirection, setOrderDirection] = React.useState<'asc' | 'desc'>('desc');
-  
+
   // Configuración de columnas redimensionables
   const [columnWidths, setColumnWidths] = React.useState<Record<string, number>>({});
-  
+
   const handleColumnResize = React.useCallback((columnId: string, width: number) => {
     setColumnWidths((prev) => ({ ...prev, [columnId]: width }));
   }, []);
-  
+
   // Columnas visibles por defecto (todas visibles)
   const visibleColumns = React.useMemo(() => {
     return [
-      { id: 'date', label: t('movements.date'), visible: true, order: 0, width: columnWidths.date },
-      { id: 'type', label: t('movements.type'), visible: true, order: 1, width: columnWidths.type },
-      { id: 'product', label: t('movements.product'), visible: true, order: 2, width: columnWidths.product },
-      { id: 'quantity', label: t('movements.quantity'), visible: true, order: 3, width: columnWidths.quantity },
-      { id: 'stockBefore', label: t('movements.stockBefore'), visible: true, order: 4, width: columnWidths.stockBefore },
-      { id: 'stockAfter', label: t('movements.stockAfter'), visible: true, order: 5, width: columnWidths.stockAfter },
-      { id: 'reason', label: t('movements.reason'), visible: true, order: 6, width: columnWidths.reason },
-      { id: 'category', label: t('movements.category'), visible: true, order: 7, width: columnWidths.category },
-      { id: 'user', label: t('movements.user'), visible: true, order: 8, width: columnWidths.user },
-      { id: 'actions', label: t('table.actions'), visible: true, order: 9, width: columnWidths.actions },
+      {
+        id: 'date',
+        label: t('movements.date'),
+        visible: true,
+        order: 0,
+        width: columnWidths.date,
+      },
+      {
+        id: 'type',
+        label: t('movements.type'),
+        visible: true,
+        order: 1,
+        width: columnWidths.type,
+      },
+      {
+        id: 'product',
+        label: t('movements.product'),
+        visible: true,
+        order: 2,
+        width: columnWidths.product,
+      },
+      {
+        id: 'quantity',
+        label: t('movements.quantity'),
+        visible: true,
+        order: 3,
+        width: columnWidths.quantity,
+      },
+      {
+        id: 'stockBefore',
+        label: t('movements.stockBefore'),
+        visible: true,
+        order: 4,
+        width: columnWidths.stockBefore,
+      },
+      {
+        id: 'stockAfter',
+        label: t('movements.stockAfter'),
+        visible: true,
+        order: 5,
+        width: columnWidths.stockAfter,
+      },
+      {
+        id: 'reason',
+        label: t('movements.person'),
+        visible: true,
+        order: 6,
+        width: columnWidths.reason,
+      },
+      {
+        id: 'category',
+        label: t('movements.category'),
+        visible: false,
+        order: 7,
+        width: columnWidths.category,
+      },
+      {
+        id: 'user',
+        label: t('movements.user'),
+        visible: true,
+        order: 8,
+        width: columnWidths.user,
+      },
+      {
+        id: 'actions',
+        label: t('table.actions'),
+        visible: true,
+        order: 9,
+        width: columnWidths.actions,
+      },
     ];
   }, [t, columnWidths]);
 
@@ -253,10 +313,7 @@ export function MovementsPage() {
         Cantidad: movement.quantity,
         'Stock Antes': movement.quantityBefore,
         'Stock Después': movement.quantityAfter,
-        Motivo: movement.requestReason,
-        Categoría: movement.reasonCategory
-          ? t(`movements.category.${movement.reasonCategory}`)
-          : '',
+        Personal: movement.requestReason,
         Comentarios: movement.comments || '',
         Usuario: userName,
         'Documento Referencia': movement.referenceDocument || '',
@@ -279,8 +336,7 @@ export function MovementsPage() {
       { wch: 10 }, // Cantidad
       { wch: 12 }, // Stock Antes
       { wch: 12 }, // Stock Después
-      { wch: 45 }, // Motivo
-      { wch: 18 }, // Categoría
+      { wch: 45 }, // Personal
       { wch: 60 }, // Comentarios
       { wch: 25 }, // Usuario
       { wch: 25 }, // Documento
@@ -500,19 +556,19 @@ export function MovementsPage() {
             <span className="text-sm text-gray-500 dark:text-gray-400">
               {t('pagination.page') || 'Página'}
             </span>
-              <Input
-                type="number"
-                min={1}
-                max={totalPages > 0 ? totalPages : 1}
-                value={page}
-                onChange={(e) => {
-                  const newPage = parseInt(e.target.value, 10);
-                  if (!isNaN(newPage) && newPage >= 1 && newPage <= totalPages) {
-                    setPage(newPage);
-                  }
-                }}
-                className="w-16 text-center"
-              />
+            <Input
+              type="number"
+              min={1}
+              max={totalPages > 0 ? totalPages : 1}
+              value={page}
+              onChange={(e) => {
+                const newPage = parseInt(e.target.value, 10);
+                if (!isNaN(newPage) && newPage >= 1 && newPage <= totalPages) {
+                  setPage(newPage);
+                }
+              }}
+              className="w-16 text-center"
+            />
             <span className="text-sm text-gray-500 dark:text-gray-400">
               / {totalPages}
             </span>

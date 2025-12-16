@@ -300,8 +300,8 @@ export const MovementTable = React.memo(function MovementTable({
         <table className="w-full min-w-[900px]">
           <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
-              {isColumnVisible('date') && (
-                onColumnResize ? (
+              {isColumnVisible('date') &&
+                (onColumnResize ? (
                   <ResizableColumnHeader
                     initialWidth={getColumnWidth('date')}
                     minWidth={120}
@@ -316,10 +316,9 @@ export const MovementTable = React.memo(function MovementTable({
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {t('movements.date')}
                   </th>
-                )
-              )}
-              {isColumnVisible('type') && (
-                onColumnResize ? (
+                ))}
+              {isColumnVisible('type') &&
+                (onColumnResize ? (
                   <ResizableColumnHeader
                     initialWidth={getColumnWidth('type')}
                     minWidth={100}
@@ -334,10 +333,9 @@ export const MovementTable = React.memo(function MovementTable({
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {t('movements.type')}
                   </th>
-                )
-              )}
-              {isColumnVisible('product') && (
-                onColumnResize ? (
+                ))}
+              {isColumnVisible('product') &&
+                (onColumnResize ? (
                   <ResizableColumnHeader
                     initialWidth={getColumnWidth('product')}
                     minWidth={150}
@@ -352,10 +350,9 @@ export const MovementTable = React.memo(function MovementTable({
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {t('movements.product')}
                   </th>
-                )
-              )}
-              {isColumnVisible('quantity') && (
-                onColumnResize ? (
+                ))}
+              {isColumnVisible('quantity') &&
+                (onColumnResize ? (
                   <ResizableColumnHeader
                     initialWidth={getColumnWidth('quantity')}
                     minWidth={80}
@@ -370,10 +367,9 @@ export const MovementTable = React.memo(function MovementTable({
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {t('movements.quantity')}
                   </th>
-                )
-              )}
-              {isColumnVisible('stockBefore') && (
-                onColumnResize ? (
+                ))}
+              {isColumnVisible('stockBefore') &&
+                (onColumnResize ? (
                   <ResizableColumnHeader
                     initialWidth={getColumnWidth('stockBefore')}
                     minWidth={100}
@@ -388,10 +384,9 @@ export const MovementTable = React.memo(function MovementTable({
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {t('movements.stockBefore')}
                   </th>
-                )
-              )}
-              {isColumnVisible('stockAfter') && (
-                onColumnResize ? (
+                ))}
+              {isColumnVisible('stockAfter') &&
+                (onColumnResize ? (
                   <ResizableColumnHeader
                     initialWidth={getColumnWidth('stockAfter')}
                     minWidth={100}
@@ -406,10 +401,9 @@ export const MovementTable = React.memo(function MovementTable({
                   <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {t('movements.stockAfter')}
                   </th>
-                )
-              )}
-              {isColumnVisible('reason') && (
-                onColumnResize ? (
+                ))}
+              {isColumnVisible('reason') &&
+                (onColumnResize ? (
                   <ResizableColumnHeader
                     initialWidth={getColumnWidth('reason')}
                     minWidth={200}
@@ -417,17 +411,16 @@ export const MovementTable = React.memo(function MovementTable({
                     className="group"
                   >
                     <div className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      {t('movements.reason')}
+                      {t('movements.person')}
                     </div>
                   </ResizableColumnHeader>
                 ) : (
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                    {t('movements.reason')}
+                    {t('movements.person')}
                   </th>
-                )
-              )}
-              {isColumnVisible('category') && (
-                onColumnResize ? (
+                ))}
+              {isColumnVisible('category') &&
+                (onColumnResize ? (
                   <ResizableColumnHeader
                     initialWidth={getColumnWidth('category')}
                     minWidth={100}
@@ -442,10 +435,9 @@ export const MovementTable = React.memo(function MovementTable({
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {t('movements.category')}
                   </th>
-                )
-              )}
-              {isColumnVisible('user') && (
-                onColumnResize ? (
+                ))}
+              {isColumnVisible('user') &&
+                (onColumnResize ? (
                   <ResizableColumnHeader
                     initialWidth={getColumnWidth('user')}
                     minWidth={120}
@@ -460,10 +452,9 @@ export const MovementTable = React.memo(function MovementTable({
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {t('movements.user')}
                   </th>
-                )
-              )}
-              {isColumnVisible('actions') && (
-                onColumnResize ? (
+                ))}
+              {isColumnVisible('actions') &&
+                (onColumnResize ? (
                   <ResizableColumnHeader
                     initialWidth={getColumnWidth('actions')}
                     minWidth={80}
@@ -478,8 +469,7 @@ export const MovementTable = React.memo(function MovementTable({
                   <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
                     {t('table.actions')}
                   </th>
-                )
-              )}
+                ))}
             </tr>
           </thead>
           <tbody
@@ -527,12 +517,20 @@ export const MovementTable = React.memo(function MovementTable({
                   key={movement.id}
                   className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer"
                   onClick={() => onViewDetail?.(movement)}
-                  style={{ cursor: "pointer" }}
+                  style={{ cursor: 'pointer' }}
                 >
                   {isColumnVisible('date') && (
                     <td
                       className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-gray-50"
-                      style={dateWidth ? { width: `${dateWidth}px`, minWidth: `${dateWidth}px`, maxWidth: `${dateWidth}px` } : undefined}
+                      style={
+                        dateWidth
+                          ? {
+                              width: `${dateWidth}px`,
+                              minWidth: `${dateWidth}px`,
+                              maxWidth: `${dateWidth}px`,
+                            }
+                          : undefined
+                      }
                     >
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4 text-gray-400" />
@@ -551,7 +549,15 @@ export const MovementTable = React.memo(function MovementTable({
                   {isColumnVisible('type') && (
                     <td
                       className="whitespace-nowrap px-4 py-3 text-sm"
-                      style={typeWidth ? { width: `${typeWidth}px`, minWidth: `${typeWidth}px`, maxWidth: `${typeWidth}px` } : undefined}
+                      style={
+                        typeWidth
+                          ? {
+                              width: `${typeWidth}px`,
+                              minWidth: `${typeWidth}px`,
+                              maxWidth: `${typeWidth}px`,
+                            }
+                          : undefined
+                      }
                     >
                       <span
                         className={cn(
@@ -568,7 +574,15 @@ export const MovementTable = React.memo(function MovementTable({
                   {isColumnVisible('product') && (
                     <td
                       className="px-4 py-3 text-sm"
-                      style={productWidth ? { width: `${productWidth}px`, minWidth: `${productWidth}px`, maxWidth: `${productWidth}px` } : undefined}
+                      style={
+                        productWidth
+                          ? {
+                              width: `${productWidth}px`,
+                              minWidth: `${productWidth}px`,
+                              maxWidth: `${productWidth}px`,
+                            }
+                          : undefined
+                      }
                     >
                       {movement.product || movement.productName ? (
                         <button
@@ -597,7 +611,15 @@ export const MovementTable = React.memo(function MovementTable({
                   {isColumnVisible('quantity') && (
                     <td
                       className="whitespace-nowrap px-4 py-3 text-right text-sm"
-                      style={quantityWidth ? { width: `${quantityWidth}px`, minWidth: `${quantityWidth}px`, maxWidth: `${quantityWidth}px` } : undefined}
+                      style={
+                        quantityWidth
+                          ? {
+                              width: `${quantityWidth}px`,
+                              minWidth: `${quantityWidth}px`,
+                              maxWidth: `${quantityWidth}px`,
+                            }
+                          : undefined
+                      }
                     >
                       <span
                         className={cn(
@@ -621,7 +643,15 @@ export const MovementTable = React.memo(function MovementTable({
                   {isColumnVisible('stockBefore') && (
                     <td
                       className="whitespace-nowrap px-4 py-3 text-right text-sm text-gray-500 dark:text-gray-400"
-                      style={stockBeforeWidth ? { width: `${stockBeforeWidth}px`, minWidth: `${stockBeforeWidth}px`, maxWidth: `${stockBeforeWidth}px` } : undefined}
+                      style={
+                        stockBeforeWidth
+                          ? {
+                              width: `${stockBeforeWidth}px`,
+                              minWidth: `${stockBeforeWidth}px`,
+                              maxWidth: `${stockBeforeWidth}px`,
+                            }
+                          : undefined
+                      }
                     >
                       {movement.quantityBefore}
                     </td>
@@ -629,7 +659,15 @@ export const MovementTable = React.memo(function MovementTable({
                   {isColumnVisible('stockAfter') && (
                     <td
                       className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-gray-50"
-                      style={stockAfterWidth ? { width: `${stockAfterWidth}px`, minWidth: `${stockAfterWidth}px`, maxWidth: `${stockAfterWidth}px` } : undefined}
+                      style={
+                        stockAfterWidth
+                          ? {
+                              width: `${stockAfterWidth}px`,
+                              minWidth: `${stockAfterWidth}px`,
+                              maxWidth: `${stockAfterWidth}px`,
+                            }
+                          : undefined
+                      }
                     >
                       {movement.quantityAfter}
                     </td>
@@ -637,7 +675,15 @@ export const MovementTable = React.memo(function MovementTable({
                   {isColumnVisible('reason') && (
                     <td
                       className="px-4 py-3 text-sm text-gray-900 dark:text-gray-50"
-                      style={reasonWidth ? { width: `${reasonWidth}px`, minWidth: `${reasonWidth}px`, maxWidth: `${reasonWidth}px` } : undefined}
+                      style={
+                        reasonWidth
+                          ? {
+                              width: `${reasonWidth}px`,
+                              minWidth: `${reasonWidth}px`,
+                              maxWidth: `${reasonWidth}px`,
+                            }
+                          : undefined
+                      }
                     >
                       <div className="max-w-xs truncate" title={movement.requestReason}>
                         {movement.requestReason}
@@ -647,13 +693,30 @@ export const MovementTable = React.memo(function MovementTable({
                           {/* Detectar y mostrar cambios de producto */}
                           {(() => {
                             const comments = movement.comments;
-                            const hasNameChange = comments.includes('Nombre:') || comments.includes('Nom:');
-                            const hasCodeChange = comments.includes('Código:') || comments.includes('Codi:') || comments.includes('Código de barras:');
-                            const hasLocationChange = comments.includes('Pa illo:') || comments.includes('E tante:') || comments.includes('Ubicación') || comments.includes('Ubicació');
-                            const hasBarcodeChange = comments.includes('Código de barras:') || comments.includes('Codi de barres:');
-                            const hasActiveChange = comments.includes('Activo:') || comments.includes('Actiu:');
+                            const hasNameChange =
+                              comments.includes('Nombre:') || comments.includes('Nom:');
+                            const hasCodeChange =
+                              comments.includes('Código:') ||
+                              comments.includes('Codi:') ||
+                              comments.includes('Código de barras:');
+                            const hasLocationChange =
+                              comments.includes('Pa illo:') ||
+                              comments.includes('E tante:') ||
+                              comments.includes('Ubicación') ||
+                              comments.includes('Ubicació');
+                            const hasBarcodeChange =
+                              comments.includes('Código de barras:') ||
+                              comments.includes('Codi de barres:');
+                            const hasActiveChange =
+                              comments.includes('Activo:') || comments.includes('Actiu:');
 
-                            if (!hasNameChange && !hasCodeChange && !hasLocationChange && !hasBarcodeChange && !hasActiveChange) {
+                            if (
+                              !hasNameChange &&
+                              !hasCodeChange &&
+                              !hasLocationChange &&
+                              !hasBarcodeChange &&
+                              !hasActiveChange
+                            ) {
                               // Si no hay cambios específicos, mostrar comentarios normales
                               return (
                                 <div
@@ -709,7 +772,15 @@ export const MovementTable = React.memo(function MovementTable({
                   {isColumnVisible('category') && (
                     <td
                       className="whitespace-nowrap px-4 py-3 text-sm"
-                      style={categoryWidth ? { width: `${categoryWidth}px`, minWidth: `${categoryWidth}px`, maxWidth: `${categoryWidth}px` } : undefined}
+                      style={
+                        categoryWidth
+                          ? {
+                              width: `${categoryWidth}px`,
+                              minWidth: `${categoryWidth}px`,
+                              maxWidth: `${categoryWidth}px`,
+                            }
+                          : undefined
+                      }
                     >
                       {movement.reasonCategory && (
                         <span className="rounded bg-gray-100 px-2 py-1 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-300">
@@ -721,7 +792,15 @@ export const MovementTable = React.memo(function MovementTable({
                   {isColumnVisible('user') && (
                     <td
                       className="px-4 py-3 text-sm text-gray-900 dark:text-gray-50"
-                      style={userWidth ? { width: `${userWidth}px`, minWidth: `${userWidth}px`, maxWidth: `${userWidth}px` } : undefined}
+                      style={
+                        userWidth
+                          ? {
+                              width: `${userWidth}px`,
+                              minWidth: `${userWidth}px`,
+                              maxWidth: `${userWidth}px`,
+                            }
+                          : undefined
+                      }
                     >
                       {userName ? (
                         <div className="flex items-center gap-2">
@@ -736,7 +815,15 @@ export const MovementTable = React.memo(function MovementTable({
                   {isColumnVisible('actions') && (
                     <td
                       className="whitespace-nowrap px-4 py-3 text-sm"
-                      style={actionsWidth ? { width: `${actionsWidth}px`, minWidth: `${actionsWidth}px`, maxWidth: `${actionsWidth}px` } : undefined}
+                      style={
+                        actionsWidth
+                          ? {
+                              width: `${actionsWidth}px`,
+                              minWidth: `${actionsWidth}px`,
+                              maxWidth: `${actionsWidth}px`,
+                            }
+                          : undefined
+                      }
                     >
                       <button
                         onClick={(e) => {
