@@ -34,3 +34,13 @@ export async function uploadProductLabel({
 
   return filePath;
 }
+
+export async function deleteProductLabel(labelPath: string): Promise<void> {
+  const { error } = await supabaseClient.storage
+    .from(PRODUCT_LABEL_BUCKET)
+    .remove([labelPath]);
+
+  if (error) {
+    throw new Error(`Error al eliminar etiqueta de Storage: ${error.message}`);
+  }
+}

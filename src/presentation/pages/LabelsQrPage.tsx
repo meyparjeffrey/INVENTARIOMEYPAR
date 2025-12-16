@@ -28,7 +28,10 @@ import {
   deleteProductQr,
   uploadProductQr,
 } from '@infrastructure/storage/qrStorage';
-import { uploadProductLabel } from '@infrastructure/storage/labelStorage';
+import {
+  deleteProductLabel,
+  uploadProductLabel,
+} from '@infrastructure/storage/labelStorage';
 import { cn } from '../lib/cn';
 
 type BulkZipMode = 'qr' | 'labels' | 'both';
@@ -741,6 +744,18 @@ export function LabelsQrPage() {
 
       // Guardar etiqueta en Storage/DB (best-effort)
       try {
+        // Borrar etiqueta anterior si existe
+        const existingLabel = labelAssetsByProductId.get(selectedProduct.id);
+        if (existingLabel?.labelPath) {
+          try {
+            await deleteProductLabel(existingLabel.labelPath);
+          } catch (err) {
+            // No crítico si falla el borrado (puede que ya no exista)
+            // eslint-disable-next-line no-console
+            console.warn('[LabelsQrPage] No se pudo borrar etiqueta anterior:', err);
+          }
+        }
+
         const locKey =
           selectedLocation?.id ??
           `legacy:${selectedProduct.aisle ?? ''}-${selectedProduct.shelf ?? ''}:${selectedProduct.warehouse ?? ''}`;
@@ -1700,6 +1715,16 @@ export function LabelsQrPage() {
 
                       // Guardar etiqueta en Storage/DB (best-effort)
                       try {
+                        // Borrar etiqueta anterior si existe
+                        const existingLabel = labelAssetsByProductId.get(p.id);
+                        if (existingLabel?.labelPath) {
+                          try {
+                            await deleteProductLabel(existingLabel.labelPath);
+                          } catch {
+                            // No crítico si falla el borrado
+                          }
+                        }
+
                         const locKey =
                           loc?.id ??
                           `legacy:${labelProduct.aisle ?? ''}-${labelProduct.shelf ?? ''}:${labelProduct.warehouse ?? ''}`;
@@ -3010,6 +3035,21 @@ export function LabelsQrPage() {
 
               // Guardar etiqueta en Storage/DB (best-effort)
               try {
+                // Borrar etiqueta anterior si existe
+                const existingLabel = labelAssetsByProductId.get(selectedProduct.id);
+                if (existingLabel?.labelPath) {
+                  try {
+                    await deleteProductLabel(existingLabel.labelPath);
+                  } catch (err) {
+                    // No crítico si falla el borrado (puede que ya no exista)
+                    // eslint-disable-next-line no-console
+                    console.warn(
+                      '[LabelsQrPage] No se pudo borrar etiqueta anterior:',
+                      err,
+                    );
+                  }
+                }
+
                 const barcode = (selectedProduct.barcode ?? '').trim();
                 let qrDataUrl: string | null = null;
                 if (cfg.showQr && barcode) {
