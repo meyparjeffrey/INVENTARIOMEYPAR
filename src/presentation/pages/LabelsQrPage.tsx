@@ -250,7 +250,7 @@ export function LabelsQrPage() {
     showName: true,
     showWarehouse: false,
     showLocation: false,
-    qrSizeMm: 12,
+    qrSizeMm: 13,
     paddingMm: 0.7,
     codeFontPx: 13,
     barcodeFontPx: 11,
@@ -268,7 +268,7 @@ export function LabelsQrPage() {
       barcode: { x: 0, y: 0 },
       location: { x: 0, y: 0 },
       warehouse: { x: 0, y: 0 },
-      name: { x: -0.5, y: -3.5 },
+      name: { x: -0.5, y: -4 },
     },
   });
 
@@ -597,6 +597,7 @@ export function LabelsQrPage() {
   const doGenerateQr = async () => {
     if (!selectedProduct) return;
     const qrContent = buildQrPayload(selectedProduct);
+    const prevPath = selectedAsset?.qrPath ?? null;
 
     setGeneratingQr(true);
     try {
@@ -611,6 +612,18 @@ export function LabelsQrPage() {
         barcode: qrContent,
         qrPath,
       });
+
+      // Si el QR anterior tenía un path distinto, borrar el archivo viejo (como hacemos con las etiquetas).
+      if (prevPath && prevPath !== qrPath) {
+        try {
+          await deleteProductQr(prevPath);
+        } catch (err) {
+          // No crítico si falla el borrado (puede que ya no exista)
+          // eslint-disable-next-line no-console
+          console.warn('[LabelsQrPage] No se pudo borrar QR anterior:', err);
+        }
+      }
+
       setAssetsByProductId((prev) => {
         const next = new Map(prev);
         next.set(asset.productId, asset);
@@ -1909,9 +1922,20 @@ export function LabelsQrPage() {
                     </Button>
                   </div>
 
-                  {selectedAsset && !qrPreviewUrl && (
-                    <Button variant="outline" onClick={loadQrPreview}>
-                      {tt(t, 'labelsQr.qr.loadPreview', 'Cargar preview')}
+                  {selectedAsset && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        if (qrPreviewUrl) {
+                          setQrPreviewUrl(null);
+                          return;
+                        }
+                        void loadQrPreview();
+                      }}
+                    >
+                      {qrPreviewUrl
+                        ? tt(t, 'labelsQr.qr.hidePreview', 'Ocultar vista previa')
+                        : tt(t, 'labelsQr.qr.loadPreview', 'Cargar preview')}
                     </Button>
                   )}
 
