@@ -980,19 +980,35 @@ export class SupabaseProductRepository
   }
 
   async findByCodeOrBarcode(term: string) {
-    const { data, error } = await this.client
-      .from('products')
-      .select(
-        `*,
+    // Evitar construir filtros `.or()` con interpolación de texto del usuario/escáner.
+    // Esto previene fallos con caracteres especiales (p.ej. `|`, `:`, saltos de línea).
+    const selectExpr = `*,
         created_by_profile:profiles!products_created_by_fkey(first_name, last_name),
-        updated_by_profile:profiles!products_updated_by_fkey(first_name, last_name)
-      `,
-      )
-      .or(`code.eq.${term},barcode.eq.${term}`)
+        updated_by_profile:profiles!products_updated_by_fkey(first_name, last_name)`;
+
+    // 1) Buscar por código exacto
+    const byCode = await this.client
+      .from('products')
+      .select(selectExpr)
+      .eq('code', term)
       .maybeSingle();
 
-    this.handleError('buscar producto por código/barcode', error);
-    if (!data) return null;
+    this.handleError('buscar producto por código', byCode.error);
+
+    // 2) Si no hay resultado, buscar por barcode exacto
+    const byBarcode = byCode.data
+      ? byCode
+      : await this.client
+          .from('products')
+          .select(selectExpr)
+          .eq('barcode', term)
+          .maybeSingle();
+
+    if (!byCode.data) {
+      this.handleError('buscar producto por barcode', byBarcode.error);
+    }
+
+    if (!byBarcode.data) return null;
 
     // Cargar ubicaciones (si falla, continuar sin ubicaciones)
     let locationsData: ProductLocationRow[] | undefined;
@@ -1000,7 +1016,7 @@ export class SupabaseProductRepository
       const { data: locData } = await this.client
         .from('product_locations')
         .select('*')
-        .eq('product_id', data.id)
+        .eq('product_id', byBarcode.data.id)
         .order('is_primary', { ascending: false })
         .order('created_at', { ascending: true });
 
@@ -1009,7 +1025,7 @@ export class SupabaseProductRepository
       // Si falla cargar ubicaciones, continuar sin ellas
       console.warn('No se pudieron cargar las ubicaciones del producto:', err);
     }
-    return mapProduct(data as ProductRow, locationsData);
+    return mapProduct(byBarcode.data as ProductRow, locationsData);
   }
 
   async getBatches(productId: string, filters?: BatchFilters) {

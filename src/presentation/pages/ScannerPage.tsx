@@ -48,6 +48,7 @@ import { useMovements } from '../hooks/useMovements';
 import { MovementForm } from '../components/movements/MovementForm';
 import { cn } from '../lib/cn';
 import { highlightText } from '../utils/highlightText';
+import { parseScannedValue } from '../utils/parseScannedValue';
 
 /**
  * Resultado de un escaneo con timestamp para persistencia.
@@ -392,12 +393,14 @@ export function ScannerPage() {
       if (!barcode.trim()) return;
 
       setSearching(true);
-      const scannedCode = barcode.trim();
+      const parsed = parseScannedValue(barcode);
+      const scannedCode = parsed.raw;
+      const lookupKey = parsed.lookupKey;
       const timestamp = Date.now();
 
       try {
         // Buscar producto usando el repositorio (búsqueda directa en BD)
-        const product = await findByCode(scannedCode);
+        const product = await findByCode(lookupKey);
 
         if (product) {
           const result: ScanResult = {

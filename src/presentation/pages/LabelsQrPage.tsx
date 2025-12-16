@@ -57,6 +57,24 @@ function withEtPrefix(code: string) {
   return `ET-${code}.png`;
 }
 
+function truncateWithEllipsis(text: string, maxChars: number): string {
+  const clean = text.trim();
+  if (clean.length <= maxChars) return clean;
+  const cut = clean.slice(0, Math.max(0, maxChars - 1)).trimEnd();
+  return `${cut}…`;
+}
+
+function buildQrPayload(product: Product): string {
+  const code = String(product.code ?? '').trim();
+  const name = String(product.name ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .replaceAll('|', ' ');
+
+  // QR compacto para etiquetas pequeñas: CODE|NAME_TRUNC
+  return `${code}|${truncateWithEllipsis(name, 40)}`;
+}
+
 function tt(t: (k: string) => string, key: string, fallback: string) {
   const v = t(key);
   return v === key ? fallback : v;
@@ -307,14 +325,13 @@ export function LabelsQrPage() {
         setBulkPreviewQrDataUrl(null);
         return;
       }
-      const barcode = (bulkPreviewProduct?.barcode ?? '').trim();
-      if (!barcode) {
+      if (!bulkPreviewProduct) {
         setBulkPreviewQrDataUrl(null);
         return;
       }
       try {
         const scale = qualityScale(bulkLabelQuality, bulkLabelConfig?.dpi ?? 203);
-        const url = await QRCode.toDataURL(barcode, {
+        const url = await QRCode.toDataURL(buildQrPayload(bulkPreviewProduct), {
           type: 'image/png',
           width: 512 * scale,
           margin: 4,
@@ -334,7 +351,10 @@ export function LabelsQrPage() {
   }, [
     bulkZipDialogOpen,
     bulkZipMode,
-    bulkPreviewProduct?.barcode,
+    bulkPreviewProduct,
+    bulkPreviewProduct?.id,
+    bulkPreviewProduct?.code,
+    bulkPreviewProduct?.name,
     bulkLabelQuality,
     bulkLabelConfig?.dpi,
   ]);
@@ -349,15 +369,14 @@ export function LabelsQrPage() {
         return;
       }
       const cfg = labelDialogConfig ?? labelConfig;
-      const barcode = (selectedProduct?.barcode ?? '').trim();
-      if (!barcode || !cfg.showQr) {
+      if (!selectedProduct || !cfg.showQr) {
         setLabelDialogQrDataUrl(null);
         return;
       }
 
       try {
         const scale = qualityScale(labelDialogQuality, cfg.dpi);
-        const url = await QRCode.toDataURL(barcode, {
+        const url = await QRCode.toDataURL(buildQrPayload(selectedProduct), {
           type: 'image/png',
           width: 512 * scale,
           margin: 4,
@@ -380,7 +399,10 @@ export function LabelsQrPage() {
     labelDialogConfig,
     labelDialogConfig?.dpi,
     labelDialogConfig?.showQr,
-    selectedProduct?.barcode,
+    selectedProduct,
+    selectedProduct?.id,
+    selectedProduct?.code,
+    selectedProduct?.name,
     labelConfig,
     labelConfig.dpi,
     labelConfig.showQr,
@@ -511,15 +533,14 @@ export function LabelsQrPage() {
     let cancelled = false;
 
     const run = async () => {
-      const barcode = (selectedProduct?.barcode ?? '').trim();
-      if (!barcode) {
+      if (!selectedProduct || !labelConfig.showQr) {
         setLabelQrDataUrl(null);
         return;
       }
 
       try {
         const scale = qualityScale(labelQuality, labelConfig.dpi);
-        const dataUrl = await QRCode.toDataURL(barcode, {
+        const dataUrl = await QRCode.toDataURL(buildQrPayload(selectedProduct), {
           type: 'image/png',
           width: 512 * scale,
           margin: 4,
@@ -536,7 +557,15 @@ export function LabelsQrPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedProduct?.barcode, labelQuality, labelConfig.dpi]);
+  }, [
+    selectedProduct,
+    selectedProduct?.id,
+    selectedProduct?.code,
+    selectedProduct?.name,
+    labelQuality,
+    labelConfig.dpi,
+    labelConfig.showQr,
+  ]);
 
   const selectedLocation = React.useMemo(() => {
     if (selectedLocationId === 'legacy') return null;
@@ -623,18 +652,7 @@ export function LabelsQrPage() {
 
   const handleGenerateQr = async () => {
     if (!selectedProduct) return;
-    const barcode = (selectedProduct.barcode ?? '').trim();
-    if (!barcode) {
-      toast.error(
-        tt(t, 'labelsQr.toast.qr.title', 'QR'),
-        tt(
-          t,
-          'labelsQr.toast.qr.noBarcode',
-          'El producto no tiene barcode. Guárdalo primero.',
-        ),
-      );
-      return;
-    }
+    // QR dual: dentro de la app se busca por CODE; fuera se muestra CODE|NOMBRE…
 
     // Confirmación si ya existe asset
     if (selectedAsset) {
@@ -647,20 +665,19 @@ export function LabelsQrPage() {
 
   const doGenerateQr = async () => {
     if (!selectedProduct) return;
-    const barcode = (selectedProduct.barcode ?? '').trim();
-    if (!barcode) return;
+    const qrContent = buildQrPayload(selectedProduct);
 
     setGeneratingQr(true);
     try {
-      const pngBlob = await QrCodeService.generateQrPngBlob(barcode, { sizePx: 1024 });
+      const pngBlob = await QrCodeService.generateQrPngBlob(qrContent, { sizePx: 1024 });
       const qrPath = await uploadProductQr({
         productId: selectedProduct.id,
-        barcode,
+        barcode: qrContent,
         pngBlob,
       });
       const asset = await qrRepo.upsert({
         productId: selectedProduct.id,
-        barcode,
+        barcode: qrContent,
         qrPath,
       });
       setAssetsByProductId((prev) => {
@@ -1654,45 +1671,45 @@ export function LabelsQrPage() {
                   await asyncPool(6, selectedProducts, async (p) => {
                     // QR
                     if (needQr) {
-                      const barcode = (p.barcode ?? '').trim();
-                      if (barcode) {
-                        const asset = assetsByProductId.get(p.id);
-                        let qrBlob: Blob | null = null;
+                      const asset = assetsByProductId.get(p.id);
+                      let qrBlob: Blob | null = null;
 
-                        if (asset) {
-                          const signed = await createProductQrSignedUrl(
-                            asset.qrPath,
-                            60 * 10,
-                          );
-                          const res = await fetch(signed);
-                          qrBlob = await res.blob();
-                        } else {
-                          qrBlob = await QrCodeService.generateQrPngBlob(barcode, {
+                      if (asset) {
+                        const signed = await createProductQrSignedUrl(
+                          asset.qrPath,
+                          60 * 10,
+                        );
+                        const res = await fetch(signed);
+                        qrBlob = await res.blob();
+                      } else {
+                        qrBlob = await QrCodeService.generateQrPngBlob(
+                          buildQrPayload(p),
+                          {
                             sizePx: 1024,
-                          });
-                        }
-
-                        folderQr?.file(withQrPrefix(p.code), qrBlob);
+                          },
+                        );
                       }
+
+                      folderQr?.file(withQrPrefix(p.code), qrBlob);
                     }
 
                     // Etiquetas
                     if (needLabels) {
-                      const barcode = (p.barcode ?? '').trim();
                       let qrDataUrl: string | null = null;
 
-                      if (labelCfg.showQr && barcode) {
-                        if (barcodeQrCache.has(barcode)) {
-                          qrDataUrl = barcodeQrCache.get(barcode)!;
+                      if (labelCfg.showQr) {
+                        const payload = buildQrPayload(p);
+                        if (barcodeQrCache.has(payload)) {
+                          qrDataUrl = barcodeQrCache.get(payload)!;
                         } else {
-                          qrDataUrl = await QRCode.toDataURL(barcode, {
+                          qrDataUrl = await QRCode.toDataURL(payload, {
                             type: 'image/png',
                             width: 512 * labelScale,
                             margin: 4,
                             errorCorrectionLevel: 'M',
                             color: { dark: '#000000', light: '#FFFFFF' },
                           });
-                          barcodeQrCache.set(barcode, qrDataUrl);
+                          barcodeQrCache.set(payload, qrDataUrl);
                         }
                       }
 
@@ -1993,7 +2010,7 @@ export function LabelsQrPage() {
                     <Button
                       variant="secondary"
                       onClick={handleGenerateQr}
-                      disabled={generatingQr || !(selectedProduct.barcode ?? '').trim()}
+                      disabled={generatingQr}
                     >
                       {generatingQr ? (
                         <>
@@ -2042,11 +2059,12 @@ export function LabelsQrPage() {
                         className="mx-auto h-44 w-44"
                       />
                       <p className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
-                        {tt(
-                          t,
-                          'labelsQr.qr.content',
-                          'Contenido QR: {{barcode}}',
-                        ).replace('{{barcode}}', String(selectedProduct.barcode ?? ''))}
+                        {(() => {
+                          const content = buildQrPayload(selectedProduct);
+                          return tt(t, 'labelsQr.qr.content', 'Contenido QR: {{content}}')
+                            .replace('{{content}}', content)
+                            .replace('{{barcode}}', content);
+                        })()}
                       </p>
                     </div>
                   )}
@@ -2129,44 +2147,27 @@ export function LabelsQrPage() {
                           }}
                         >
                           {/* QR */}
-                          {labelConfig.showQr &&
-                            (selectedProduct.barcode ?? '').trim() && (
-                              <div
-                                style={{
-                                  position: 'absolute',
-                                  left: `${paddingPx + pxOff(labelConfig.offsetsMm.qr.x)}px`,
-                                  top: `${paddingPx + pxOff(labelConfig.offsetsMm.qr.y)}px`,
-                                  width: `${qrSizePx}px`,
-                                  height: `${qrSizePx}px`,
-                                  background: '#ffffff',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}
-                              >
-                                {labelQrDataUrl ? (
-                                  <img
-                                    src={labelQrDataUrl}
-                                    alt="QR"
-                                    style={{ width: '100%', height: '100%' }}
-                                  />
-                                ) : (
-                                  <div
-                                    style={{
-                                      width: '100%',
-                                      height: '100%',
-                                      border: '1px solid #eee',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      fontSize: 10,
-                                    }}
-                                  >
-                                    QR
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                          {labelConfig.showQr && !!labelQrDataUrl && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                left: `${paddingPx + pxOff(labelConfig.offsetsMm.qr.x)}px`,
+                                top: `${paddingPx + pxOff(labelConfig.offsetsMm.qr.y)}px`,
+                                width: `${qrSizePx}px`,
+                                height: `${qrSizePx}px`,
+                                background: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <img
+                                src={labelQrDataUrl}
+                                alt="QR"
+                                style={{ width: '100%', height: '100%' }}
+                              />
+                            </div>
+                          )}
 
                           {(() => {
                             const rightX =
@@ -2851,7 +2852,7 @@ export function LabelsQrPage() {
                             overflow: 'hidden',
                           }}
                         >
-                          {cfg.showQr && (selectedProduct.barcode ?? '').trim() && (
+                          {cfg.showQr && (
                             <div
                               style={{
                                 position: 'absolute',
@@ -3050,11 +3051,10 @@ export function LabelsQrPage() {
                   }
                 }
 
-                const barcode = (selectedProduct.barcode ?? '').trim();
                 let qrDataUrl: string | null = null;
-                if (cfg.showQr && barcode) {
+                if (cfg.showQr) {
                   const s = qualityScale(labelDialogQuality, cfg.dpi);
-                  qrDataUrl = await QRCode.toDataURL(barcode, {
+                  qrDataUrl = await QRCode.toDataURL(buildQrPayload(selectedProduct), {
                     type: 'image/png',
                     width: 512 * s,
                     margin: 4,
