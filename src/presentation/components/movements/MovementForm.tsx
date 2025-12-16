@@ -7,12 +7,7 @@ import {
   Search,
 } from 'lucide-react';
 import * as React from 'react';
-import type {
-  MovementType,
-  MovementReasonCategory,
-  Product,
-  UUID,
-} from '@domain/entities';
+import type { MovementType, Product, UUID } from '@domain/entities';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Label } from '../ui/Label';
@@ -28,26 +23,12 @@ interface MovementFormProps {
     movementType: MovementType;
     quantity: number;
     requestReason: string;
-    reasonCategory?: MovementReasonCategory;
     comments?: string;
-    referenceDocument?: string;
   }) => Promise<void>;
   products: Product[];
   preselectedProduct?: Product;
   preselectedMovementType?: MovementType;
 }
-
-const reasonCategories: { value: MovementReasonCategory; labelKey: string }[] = [
-  { value: 'PURCHASE', labelKey: 'movements.category.PURCHASE' },
-  { value: 'RETURN', labelKey: 'movements.category.RETURN' },
-  { value: 'PRODUCTION', labelKey: 'movements.category.PRODUCTION' },
-  { value: 'CONSUMPTION', labelKey: 'movements.category.CONSUMPTION' },
-  { value: 'DEFECTIVE', labelKey: 'movements.category.DEFECTIVE' },
-  { value: 'EXPIRED', labelKey: 'movements.category.EXPIRED' },
-  { value: 'CORRECTION', labelKey: 'movements.category.CORRECTION' },
-  { value: 'INVENTORY_COUNT', labelKey: 'movements.category.INVENTORY_COUNT' },
-  { value: 'OTHER', labelKey: 'movements.category.OTHER' },
-];
 
 /**
  * Formulario modal para registrar un nuevo movimiento.
@@ -96,11 +77,7 @@ export function MovementForm({
   const [showProductList, setShowProductList] = React.useState(false);
   const [quantity, setQuantity] = React.useState('');
   const [requestReason, setRequestReason] = React.useState('');
-  const [reasonCategory, setReasonCategory] = React.useState<MovementReasonCategory | ''>(
-    '',
-  );
   const [comments, setComments] = React.useState('');
-  const [referenceDocument, setReferenceDocument] = React.useState('');
 
   // Reset form when dialog opens
   React.useEffect(() => {
@@ -110,9 +87,7 @@ export function MovementForm({
       setProductSearch('');
       setQuantity('');
       setRequestReason('');
-      setReasonCategory('');
       setComments('');
-      setReferenceDocument('');
       setError(null);
     }
   }, [isOpen, preselectedProduct, preselectedMovementType]);
@@ -147,7 +122,7 @@ export function MovementForm({
     }
 
     if (!requestReason.trim()) {
-      setError(t('movements.error.noReason'));
+      setError(t('movements.error.noPerson'));
       return;
     }
 
@@ -169,9 +144,7 @@ export function MovementForm({
         movementType,
         quantity: qty,
         requestReason: requestReason.trim(),
-        reasonCategory: reasonCategory || undefined,
         comments: comments.trim() || undefined,
-        referenceDocument: referenceDocument.trim() || undefined,
       });
       onClose();
     } catch (err) {
@@ -319,10 +292,17 @@ export function MovementForm({
           <Label htmlFor="quantity">{t('movements.quantity')}</Label>
           <Input
             id="quantity"
-            type="number"
-            min="1"
+            // Evitar que el navegador "autocorrija" a 1 al perder el foco en algunos casos.
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
             value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
+            onChange={(e) => {
+              const raw = e.target.value;
+              // Permitir vacío y dígitos únicamente
+              const cleaned = raw.replace(/[^\d]/g, '');
+              setQuantity(cleaned);
+            }}
             placeholder="0"
             className="mt-2"
           />
@@ -373,46 +353,15 @@ export function MovementForm({
           )}
         </div>
 
-        {/* Categoría de razón */}
+        {/* Personal */}
         <div>
-          <Label htmlFor="reasonCategory">{t('movements.category')}</Label>
-          <select
-            id="reasonCategory"
-            value={reasonCategory}
-            onChange={(e) => setReasonCategory(e.target.value as MovementReasonCategory)}
-            className="mt-2 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-50"
-          >
-            <option value="">{t('movements.selectCategory')}</option>
-            {reasonCategories.map((cat) => (
-              <option key={cat.value} value={cat.value}>
-                {t(cat.labelKey)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {/* Motivo */}
-        <div>
-          <Label htmlFor="requestReason">{t('movements.reason')} *</Label>
+          <Label htmlFor="requestReason">{t('movements.person')} *</Label>
           <Input
             id="requestReason"
             type="text"
             value={requestReason}
             onChange={(e) => setRequestReason(e.target.value)}
-            placeholder={t('movements.reasonPlaceholder')}
-            className="mt-2"
-          />
-        </div>
-
-        {/* Documento de Referencia */}
-        <div>
-          <Label htmlFor="referenceDocument">{t('movements.referenceDocument')}</Label>
-          <Input
-            id="referenceDocument"
-            type="text"
-            value={referenceDocument}
-            onChange={(e) => setReferenceDocument(e.target.value)}
-            placeholder={t('movements.referenceDocument')}
+            placeholder={t('movements.personPlaceholder')}
             className="mt-2"
           />
         </div>
