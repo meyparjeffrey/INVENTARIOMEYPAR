@@ -9,6 +9,14 @@ describe('parseScannedValue', () => {
     });
   });
 
+  it('extrae el código MPE50-30124 con separador | (caso real usuario)', () => {
+    // Este es el caso exacto que reporta el usuario: QR escaneado desde USB
+    expect(parseScannedValue('MPE50-30124|ADPATADOR CARRIL DIN para MTX-T')).toEqual({
+      raw: 'MPE50-30124|ADPATADOR CARRIL DIN para MTX-T',
+      lookupKey: 'MPE50-30124',
+    });
+  });
+
   it('acepta el separador º (teclado ES / algunos escáneres)', () => {
     expect(parseScannedValue('MPE50-30124ºADPATADOR CARRIL DIN para MTX-T')).toEqual({
       raw: 'MPE50-30124ºADPATADOR CARRIL DIN para MTX-T',

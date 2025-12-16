@@ -398,9 +398,29 @@ export function ScannerPage() {
       const lookupKey = parsed.lookupKey;
       const timestamp = Date.now();
 
+      // DEBUG: log para diagnosticar problemas de escáner
+      // eslint-disable-next-line no-console
+      console.log('[ScannerPage] processBarcode:', {
+        barcodeInput: barcode,
+        barcodeLength: barcode.length,
+        parsedRaw: scannedCode,
+        lookupKey,
+        lookupKeyLength: lookupKey.length,
+      });
+
       try {
         // Buscar producto usando el repositorio (búsqueda directa en BD)
+        // eslint-disable-next-line no-console
+        console.log(
+          '[ScannerPage] Buscando producto con lookupKey:',
+          JSON.stringify(lookupKey),
+        );
         const product = await findByCode(lookupKey);
+        // eslint-disable-next-line no-console
+        console.log(
+          '[ScannerPage] Resultado de búsqueda:',
+          product ? `Encontrado: ${product.code}` : 'No encontrado',
+        );
 
         if (product) {
           const result: ScanResult = {
