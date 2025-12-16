@@ -253,10 +253,10 @@ export function LabelsQrPage() {
     showBarcode: false,
     showName: true,
     showWarehouse: false,
-    showLocation: true,
-    qrSizeMm: 10,
-    paddingMm: 1,
-    codeFontPx: 12,
+    showLocation: false,
+    qrSizeMm: 12,
+    paddingMm: 0.7,
+    codeFontPx: 13,
     barcodeFontPx: 11,
     locationFontPx: 10,
     warehouseFontPx: 10,
@@ -268,11 +268,11 @@ export function LabelsQrPage() {
     nameBold: false,
     offsetsMm: {
       qr: { x: 0, y: 0 },
-      code: { x: 0, y: 0 },
+      code: { x: -0.5, y: 0 },
       barcode: { x: 0, y: 0 },
       location: { x: 0, y: 0 },
       warehouse: { x: 0, y: 0 },
-      name: { x: 0, y: 0 },
+      name: { x: -0.5, y: -2.5 },
     },
   });
 
