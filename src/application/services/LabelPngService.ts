@@ -13,7 +13,15 @@ export type LabelConfig = {
   qrSizeMm: number;
   paddingMm: number;
   codeFontPx: number;
+  barcodeFontPx: number;
+  locationFontPx: number;
+  warehouseFontPx: number;
   nameFontPx: number;
+  nameMaxLines: number; // p.ej. 1-3
+  barcodeBold: boolean;
+  locationBold: boolean;
+  warehouseBold: boolean;
+  nameBold: boolean;
   offsetsMm: {
     qr: { x: number; y: number };
     code: { x: number; y: number };
@@ -41,6 +49,91 @@ function truncate(s: string, max: number) {
   return s.length > max ? `${s.slice(0, Math.max(0, max - 1))}…` : s;
 }
 
+function estimateTextPxWidth(text: string, fontPx: number, isBold: boolean) {
+  // Aproximación: ancho medio por carácter
+  const perChar = fontPx * (isBold ? 0.6 : 0.56);
+  return text.length * perChar;
+}
+
+function wrapTextToLines(opts: {
+  text: string;
+  maxWidthPx: number;
+  fontPx: number;
+  isBold: boolean;
+  maxLines: number;
+}): string[] {
+  const { text, maxWidthPx, fontPx, isBold, maxLines } = opts;
+  const clean = text.trim().replace(/\s+/g, ' ');
+  if (!clean) return [];
+
+  const words = clean.split(' ');
+  const lines: string[] = [];
+  let current = '';
+
+  const pushLine = (line: string) => {
+    if (line) lines.push(line);
+  };
+
+  for (const w of words) {
+    const next = current ? `${current} ${w}` : w;
+    if (estimateTextPxWidth(next, fontPx, isBold) <= maxWidthPx) {
+      current = next;
+      continue;
+    }
+
+    if (!current) {
+      // Palabra demasiado larga: cortar por caracteres
+      let chunk = '';
+      for (const ch of w) {
+        const cand = `${chunk}${ch}`;
+        if (estimateTextPxWidth(cand, fontPx, isBold) <= maxWidthPx) {
+          chunk = cand;
+        } else {
+          pushLine(chunk);
+          chunk = ch;
+          if (lines.length >= maxLines) break;
+        }
+      }
+      if (lines.length < maxLines) pushLine(chunk);
+      current = '';
+    } else {
+      pushLine(current);
+      current = w;
+    }
+
+    if (lines.length >= maxLines) break;
+  }
+
+  if (lines.length < maxLines && current) pushLine(current);
+
+  // Si sobra texto, elipsis en la última línea
+  if (lines.length > 0) {
+    const limited = lines.slice(0, Math.max(1, maxLines));
+    if (limited.length === maxLines) {
+      const last = limited[limited.length - 1];
+      // Asegurar que cabe con elipsis
+      if (estimateTextPxWidth(last, fontPx, isBold) > maxWidthPx) {
+        limited[limited.length - 1] = truncate(last, Math.max(1, last.length - 1));
+      }
+      if (
+        !last.endsWith('…') &&
+        words.join(' ').startsWith(limited.join(' ')) === false
+      ) {
+        // ya hay truncado (heurístico); si no, añadimos elipsis si hace falta
+        if (!limited[limited.length - 1].endsWith('…')) {
+          limited[limited.length - 1] = truncate(
+            limited[limited.length - 1],
+            Math.max(1, limited[limited.length - 1].length),
+          );
+        }
+      }
+    }
+    return limited;
+  }
+
+  return [];
+}
+
 /**
  * Construye un SVG de etiqueta (plantilla base) que luego puede convertirse a PNG.
  * `qrDataUrl` debe ser un dataURL local (evita CORS al rasterizar).
@@ -62,66 +155,81 @@ export function buildLabelSvg(
   const yQr = paddingPx + pxOff(cfg.offsetsMm.qr.y);
 
   const code = escapeXml(product.code);
-  const nameLine = escapeXml(truncate(product.name, 32));
   const barcode = escapeXml(product.barcode ?? '');
   const location = escapeXml(`${product.aisle}-${product.shelf}`);
   const warehouse = escapeXml(product.warehouse ?? '');
-
-  const lineH = Math.max(10, cfg.nameFontPx);
-  const xCode = rightX + pxOff(cfg.offsetsMm.code.x);
-  const yCode = paddingPx + cfg.codeFontPx + pxOff(cfg.offsetsMm.code.y);
-
-  const xBarcode = rightX + pxOff(cfg.offsetsMm.barcode.x);
-  const yBarcode =
-    paddingPx + cfg.codeFontPx + 2 + cfg.codeFontPx + pxOff(cfg.offsetsMm.barcode.y);
-
-  const xLocation = rightX + pxOff(cfg.offsetsMm.location.x);
-  const yLocation =
-    paddingPx +
-    cfg.codeFontPx +
-    2 +
-    cfg.codeFontPx +
-    lineH +
-    pxOff(cfg.offsetsMm.location.y);
-
-  const xWarehouse = rightX + pxOff(cfg.offsetsMm.warehouse.x);
-  const yWarehouse =
-    paddingPx +
-    cfg.codeFontPx +
-    2 +
-    cfg.codeFontPx +
-    lineH +
-    lineH +
-    pxOff(cfg.offsetsMm.warehouse.y);
 
   const xName = rightX + pxOff(cfg.offsetsMm.name.x);
   const yName = heightPx - paddingPx + pxOff(cfg.offsetsMm.name.y);
 
   const texts: string[] = [];
+
+  // Bloque superior apilado (code/barcode/location/warehouse)
+  let yCursor = paddingPx;
   if (cfg.showCode) {
+    yCursor += cfg.codeFontPx;
+    const x = rightX + pxOff(cfg.offsetsMm.code.x);
+    const y = yCursor + pxOff(cfg.offsetsMm.code.y);
     texts.push(
-      `<text x="${xCode}" y="${yCode}" font-family="Arial, sans-serif" font-size="${cfg.codeFontPx}" font-weight="700">${code}</text>`,
+      `<text x="${x}" y="${y}" font-family="Arial, sans-serif" font-size="${cfg.codeFontPx}" font-weight="700">${code}</text>`,
     );
+    yCursor += 2;
   }
   if (cfg.showBarcode && product.barcode) {
+    yCursor += cfg.barcodeFontPx;
+    const x = rightX + pxOff(cfg.offsetsMm.barcode.x);
+    const y = yCursor + pxOff(cfg.offsetsMm.barcode.y);
     texts.push(
-      `<text x="${xBarcode}" y="${yBarcode}" font-family="Arial, sans-serif" font-size="${cfg.codeFontPx}">${barcode}</text>`,
+      `<text x="${x}" y="${y}" font-family="Arial, sans-serif" font-size="${cfg.barcodeFontPx}" font-weight="${cfg.barcodeBold ? 700 : 400}">${barcode}</text>`,
     );
+    yCursor += 2;
   }
   if (cfg.showLocation) {
+    yCursor += cfg.locationFontPx;
+    const x = rightX + pxOff(cfg.offsetsMm.location.x);
+    const y = yCursor + pxOff(cfg.offsetsMm.location.y);
     texts.push(
-      `<text x="${xLocation}" y="${yLocation}" font-family="Arial, sans-serif" font-size="${Math.max(9, cfg.nameFontPx - 1)}">${location}</text>`,
+      `<text x="${x}" y="${y}" font-family="Arial, sans-serif" font-size="${cfg.locationFontPx}" font-weight="${cfg.locationBold ? 700 : 400}">${location}</text>`,
     );
+    yCursor += 2;
   }
   if (cfg.showWarehouse && product.warehouse) {
+    yCursor += cfg.warehouseFontPx;
+    const x = rightX + pxOff(cfg.offsetsMm.warehouse.x);
+    const y = yCursor + pxOff(cfg.offsetsMm.warehouse.y);
     texts.push(
-      `<text x="${xWarehouse}" y="${yWarehouse}" font-family="Arial, sans-serif" font-size="${Math.max(9, cfg.nameFontPx - 1)}">${warehouse}</text>`,
+      `<text x="${x}" y="${y}" font-family="Arial, sans-serif" font-size="${cfg.warehouseFontPx}" font-weight="${cfg.warehouseBold ? 700 : 400}">${warehouse}</text>`,
     );
+    yCursor += 2;
   }
+
+  // Nombre: wrap a líneas según ancho disponible, anclado al fondo
   if (cfg.showName) {
-    texts.push(
-      `<text x="${xName}" y="${yName}" font-family="Arial, sans-serif" font-size="${cfg.nameFontPx}" font-weight="600">${nameLine}</text>`,
-    );
+    const rightLimit = widthPx - paddingPx;
+    const maxWidthPx = Math.max(10, rightLimit - xName);
+    const lines = wrapTextToLines({
+      text: product.name,
+      maxWidthPx,
+      fontPx: cfg.nameFontPx,
+      isBold: cfg.nameBold,
+      maxLines: Math.max(1, Math.min(5, cfg.nameMaxLines)),
+    }).map(escapeXml);
+
+    if (lines.length > 0) {
+      const lineH = cfg.nameFontPx + 2;
+      const yLast = yName;
+      const yFirst = yLast - (lines.length - 1) * lineH;
+      const weight = cfg.nameBold ? 700 : 600; // nombre por defecto semibold; si no bold, 600
+      const tspans = lines
+        .map((ln, i) => {
+          const yy = yFirst + i * lineH;
+          return `<tspan x="${xName}" y="${yy}">${ln}</tspan>`;
+        })
+        .join('');
+      texts.push(
+        `<text font-family="Arial, sans-serif" font-size="${cfg.nameFontPx}" font-weight="${weight}">${tspans}</text>`,
+      );
+    }
   }
 
   const qrImage =
