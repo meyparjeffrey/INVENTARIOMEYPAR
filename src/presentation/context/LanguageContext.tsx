@@ -531,6 +531,9 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'labelsQr.toast.qr.deleteError': 'Error eliminando QR',
     'labelsQr.toast.label.title': 'Etiqueta',
     'labelsQr.toast.label.generateError': 'Error generando PNG',
+    'labelsQr.toast.label.saveError': 'No se pudo guardar en Supabase: {{error}}',
+    'labelsQr.toast.label.backendMissing':
+      'No se pudieron cargar las etiquetas (falta migración/bucket de Supabase).',
     'labelsQr.toast.zip.title': 'ZIP',
     'labelsQr.toast.zip.ready': 'Descarga preparada.',
     'labelsQr.toast.zip.error': 'Error generando ZIP',
@@ -1552,6 +1555,9 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'labelsQr.toast.qr.deleteError': 'Error eliminant el QR',
     'labelsQr.toast.label.title': 'Etiqueta',
     'labelsQr.toast.label.generateError': 'Error generant el PNG',
+    'labelsQr.toast.label.saveError': 'No s’ha pogut desar a Supabase: {{error}}',
+    'labelsQr.toast.label.backendMissing':
+      'No s’han pogut carregar les etiquetes (falta migració/bucket de Supabase).',
     'labelsQr.toast.zip.title': 'ZIP',
     'labelsQr.toast.zip.ready': 'Descàrrega preparada.',
     'labelsQr.toast.zip.error': 'Error generant el ZIP',

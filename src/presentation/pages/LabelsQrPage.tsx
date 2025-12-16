@@ -188,6 +188,7 @@ export function LabelsQrPage() {
 
   const qrRepo = React.useMemo(() => new SupabaseProductQrRepository(), []);
   const labelRepo = React.useMemo(() => new SupabaseProductLabelRepository(), []);
+  const didWarnLabelsBackendRef = React.useRef(false);
 
   const [loading, setLoading] = React.useState(true);
   const [products, setProducts] = React.useState<Product[]>([]);
@@ -412,6 +413,17 @@ export function LabelsQrPage() {
       } catch (err) {
         // Si la migración/bucket de etiquetas aún no está aplicada, no rompemos la página.
         setLabelAssetsByProductId(new Map());
+        if (!didWarnLabelsBackendRef.current) {
+          didWarnLabelsBackendRef.current = true;
+          toast.error(
+            tt(t, 'labelsQr.toast.label.title', 'Etiqueta'),
+            tt(
+              t,
+              'labelsQr.toast.label.backendMissing',
+              'No se pudieron cargar las etiquetas (falta migración/bucket de Supabase).',
+            ),
+          );
+        }
         // eslint-disable-next-line no-console
         console.warn('[LabelsQrPage] No se pudieron cargar assets de etiquetas:', err);
       }
@@ -423,7 +435,7 @@ export function LabelsQrPage() {
     } finally {
       setLoading(false);
     }
-  }, [getAll, qrRepo, labelRepo, toast]);
+  }, [getAll, qrRepo, labelRepo, toast, t]);
 
   React.useEffect(() => {
     reload();
@@ -755,6 +767,14 @@ export function LabelsQrPage() {
           return next;
         });
       } catch (err) {
+        toast.error(
+          tt(t, 'labelsQr.toast.label.title', 'Etiqueta'),
+          tt(
+            t,
+            'labelsQr.toast.label.saveError',
+            'No se pudo guardar en Supabase: {{error}}',
+          ).replace('{{error}}', err instanceof Error ? err.message : 'sin detalle'),
+        );
         // eslint-disable-next-line no-console
         console.warn('[LabelsQrPage] No se pudo guardar etiqueta en Storage/DB:', err);
       }
@@ -3041,8 +3061,18 @@ export function LabelsQrPage() {
                   next.set(selectedProduct.id, asset);
                   return next;
                 });
-              } catch {
-                // no-op
+              } catch (err) {
+                toast.error(
+                  tt(t, 'labelsQr.toast.label.title', 'Etiqueta'),
+                  tt(
+                    t,
+                    'labelsQr.toast.label.saveError',
+                    'No se pudo guardar en Supabase: {{error}}',
+                  ).replace(
+                    '{{error}}',
+                    err instanceof Error ? err.message : 'sin detalle',
+                  ),
+                );
               } finally {
                 setLabelDialogOpen(false);
                 setLabelDialogConfig(null);
