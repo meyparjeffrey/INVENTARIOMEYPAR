@@ -305,6 +305,10 @@ export function LabelsQrPage() {
     null,
   );
 
+  // En desktop, el panel derecho puede ser más alto que la ventana (QR + Etiqueta).
+  // Para que no obligue a “bajar la tabla”, le damos scroll interno.
+  const [detailsMaxHeightPx, setDetailsMaxHeightPx] = React.useState<number | null>(null);
+
   const bulkPreviewProduct = React.useMemo(() => {
     if (selectedProduct && selectedIds.has(selectedProduct.id)) return selectedProduct;
     return products.find((p) => selectedIds.has(p.id)) ?? null;
@@ -521,6 +525,29 @@ export function LabelsQrPage() {
   }, [reload]);
 
   React.useEffect(() => {
+    const el = detailsRef.current;
+    if (!el) return;
+
+    const compute = () => {
+      const isLg = window.matchMedia?.('(min-width: 1024px)')?.matches ?? false;
+      if (!isLg) {
+        setDetailsMaxHeightPx(null);
+        return;
+      }
+
+      // Espacio disponible desde la parte superior del panel hasta el final de la ventana.
+      const rect = el.getBoundingClientRect();
+      const bottomPadding = 12;
+      const next = Math.max(240, window.innerHeight - rect.top - bottomPadding);
+      setDetailsMaxHeightPx(next);
+    };
+
+    compute();
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
+  }, [selectedId]);
+
+  React.useEffect(() => {
     setQrPreviewUrl(null);
     // UX: al cambiar de producto, mostrar previews por defecto (como en etiqueta).
     setQrPreviewOpen(true);
@@ -714,6 +741,10 @@ export function LabelsQrPage() {
       // UX: al seleccionar desde el listado, llevar al panel derecho (QR/Etiqueta).
       setQrPreviewOpen(true);
       setLabelPreviewOpen(true);
+      // En desktop, el panel derecho tiene scroll propio: lo llevamos arriba para ver QR/Etiqueta.
+      window.requestAnimationFrame(() => {
+        detailsRef.current?.scrollTo({ top: 0, behavior: 'auto' });
+      });
       // En pantallas grandes el panel es sticky y siempre visible; evitamos saltos de scroll.
       const isLg = window.matchMedia?.('(min-width: 1024px)')?.matches ?? false;
       if (!isLg) {
@@ -2054,7 +2085,13 @@ export function LabelsQrPage() {
         </div>
 
         {/* Detalle */}
-        <div ref={detailsRef} className="lg:col-span-1 self-start lg:sticky lg:top-6">
+        <div
+          ref={detailsRef}
+          className="lg:col-span-1 self-start lg:sticky lg:top-6 lg:overflow-y-auto"
+          style={
+            detailsMaxHeightPx ? { maxHeight: `${detailsMaxHeightPx}px` } : undefined
+          }
+        >
           <div className="space-y-6">
             {/* QR */}
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">

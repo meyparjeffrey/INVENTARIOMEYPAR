@@ -1502,7 +1502,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'labelsQr.qr.showPreview': 'Veure vista prèvia',
     'labelsQr.qr.loadingPreview': 'Carregant…',
     'labelsQr.qr.previewError': "No s'ha pogut carregar la vista prèvia.",
-    'labelsQr.qr.retryPreview': 'Reintentar',
+    'labelsQr.qr.retryPreview': 'Tornar-ho a provar',
     'labelsQr.qr.content': 'Contingut QR: {{content}}',
     'labelsQr.label.title': 'Etiqueta',
     'labelsQr.label.widthMm': 'Ample (mm)',
