@@ -183,16 +183,7 @@ export function ProductDetailPage() {
                 {product.code}
               </dd>
             </div>
-            {product.barcode && (
-              <div>
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Código de Barras
-                </dt>
-                <dd className="mt-1 text-sm text-gray-900 dark:text-gray-50">
-                  {product.barcode}
-                </dd>
-              </div>
-            )}
+            {/* Barcode oculto en UI de Productos */}
             {product.description && (
               <div>
                 <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">

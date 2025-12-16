@@ -316,7 +316,6 @@ export function ProductsPage() {
       const excelData = [
         {
           Código: String(product.code || ''),
-          'Código de Barras': String(product.barcode || ''),
           Nombre: String(product.name || ''),
           Descripción: String(product.description || ''),
           Categoría: String(product.category || ''),
@@ -336,7 +335,11 @@ export function ProductsPage() {
           'Cód.Provedor': String(product.supplierCode || ''),
           Almacén: (() => {
             // Obtener todos los almacenes únicos de las ubicaciones
-            if (product.locations && Array.isArray(product.locations) && product.locations.length > 0) {
+            if (
+              product.locations &&
+              Array.isArray(product.locations) &&
+              product.locations.length > 0
+            ) {
               const warehouses = new Set<string>();
               product.locations.forEach((loc) => {
                 if (loc.warehouse === 'MEYPAR') warehouses.add('MEYPAR');
@@ -356,7 +359,11 @@ export function ProductsPage() {
           })(),
           Ubicación: (() => {
             // Obtener todas las ubicaciones formateadas
-            if (product.locations && Array.isArray(product.locations) && product.locations.length > 0) {
+            if (
+              product.locations &&
+              Array.isArray(product.locations) &&
+              product.locations.length > 0
+            ) {
               const locationStrings: string[] = [];
               product.locations.forEach((loc) => {
                 if (loc.warehouse === 'MEYPAR') {
@@ -622,7 +629,11 @@ export function ProductsPage() {
       const excelData = selectedProducts.map((product) => {
         // Obtener almacenes únicos
         let warehouses = '-';
-        if (product.locations && Array.isArray(product.locations) && product.locations.length > 0) {
+        if (
+          product.locations &&
+          Array.isArray(product.locations) &&
+          product.locations.length > 0
+        ) {
           const warehouseSet = new Set<string>();
           product.locations.forEach((loc) => {
             if (loc.warehouse === 'MEYPAR') warehouseSet.add('MEYPAR');
@@ -631,12 +642,23 @@ export function ProductsPage() {
           });
           warehouses = Array.from(warehouseSet).join(', ') || '-';
         } else if (product.warehouse) {
-          warehouses = product.warehouse === 'MEYPAR' ? 'MEYPAR' : product.warehouse === 'OLIVA_TORRAS' ? 'Oliva Torras' : product.warehouse === 'FURGONETA' ? 'Furgoneta' : '-';
+          warehouses =
+            product.warehouse === 'MEYPAR'
+              ? 'MEYPAR'
+              : product.warehouse === 'OLIVA_TORRAS'
+                ? 'Oliva Torras'
+                : product.warehouse === 'FURGONETA'
+                  ? 'Furgoneta'
+                  : '-';
         }
 
         // Obtener ubicaciones formateadas
         let locations = '-';
-        if (product.locations && Array.isArray(product.locations) && product.locations.length > 0) {
+        if (
+          product.locations &&
+          Array.isArray(product.locations) &&
+          product.locations.length > 0
+        ) {
           const locationStrings: string[] = [];
           product.locations.forEach((loc) => {
             if (loc.warehouse === 'MEYPAR') {
@@ -751,7 +773,6 @@ export function ProductsPage() {
       { key: 'code', label: t('table.code'), defaultSelected: true },
       { key: 'name', label: t('table.name'), defaultSelected: true },
       { key: 'category', label: t('table.category'), defaultSelected: false },
-      { key: 'barcode', label: 'Código de Barras', defaultSelected: false },
       { key: 'stockCurrent', label: t('table.stock'), defaultSelected: true },
       { key: 'stockMin', label: t('table.min'), defaultSelected: true },
       { key: 'stockMax', label: 'Stock Máximo', defaultSelected: true },
@@ -810,7 +831,6 @@ export function ProductsPage() {
           code: (p) => p.code,
           name: (p) => p.name,
           category: (p) => p.category || '',
-          barcode: (p) => p.barcode || '',
           stockCurrent: (p) => p.stockCurrent,
           stockMin: (p) => p.stockMin,
           stockMax: (p) => p.stockMax || '',
@@ -823,7 +843,16 @@ export function ProductsPage() {
                 else if (loc.warehouse === 'OLIVA_TORRAS') warehouses.add('Oliva Torras');
                 else if (loc.warehouse === 'FURGONETA') warehouses.add('Furgoneta');
               });
-              return Array.from(warehouses).join(', ') || (p.warehouse === 'MEYPAR' ? 'MEYPAR' : p.warehouse === 'OLIVA_TORRAS' ? 'Oliva Torras' : p.warehouse === 'FURGONETA' ? 'Furgoneta' : '-');
+              return (
+                Array.from(warehouses).join(', ') ||
+                (p.warehouse === 'MEYPAR'
+                  ? 'MEYPAR'
+                  : p.warehouse === 'OLIVA_TORRAS'
+                    ? 'Oliva Torras'
+                    : p.warehouse === 'FURGONETA'
+                      ? 'Furgoneta'
+                      : '-')
+              );
             }
             // Fallback para productos antiguos
             return p.warehouse === 'MEYPAR'
@@ -1592,110 +1621,110 @@ export function ProductsPage() {
 
       {/* Paginación - SIEMPRE visible */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              {t('pagination.showing')} {(currentPage - 1) * pagination.pageSize + 1} -{' '}
-              {Math.min(currentPage * pagination.pageSize, pagination.total)}{' '}
-              {t('pagination.of')} {pagination.total} {t('products.title').toLowerCase()}
-            </p>
-            <div className="flex items-center gap-2">
-              <label className="text-sm text-gray-600 dark:text-gray-400">
-                {t('pagination.itemsPerPage') || 'Por página:'}
-              </label>
-              <select
-                value={pageSize}
-                onChange={async (e) => {
-                  const newSize = parseInt(e.target.value, 10);
-                  setPageSize(newSize);
-                  setCurrentPage(1);
-
-                  // Guardar automáticamente en la configuración del usuario
-                  if (authContext?.profile?.id) {
-                    try {
-                      await userRepository.updateSettings(authContext.profile.id, {
-                        itemsPerPage: newSize,
-                      });
-                      // Refrescar el contexto para que se actualice en toda la app
-                      await refreshContext();
-                    } catch (error) {
-                      // eslint-disable-next-line no-console
-                      console.error('Error al guardar elementos por página:', error);
-                    }
-                  }
-                }}
-                className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-              >
-                {PAGE_SIZE_OPTIONS.map((size) => (
-                  <option key={size} value={size}>
-                    {size}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
+        <div className="flex items-center gap-4">
+          <p className="text-sm text-gray-500 dark:text-gray-400">
+            {t('pagination.showing')} {(currentPage - 1) * pagination.pageSize + 1} -{' '}
+            {Math.min(currentPage * pagination.pageSize, pagination.total)}{' '}
+            {t('pagination.of')} {pagination.total} {t('products.title').toLowerCase()}
+          </p>
           <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage(1)}
-              title={t('pagination.first') || 'Primera página'}
-            >
-              ««
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={currentPage === 1}
-              onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-            >
-              {t('pagination.previous')}
-            </Button>
-            <div className="flex items-center gap-1">
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                {t('pagination.page') || 'Página'}
-              </span>
-              <Input
-                type="number"
-                min={1}
-                max={Math.ceil(pagination.total / pagination.pageSize)}
-                value={currentPage}
-                onChange={(e) => {
-                  const page = parseInt(e.target.value, 10);
-                  if (
-                    page >= 1 &&
-                    page <= Math.ceil(pagination.total / pagination.pageSize)
-                  ) {
-                    setCurrentPage(page);
+            <label className="text-sm text-gray-600 dark:text-gray-400">
+              {t('pagination.itemsPerPage') || 'Por página:'}
+            </label>
+            <select
+              value={pageSize}
+              onChange={async (e) => {
+                const newSize = parseInt(e.target.value, 10);
+                setPageSize(newSize);
+                setCurrentPage(1);
+
+                // Guardar automáticamente en la configuración del usuario
+                if (authContext?.profile?.id) {
+                  try {
+                    await userRepository.updateSettings(authContext.profile.id, {
+                      itemsPerPage: newSize,
+                    });
+                    // Refrescar el contexto para que se actualice en toda la app
+                    await refreshContext();
+                  } catch (error) {
+                    // eslint-disable-next-line no-console
+                    console.error('Error al guardar elementos por página:', error);
                   }
-                }}
-                className="w-16 text-center"
-              />
-              <span className="text-sm text-gray-600 dark:text-gray-400">
-                / {Math.ceil(pagination.total / pagination.pageSize)}
-              </span>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={currentPage * pagination.pageSize >= pagination.total}
-              onClick={() => setCurrentPage((prev) => prev + 1)}
+                }
+              }}
+              className="rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm text-gray-900 focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
             >
-              {t('pagination.next')}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={currentPage * pagination.pageSize >= pagination.total}
-              onClick={() =>
-                setCurrentPage(Math.ceil(pagination.total / pagination.pageSize))
-              }
-              title={t('pagination.last') || 'Última página'}
-            >
-              »»
-            </Button>
+              {PAGE_SIZE_OPTIONS.map((size) => (
+                <option key={size} value={size}>
+                  {size}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage(1)}
+            title={t('pagination.first') || 'Primera página'}
+          >
+            ««
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+          >
+            {t('pagination.previous')}
+          </Button>
+          <div className="flex items-center gap-1">
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              {t('pagination.page') || 'Página'}
+            </span>
+            <Input
+              type="number"
+              min={1}
+              max={Math.ceil(pagination.total / pagination.pageSize)}
+              value={currentPage}
+              onChange={(e) => {
+                const page = parseInt(e.target.value, 10);
+                if (
+                  page >= 1 &&
+                  page <= Math.ceil(pagination.total / pagination.pageSize)
+                ) {
+                  setCurrentPage(page);
+                }
+              }}
+              className="w-16 text-center"
+            />
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              / {Math.ceil(pagination.total / pagination.pageSize)}
+            </span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage * pagination.pageSize >= pagination.total}
+            onClick={() => setCurrentPage((prev) => prev + 1)}
+          >
+            {t('pagination.next')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage * pagination.pageSize >= pagination.total}
+            onClick={() =>
+              setCurrentPage(Math.ceil(pagination.total / pagination.pageSize))
+            }
+            title={t('pagination.last') || 'Última página'}
+          >
+            »»
+          </Button>
+        </div>
+      </div>
 
       {/* Modal de exportación */}
       <ExportDialog

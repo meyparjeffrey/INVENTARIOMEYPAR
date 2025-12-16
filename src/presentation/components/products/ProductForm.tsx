@@ -950,16 +950,7 @@ export function ProductForm({
               />
             </FieldWrapper>
 
-            <FieldWrapper error={errors.barcode} touched={touchedFields.has('barcode')}>
-              <Label htmlFor="barcode">{t('form.barcode')}</Label>
-              <Input
-                id="barcode"
-                value={formData.barcode}
-                onChange={(e) => handleChange('barcode', e.target.value)}
-                onBlur={() => handleBlur('barcode')}
-                className="transition-all duration-200 focus:border-blue-500 focus:ring-blue-500"
-              />
-            </FieldWrapper>
+            {/* Barcode oculto en UI de Productos (se gestiona desde Etiquetas QR / integraciones). */}
           </div>
 
           <FieldWrapper error={errors.batchCode} touched={touchedFields.has('batchCode')}>
