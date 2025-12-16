@@ -25,6 +25,7 @@ export function parseScannedValue(raw: string): {
   // Evitar problemas por saltos de línea/tabulaciones y marcas de dirección (a veces añadidas por algunos lectores).
   // OJO: no eliminamos otros separadores de control (p.ej. GS \u001d) porque pueden ser relevantes.
   const printable = cleaned
+    .replace(/^\uFEFF/, '') // BOM
     .replace(/[\r\n\t]/g, '')
     .replace(/[\u200E\u200F\u202A-\u202E\u2066-\u2069]/g, '')
     .trim();
