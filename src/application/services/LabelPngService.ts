@@ -3,7 +3,7 @@ import type { Product } from '@domain/entities';
 export type LabelConfig = {
   widthMm: number;
   heightMm: number;
-  dpi: 203 | 300;
+  dpi: 203 | 300 | 600;
   showQr: boolean;
   showCode: boolean;
   showBarcode: boolean;

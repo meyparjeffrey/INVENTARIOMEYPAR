@@ -30,11 +30,16 @@ import { cn } from '../lib/cn';
 
 type BulkZipMode = 'qr' | 'labels' | 'both';
 
-type PngQuality = 'default' | 'better' | 'max';
+type PngQuality = 'auto' | 'default' | 'better' | 'max';
 
-function qualityScale(q: PngQuality): number {
+function qualityScale(q: PngQuality, dpi: number): number {
   if (q === 'better') return 2;
   if (q === 'max') return 3;
+  if (q === 'auto') {
+    // Pro (auto): mejora en 203dpi, normal en 300/600dpi
+    if (dpi <= 203) return 2;
+    return 1;
+  }
   return 1;
 }
 
@@ -173,6 +178,15 @@ export function LabelsQrPage() {
     [products, selectedId],
   );
 
+  // Reset etiqueta UI al cambiar de producto seleccionado
+  React.useEffect(() => {
+    setLabelEnabled(false);
+    setLabelPreviewOpen(true);
+    setLabelDialogOpen(false);
+    setLabelDialogConfig(null);
+    setLabelDialogQrDataUrl(null);
+  }, [selectedId]);
+
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set());
   const [bulkZipMode, setBulkZipMode] = React.useState<BulkZipMode>('both');
   const [bulkDownloading, setBulkDownloading] = React.useState(false);
@@ -182,7 +196,7 @@ export function LabelsQrPage() {
   } | null>(null);
   const [bulkZipDialogOpen, setBulkZipDialogOpen] = React.useState(false);
   const [bulkLabelConfig, setBulkLabelConfig] = React.useState<LabelConfig | null>(null);
-  const [bulkLabelQuality, setBulkLabelQuality] = React.useState<PngQuality>('default');
+  const [bulkLabelQuality, setBulkLabelQuality] = React.useState<PngQuality>('auto');
   const [bulkPreviewQrDataUrl, setBulkPreviewQrDataUrl] = React.useState<string | null>(
     null,
   );
@@ -225,7 +239,17 @@ export function LabelsQrPage() {
 
   const labelRef = React.useRef<HTMLDivElement>(null);
 
-  const [labelQuality, setLabelQuality] = React.useState<PngQuality>('default');
+  const [labelQuality, setLabelQuality] = React.useState<PngQuality>('auto');
+  const [labelEnabled, setLabelEnabled] = React.useState(false);
+  const [labelPreviewOpen, setLabelPreviewOpen] = React.useState(true);
+  const [labelDialogOpen, setLabelDialogOpen] = React.useState(false);
+  const [labelDialogConfig, setLabelDialogConfig] = React.useState<LabelConfig | null>(
+    null,
+  );
+  const [labelDialogQuality, setLabelDialogQuality] = React.useState<PngQuality>('auto');
+  const [labelDialogQrDataUrl, setLabelDialogQrDataUrl] = React.useState<string | null>(
+    null,
+  );
 
   const bulkPreviewProduct = React.useMemo(() => {
     if (selectedProduct && selectedIds.has(selectedProduct.id)) return selectedProduct;
@@ -250,7 +274,7 @@ export function LabelsQrPage() {
         return;
       }
       try {
-        const scale = qualityScale(bulkLabelQuality);
+        const scale = qualityScale(bulkLabelQuality, bulkLabelConfig?.dpi ?? 203);
         const url = await QRCode.toDataURL(barcode, {
           type: 'image/png',
           width: 512 * scale,
@@ -268,7 +292,60 @@ export function LabelsQrPage() {
     return () => {
       cancelled = true;
     };
-  }, [bulkZipDialogOpen, bulkZipMode, bulkPreviewProduct?.barcode, bulkLabelQuality]);
+  }, [
+    bulkZipDialogOpen,
+    bulkZipMode,
+    bulkPreviewProduct?.barcode,
+    bulkLabelQuality,
+    bulkLabelConfig?.dpi,
+  ]);
+
+  // QR dataURL para el preview dentro del diálogo de etiqueta (individual)
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!labelDialogOpen) {
+        setLabelDialogQrDataUrl(null);
+        return;
+      }
+      const cfg = labelDialogConfig ?? labelConfig;
+      const barcode = (selectedProduct?.barcode ?? '').trim();
+      if (!barcode || !cfg.showQr) {
+        setLabelDialogQrDataUrl(null);
+        return;
+      }
+
+      try {
+        const scale = qualityScale(labelDialogQuality, cfg.dpi);
+        const url = await QRCode.toDataURL(barcode, {
+          type: 'image/png',
+          width: 512 * scale,
+          margin: 4,
+          errorCorrectionLevel: 'M',
+          color: { dark: '#000000', light: '#FFFFFF' },
+        });
+        if (!cancelled) setLabelDialogQrDataUrl(url);
+      } catch {
+        if (!cancelled) setLabelDialogQrDataUrl(null);
+      }
+    };
+
+    run();
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    labelDialogOpen,
+    labelDialogQuality,
+    labelDialogConfig,
+    labelDialogConfig?.dpi,
+    labelDialogConfig?.showQr,
+    selectedProduct?.barcode,
+    labelConfig,
+    labelConfig.dpi,
+    labelConfig.showQr,
+  ]);
 
   const selectedAsset = selectedProduct
     ? (assetsByProductId.get(selectedProduct.id) ?? null)
@@ -382,7 +459,7 @@ export function LabelsQrPage() {
       }
 
       try {
-        const scale = qualityScale(labelQuality);
+        const scale = qualityScale(labelQuality, labelConfig.dpi);
         const dataUrl = await QRCode.toDataURL(barcode, {
           type: 'image/png',
           width: 512 * scale,
@@ -400,7 +477,7 @@ export function LabelsQrPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedProduct?.barcode, labelQuality]);
+  }, [selectedProduct?.barcode, labelQuality, labelConfig.dpi]);
 
   const selectedLocation = React.useMemo(() => {
     if (selectedLocationId === 'legacy') return null;
@@ -598,7 +675,7 @@ export function LabelsQrPage() {
     if (!labelRef.current) return;
 
     try {
-      const scale = qualityScale(labelQuality);
+      const scale = qualityScale(labelQuality, labelConfig.dpi);
       const dataUrl = await toPng(labelRef.current, {
         cacheBust: true,
         pixelRatio: scale,
@@ -623,19 +700,6 @@ export function LabelsQrPage() {
   const pxOff = React.useCallback(
     (mm: number) => mmToPx(mm, labelConfig.dpi),
     [labelConfig.dpi],
-  );
-
-  const updateOffset = React.useCallback(
-    (key: keyof LabelConfig['offsetsMm'], axis: 'x' | 'y', value: number) => {
-      setLabelConfig((p) => ({
-        ...p,
-        offsetsMm: {
-          ...p.offsetsMm,
-          [key]: { ...p.offsetsMm[key], [axis]: value },
-        },
-      }));
-    },
-    [],
   );
 
   const locationText = React.useMemo(() => {
@@ -801,12 +865,13 @@ export function LabelsQrPage() {
                     value={bulkLabelConfig.dpi}
                     onChange={(e) =>
                       setBulkLabelConfig((p) =>
-                        p ? { ...p, dpi: Number(e.target.value) as 203 | 300 } : p,
+                        p ? { ...p, dpi: Number(e.target.value) as 203 | 300 | 600 } : p,
                       )
                     }
                   >
                     <option value={203}>203</option>
                     <option value={300}>300</option>
+                    <option value={600}>600</option>
                   </select>
                 </div>
                 <div>
@@ -960,6 +1025,9 @@ export function LabelsQrPage() {
                     value={bulkLabelQuality}
                     onChange={(e) => setBulkLabelQuality(e.target.value as PngQuality)}
                   >
+                    <option value="auto">
+                      {tt(t, 'labelsQr.quality.auto', 'Auto (recomendado)')}
+                    </option>
                     <option value="default">
                       {tt(t, 'labelsQr.quality.default', 'Por defecto (x1)')}
                     </option>
@@ -1221,7 +1289,7 @@ export function LabelsQrPage() {
                   const labelCfg = bulkLabelConfig ?? labelConfig;
                   const widthPx = mmToPx(labelCfg.widthMm, labelCfg.dpi);
                   const heightPx = mmToPx(labelCfg.heightMm, labelCfg.dpi);
-                  const labelScale = qualityScale(bulkLabelQuality);
+                  const labelScale = qualityScale(bulkLabelQuality, labelCfg.dpi);
 
                   const folderQr = bulkZipMode === 'both' ? zip.folder('qr') : zip;
                   const folderLabels =
@@ -1615,420 +1683,229 @@ export function LabelsQrPage() {
                 <p className="text-sm text-gray-600 dark:text-gray-400">—</p>
               ) : (
                 <div className="space-y-4">
-                  {productLocations.length > 1 && (
-                    <div>
-                      <label className="text-xs text-gray-500 dark:text-gray-400">
-                        {tt(t, 'labelsQr.label.locationToPrint', 'Ubicación a imprimir')}
-                      </label>
-                      <select
-                        className="mt-1 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-                        value={selectedLocationId}
-                        onChange={(e) => setSelectedLocationId(e.target.value)}
-                      >
-                        {productLocations.map((loc) => (
-                          <option key={loc.id} value={loc.id}>
-                            {loc.warehouse}: {loc.aisle}-{loc.shelf}
-                            {loc.isPrimary
-                              ? tt(t, 'labelsQr.location.primarySuffix', ' (principal)')
-                              : ''}
-                          </option>
-                        ))}
-                      </select>
-                      <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                        {tt(
-                          t,
-                          'labelsQr.label.locationHelp',
-                          'Si un producto tiene varias ubicaciones, elige cuál imprimir en la etiqueta.',
-                        )}
-                      </p>
-                    </div>
-                  )}
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-gray-500 dark:text-gray-400">
-                        {tt(t, 'labelsQr.label.widthMm', 'Ancho (mm)')}
-                      </label>
-                      <Input
-                        type="number"
-                        value={labelConfig.widthMm}
-                        onChange={(e) =>
-                          setLabelConfig((p) => ({
-                            ...p,
-                            widthMm: Number(e.target.value),
-                          }))
-                        }
-                        min={10}
-                        step={1}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 dark:text-gray-400">
-                        {tt(t, 'labelsQr.label.heightMm', 'Alto (mm)')}
-                      </label>
-                      <Input
-                        type="number"
-                        value={labelConfig.heightMm}
-                        onChange={(e) =>
-                          setLabelConfig((p) => ({
-                            ...p,
-                            heightMm: Number(e.target.value),
-                          }))
-                        }
-                        min={10}
-                        step={1}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 dark:text-gray-400">
-                        {tt(t, 'labelsQr.label.dpi', 'DPI')}
-                      </label>
-                      <select
-                        className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-                        value={labelConfig.dpi}
-                        onChange={(e) =>
-                          setLabelConfig((p) => ({
-                            ...p,
-                            dpi: Number(e.target.value) as 203 | 300,
-                          }))
-                        }
-                      >
-                        <option value={203}>203</option>
-                        <option value={300}>300</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 dark:text-gray-400">
-                        {tt(t, 'labelsQr.label.qrMm', 'QR (mm)')}
-                      </label>
-                      <Input
-                        type="number"
-                        value={labelConfig.qrSizeMm}
-                        onChange={(e) =>
-                          setLabelConfig((p) => ({
-                            ...p,
-                            qrSizeMm: Number(e.target.value),
-                          }))
-                        }
-                        min={6}
-                        step={1}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="text-xs text-gray-500 dark:text-gray-400">
-                        {tt(t, 'labelsQr.quality.label', 'Calidad PNG')}
-                      </label>
-                      <select
-                        className="mt-1 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
-                        value={labelQuality}
-                        onChange={(e) => setLabelQuality(e.target.value as PngQuality)}
-                      >
-                        <option value="default">
-                          {tt(t, 'labelsQr.quality.default', 'Por defecto (x1)')}
-                        </option>
-                        <option value="better">
-                          {tt(t, 'labelsQr.quality.better', 'Mejor calidad (x2)')}
-                        </option>
-                        <option value="max">
-                          {tt(t, 'labelsQr.quality.max', 'Máxima calidad (x3)')}
-                        </option>
-                      </select>
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      <div className="mt-6">
-                        {tt(
-                          t,
-                          'labelsQr.quality.hint',
-                          'Afecta a la resolución del PNG (recomendado para impresión).',
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 text-sm">
-                    {(
-                      [
-                        ['showQr', tt(t, 'labelsQr.toggles.qr', 'QR')],
-                        ['showCode', tt(t, 'labelsQr.toggles.code', 'Código')],
-                        ['showBarcode', tt(t, 'labelsQr.toggles.barcode', 'Barcode')],
-                        ['showName', tt(t, 'labelsQr.toggles.name', 'Nombre')],
-                        ['showLocation', tt(t, 'labelsQr.toggles.location', 'Ubicación')],
-                        ['showWarehouse', tt(t, 'labelsQr.toggles.warehouse', 'Almacén')],
-                      ] as const
-                    ).map(([key, label]) => (
-                      <label
-                        key={key}
-                        className="flex items-center gap-2 text-gray-700 dark:text-gray-200"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={labelConfig[key]}
-                          onChange={(e) =>
-                            setLabelConfig((p) => ({ ...p, [key]: e.target.checked }))
-                          }
-                        />
-                        {label}
-                      </label>
-                    ))}
-                  </div>
-
-                  {(labelConfig.showQr ||
-                    labelConfig.showCode ||
-                    labelConfig.showBarcode ||
-                    labelConfig.showLocation ||
-                    labelConfig.showWarehouse ||
-                    labelConfig.showName) && (
-                    <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-                      <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
-                        {tt(t, 'labelsQr.position.title', 'Posición (mm)')}
-                      </div>
-                      <div className="grid grid-cols-1 gap-3 text-sm">
-                        {(
-                          [
-                            ['qr', tt(t, 'labelsQr.toggles.qr', 'QR')],
-                            ['code', tt(t, 'labelsQr.toggles.code', 'Código')],
-                            ['barcode', tt(t, 'labelsQr.toggles.barcode', 'Barcode')],
-                            ['location', tt(t, 'labelsQr.toggles.location', 'Ubicación')],
-                            ['warehouse', tt(t, 'labelsQr.toggles.warehouse', 'Almacén')],
-                            ['name', tt(t, 'labelsQr.toggles.name', 'Nombre')],
-                          ] as const
-                        )
-                          .filter(([key]) => {
-                            if (key === 'qr') return labelConfig.showQr;
-                            if (key === 'code') return labelConfig.showCode;
-                            if (key === 'barcode') return labelConfig.showBarcode;
-                            if (key === 'location') return labelConfig.showLocation;
-                            if (key === 'warehouse') return labelConfig.showWarehouse;
-                            if (key === 'name') return labelConfig.showName;
-                            return false;
-                          })
-                          .map(([key, label]) => (
-                            <div
-                              key={key}
-                              className="grid grid-cols-[1fr,1fr,1fr] items-center gap-2"
-                            >
-                              <div className="text-gray-700 dark:text-gray-200">
-                                {label}
-                              </div>
-                              <div>
-                                <label className="text-xs text-gray-500 dark:text-gray-400">
-                                  {tt(t, 'labelsQr.position.x', 'X')}
-                                </label>
-                                <Input
-                                  type="number"
-                                  step={0.5}
-                                  value={labelConfig.offsetsMm[key].x}
-                                  onChange={(e) =>
-                                    updateOffset(key, 'x', Number(e.target.value))
-                                  }
-                                />
-                              </div>
-                              <div>
-                                <label className="text-xs text-gray-500 dark:text-gray-400">
-                                  {tt(t, 'labelsQr.position.y', 'Y')}
-                                </label>
-                                <Input
-                                  type="number"
-                                  step={0.5}
-                                  value={labelConfig.offsetsMm[key].y}
-                                  onChange={(e) =>
-                                    updateOffset(key, 'y', Number(e.target.value))
-                                  }
-                                />
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
-                    <div className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                      {tt(t, 'labelsQr.label.preview', 'Preview')} ({labelConfig.widthMm}×
-                      {labelConfig.heightMm}mm @ {labelConfig.dpi}dpi)
-                    </div>
-                    <div className="overflow-auto">
-                      <div
-                        ref={labelRef}
-                        style={{
-                          width: `${labelWidthPx}px`,
-                          height: `${labelHeightPx}px`,
-                          background: '#ffffff',
-                          color: '#000000',
-                          position: 'relative',
-                          boxSizing: 'border-box',
-                          overflow: 'hidden',
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!labelEnabled ? (
+                      <Button
+                        variant="secondary"
+                        onClick={() => {
+                          setLabelDialogConfig(labelConfig);
+                          setLabelDialogQuality(labelQuality);
+                          setLabelDialogOpen(true);
                         }}
                       >
-                        {/* QR */}
-                        {labelConfig.showQr && (selectedProduct.barcode ?? '').trim() && (
-                          <div
-                            style={{
-                              position: 'absolute',
-                              left: `${paddingPx + pxOff(labelConfig.offsetsMm.qr.x)}px`,
-                              top: `${paddingPx + pxOff(labelConfig.offsetsMm.qr.y)}px`,
-                              width: `${qrSizePx}px`,
-                              height: `${qrSizePx}px`,
-                              background: '#ffffff',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
-                            {/* Para el preview/PNG usamos un dataURL local (evita problemas CORS al exportar). */}
-                            {labelQrDataUrl ? (
-                              <img
-                                src={labelQrDataUrl}
-                                alt="QR"
-                                style={{ width: '100%', height: '100%' }}
-                              />
-                            ) : (
+                        <Tag className="mr-2 h-4 w-4" />
+                        {tt(t, 'labelsQr.label.create', 'Crear etiqueta')}
+                      </Button>
+                    ) : (
+                      <>
+                        <Button onClick={handleDownloadLabelPng} variant="secondary">
+                          <Download className="mr-2 h-4 w-4" />
+                          {tt(t, 'labelsQr.label.downloadPng', 'Descargar etiqueta PNG')}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => {
+                            setLabelDialogConfig(labelConfig);
+                            setLabelDialogQuality(labelQuality);
+                            setLabelDialogOpen(true);
+                          }}
+                        >
+                          {tt(t, 'labelsQr.label.edit', 'Modificar')}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => setLabelPreviewOpen((p) => !p)}
+                        >
+                          {labelPreviewOpen
+                            ? tt(t, 'labelsQr.label.hidePreview', 'Ocultar vista previa')
+                            : tt(t, 'labelsQr.label.showPreview', 'Ver vista previa')}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+
+                  {labelEnabled && labelPreviewOpen && (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
+                      <div className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                        {tt(t, 'labelsQr.label.preview', 'Preview')} (
+                        {labelConfig.widthMm}×{labelConfig.heightMm}mm @ {labelConfig.dpi}
+                        dpi)
+                      </div>
+                      <div className="overflow-auto">
+                        <div
+                          ref={labelRef}
+                          style={{
+                            width: `${labelWidthPx}px`,
+                            height: `${labelHeightPx}px`,
+                            background: '#ffffff',
+                            color: '#000000',
+                            position: 'relative',
+                            boxSizing: 'border-box',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {/* QR */}
+                          {labelConfig.showQr &&
+                            (selectedProduct.barcode ?? '').trim() && (
                               <div
                                 style={{
-                                  width: '100%',
-                                  height: '100%',
-                                  border: '1px solid #eee',
+                                  position: 'absolute',
+                                  left: `${paddingPx + pxOff(labelConfig.offsetsMm.qr.x)}px`,
+                                  top: `${paddingPx + pxOff(labelConfig.offsetsMm.qr.y)}px`,
+                                  width: `${qrSizePx}px`,
+                                  height: `${qrSizePx}px`,
+                                  background: '#ffffff',
                                   display: 'flex',
                                   alignItems: 'center',
                                   justifyContent: 'center',
-                                  fontSize: 10,
                                 }}
                               >
-                                QR
+                                {labelQrDataUrl ? (
+                                  <img
+                                    src={labelQrDataUrl}
+                                    alt="QR"
+                                    style={{ width: '100%', height: '100%' }}
+                                  />
+                                ) : (
+                                  <div
+                                    style={{
+                                      width: '100%',
+                                      height: '100%',
+                                      border: '1px solid #eee',
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      justifyContent: 'center',
+                                      fontSize: 10,
+                                    }}
+                                  >
+                                    QR
+                                  </div>
+                                )}
                               </div>
                             )}
-                          </div>
-                        )}
 
-                        {(() => {
-                          const rightX =
-                            paddingPx + (labelConfig.showQr ? qrSizePx + paddingPx : 0);
-                          const lineH = Math.max(10, labelConfig.nameFontPx);
+                          {(() => {
+                            const rightX =
+                              paddingPx + (labelConfig.showQr ? qrSizePx + paddingPx : 0);
+                            const lineH = Math.max(10, labelConfig.nameFontPx);
 
-                          const xCode = rightX + pxOff(labelConfig.offsetsMm.code.x);
-                          const yCode = paddingPx + pxOff(labelConfig.offsetsMm.code.y);
+                            const xCode = rightX + pxOff(labelConfig.offsetsMm.code.x);
+                            const yCode = paddingPx + pxOff(labelConfig.offsetsMm.code.y);
 
-                          const xBarcode =
-                            rightX + pxOff(labelConfig.offsetsMm.barcode.x);
-                          const yBarcode =
-                            paddingPx +
-                            labelConfig.codeFontPx +
-                            2 +
-                            pxOff(labelConfig.offsetsMm.barcode.y);
+                            const xBarcode =
+                              rightX + pxOff(labelConfig.offsetsMm.barcode.x);
+                            const yBarcode =
+                              paddingPx +
+                              labelConfig.codeFontPx +
+                              2 +
+                              pxOff(labelConfig.offsetsMm.barcode.y);
 
-                          const xLocation =
-                            rightX + pxOff(labelConfig.offsetsMm.location.x);
-                          const yLocation =
-                            paddingPx +
-                            labelConfig.codeFontPx +
-                            2 +
-                            lineH +
-                            pxOff(labelConfig.offsetsMm.location.y);
+                            const xLocation =
+                              rightX + pxOff(labelConfig.offsetsMm.location.x);
+                            const yLocation =
+                              paddingPx +
+                              labelConfig.codeFontPx +
+                              2 +
+                              lineH +
+                              pxOff(labelConfig.offsetsMm.location.y);
 
-                          const xWarehouse =
-                            rightX + pxOff(labelConfig.offsetsMm.warehouse.x);
-                          const yWarehouse =
-                            paddingPx +
-                            labelConfig.codeFontPx +
-                            2 +
-                            lineH +
-                            lineH +
-                            pxOff(labelConfig.offsetsMm.warehouse.y);
+                            const xWarehouse =
+                              rightX + pxOff(labelConfig.offsetsMm.warehouse.x);
+                            const yWarehouse =
+                              paddingPx +
+                              labelConfig.codeFontPx +
+                              2 +
+                              lineH +
+                              lineH +
+                              pxOff(labelConfig.offsetsMm.warehouse.y);
 
-                          const xName = rightX + pxOff(labelConfig.offsetsMm.name.x);
-                          const yName =
-                            labelHeightPx -
-                            paddingPx -
-                            labelConfig.nameFontPx +
-                            pxOff(labelConfig.offsetsMm.name.y);
+                            const xName = rightX + pxOff(labelConfig.offsetsMm.name.x);
+                            const yName =
+                              labelHeightPx -
+                              paddingPx -
+                              labelConfig.nameFontPx +
+                              pxOff(labelConfig.offsetsMm.name.y);
 
-                          return (
-                            <>
-                              {labelConfig.showCode && (
-                                <div
-                                  style={{
-                                    position: 'absolute',
-                                    left: `${xCode}px`,
-                                    top: `${yCode}px`,
-                                    right: `${paddingPx}px`,
-                                    fontSize: labelConfig.codeFontPx,
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  {selectedProduct.code}
-                                </div>
-                              )}
+                            return (
+                              <>
+                                {labelConfig.showCode && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: `${xCode}px`,
+                                      top: `${yCode}px`,
+                                      right: `${paddingPx}px`,
+                                      fontSize: labelConfig.codeFontPx,
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {selectedProduct.code}
+                                  </div>
+                                )}
 
-                              {labelConfig.showBarcode && (
-                                <div
-                                  style={{
-                                    position: 'absolute',
-                                    left: `${xBarcode}px`,
-                                    top: `${yBarcode}px`,
-                                    right: `${paddingPx}px`,
-                                    fontSize: labelConfig.codeFontPx,
-                                  }}
-                                >
-                                  {selectedProduct.barcode ?? ''}
-                                </div>
-                              )}
+                                {labelConfig.showBarcode && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: `${xBarcode}px`,
+                                      top: `${yBarcode}px`,
+                                      right: `${paddingPx}px`,
+                                      fontSize: labelConfig.codeFontPx,
+                                    }}
+                                  >
+                                    {selectedProduct.barcode ?? ''}
+                                  </div>
+                                )}
 
-                              {labelConfig.showLocation && (
-                                <div
-                                  style={{
-                                    position: 'absolute',
-                                    left: `${xLocation}px`,
-                                    top: `${yLocation}px`,
-                                    right: `${paddingPx}px`,
-                                    fontSize: Math.max(9, labelConfig.nameFontPx - 1),
-                                  }}
-                                >
-                                  {locationText}
-                                </div>
-                              )}
+                                {labelConfig.showLocation && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: `${xLocation}px`,
+                                      top: `${yLocation}px`,
+                                      right: `${paddingPx}px`,
+                                      fontSize: Math.max(9, labelConfig.nameFontPx - 1),
+                                    }}
+                                  >
+                                    {locationText}
+                                  </div>
+                                )}
 
-                              {labelConfig.showWarehouse && warehouseText && (
-                                <div
-                                  style={{
-                                    position: 'absolute',
-                                    left: `${xWarehouse}px`,
-                                    top: `${yWarehouse}px`,
-                                    right: `${paddingPx}px`,
-                                    fontSize: Math.max(9, labelConfig.nameFontPx - 1),
-                                  }}
-                                >
-                                  {warehouseText}
-                                </div>
-                              )}
+                                {labelConfig.showWarehouse && warehouseText && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: `${xWarehouse}px`,
+                                      top: `${yWarehouse}px`,
+                                      right: `${paddingPx}px`,
+                                      fontSize: Math.max(9, labelConfig.nameFontPx - 1),
+                                    }}
+                                  >
+                                    {warehouseText}
+                                  </div>
+                                )}
 
-                              {labelConfig.showName && (
-                                <div
-                                  style={{
-                                    position: 'absolute',
-                                    left: `${xName}px`,
-                                    top: `${yName}px`,
-                                    right: `${paddingPx}px`,
-                                    fontSize: labelConfig.nameFontPx,
-                                    fontWeight: 600,
-                                  }}
-                                >
-                                  {selectedProduct.name}
-                                </div>
-                              )}
-                            </>
-                          );
-                        })()}
+                                {labelConfig.showName && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: `${xName}px`,
+                                      top: `${yName}px`,
+                                      right: `${paddingPx}px`,
+                                      fontSize: labelConfig.nameFontPx,
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {selectedProduct.name}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
                       </div>
                     </div>
-                  </div>
-
-                  <Button onClick={handleDownloadLabelPng} variant="secondary">
-                    <Download className="mr-2 h-4 w-4" />
-                    {tt(t, 'labelsQr.label.downloadPng', 'Descargar etiqueta PNG')}
-                  </Button>
+                  )}
                 </div>
               )}
             </div>
@@ -2053,6 +1930,485 @@ export function LabelsQrPage() {
         cancelText={tt(t, 'labelsQr.confirmReplaceQr.cancel', 'Cancelar')}
         variant="destructive"
       />
+
+      {/* Diálogo de edición de etiqueta (individual) */}
+      <Dialog
+        isOpen={labelDialogOpen}
+        onClose={() => setLabelDialogOpen(false)}
+        title={tt(t, 'labelsQr.labelDialog.title', 'Configurar etiqueta')}
+        size="lg"
+      >
+        <div className="space-y-4">
+          {selectedProduct && (
+            <>
+              {productLocations.length > 1 && (
+                <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                  <label className="text-xs text-gray-500 dark:text-gray-400">
+                    {tt(t, 'labelsQr.label.locationToPrint', 'Ubicación a imprimir')}
+                  </label>
+                  <select
+                    className="mt-1 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                    value={selectedLocationId}
+                    onChange={(e) => setSelectedLocationId(e.target.value)}
+                  >
+                    {productLocations.map((loc) => (
+                      <option key={loc.id} value={loc.id}>
+                        {loc.warehouse}: {loc.aisle}-{loc.shelf}
+                        {loc.isPrimary
+                          ? tt(t, 'labelsQr.location.primarySuffix', ' (principal)')
+                          : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                <div className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                  {tt(t, 'labelsQr.labelDialog.section.config', 'Configuración')}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-gray-400">
+                      {tt(t, 'labelsQr.label.widthMm', 'Ancho (mm)')}
+                    </label>
+                    <Input
+                      type="number"
+                      min={10}
+                      step={1}
+                      value={(labelDialogConfig ?? labelConfig).widthMm}
+                      onChange={(e) =>
+                        setLabelDialogConfig((p) => ({
+                          ...(p ?? labelConfig),
+                          widthMm: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-gray-400">
+                      {tt(t, 'labelsQr.label.heightMm', 'Alto (mm)')}
+                    </label>
+                    <Input
+                      type="number"
+                      min={10}
+                      step={1}
+                      value={(labelDialogConfig ?? labelConfig).heightMm}
+                      onChange={(e) =>
+                        setLabelDialogConfig((p) => ({
+                          ...(p ?? labelConfig),
+                          heightMm: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-gray-400">
+                      {tt(t, 'labelsQr.label.dpi', 'DPI')}
+                    </label>
+                    <select
+                      className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                      value={(labelDialogConfig ?? labelConfig).dpi}
+                      onChange={(e) =>
+                        setLabelDialogConfig((p) => ({
+                          ...(p ?? labelConfig),
+                          dpi: Number(e.target.value) as 203 | 300 | 600,
+                        }))
+                      }
+                    >
+                      <option value={203}>203</option>
+                      <option value={300}>300</option>
+                      <option value={600}>600</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-gray-400">
+                      {tt(t, 'labelsQr.label.qrMm', 'QR (mm)')}
+                    </label>
+                    <Input
+                      type="number"
+                      min={6}
+                      step={1}
+                      value={(labelDialogConfig ?? labelConfig).qrSizeMm}
+                      onChange={(e) =>
+                        setLabelDialogConfig((p) => ({
+                          ...(p ?? labelConfig),
+                          qrSizeMm: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-gray-400">
+                      {tt(t, 'labelsQr.quality.label', 'Calidad PNG')}
+                    </label>
+                    <select
+                      className="mt-1 h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                      value={labelDialogQuality}
+                      onChange={(e) =>
+                        setLabelDialogQuality(e.target.value as PngQuality)
+                      }
+                    >
+                      <option value="auto">
+                        {tt(t, 'labelsQr.quality.auto', 'Auto (recomendado)')}
+                      </option>
+                      <option value="default">
+                        {tt(t, 'labelsQr.quality.default', 'Por defecto (x1)')}
+                      </option>
+                      <option value="better">
+                        {tt(t, 'labelsQr.quality.better', 'Mejor calidad (x2)')}
+                      </option>
+                      <option value="max">
+                        {tt(t, 'labelsQr.quality.max', 'Máxima calidad (x3)')}
+                      </option>
+                    </select>
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                    <div className="mt-6">
+                      {tt(
+                        t,
+                        'labelsQr.quality.hint',
+                        'DPI define el tamaño/escala de la etiqueta. La calidad PNG aumenta la resolución del archivo (puede tardar más).',
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-2 text-sm">
+                  {(
+                    [
+                      ['showQr', tt(t, 'labelsQr.toggles.qr', 'QR')],
+                      ['showCode', tt(t, 'labelsQr.toggles.code', 'Código')],
+                      ['showBarcode', tt(t, 'labelsQr.toggles.barcode', 'Barcode')],
+                      ['showName', tt(t, 'labelsQr.toggles.name', 'Nombre')],
+                      ['showLocation', tt(t, 'labelsQr.toggles.location', 'Ubicación')],
+                      ['showWarehouse', tt(t, 'labelsQr.toggles.warehouse', 'Almacén')],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <label
+                      key={key}
+                      className="flex items-center gap-2 text-gray-700 dark:text-gray-200"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={(labelDialogConfig ?? labelConfig)[key]}
+                        onChange={(e) =>
+                          setLabelDialogConfig((p) => ({
+                            ...(p ?? labelConfig),
+                            [key]: e.target.checked,
+                          }))
+                        }
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+
+                {/* Posición solo para campos activos */}
+                {(() => {
+                  const cfg = labelDialogConfig ?? labelConfig;
+                  const any =
+                    cfg.showQr ||
+                    cfg.showCode ||
+                    cfg.showBarcode ||
+                    cfg.showLocation ||
+                    cfg.showWarehouse ||
+                    cfg.showName;
+                  if (!any) return null;
+
+                  const items = (
+                    [
+                      ['qr', tt(t, 'labelsQr.toggles.qr', 'QR')],
+                      ['code', tt(t, 'labelsQr.toggles.code', 'Código')],
+                      ['barcode', tt(t, 'labelsQr.toggles.barcode', 'Barcode')],
+                      ['location', tt(t, 'labelsQr.toggles.location', 'Ubicación')],
+                      ['warehouse', tt(t, 'labelsQr.toggles.warehouse', 'Almacén')],
+                      ['name', tt(t, 'labelsQr.toggles.name', 'Nombre')],
+                    ] as const
+                  ).filter(([k]) => {
+                    if (k === 'qr') return cfg.showQr;
+                    if (k === 'code') return cfg.showCode;
+                    if (k === 'barcode') return cfg.showBarcode;
+                    if (k === 'location') return cfg.showLocation;
+                    if (k === 'warehouse') return cfg.showWarehouse;
+                    if (k === 'name') return cfg.showName;
+                    return false;
+                  });
+
+                  return (
+                    <div className="mt-4 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                      <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                        {tt(t, 'labelsQr.position.title', 'Posición (mm)')}
+                      </div>
+                      <div className="grid grid-cols-1 gap-3 text-sm">
+                        {items.map(([key, label]) => (
+                          <div
+                            key={key}
+                            className="grid grid-cols-[1fr,1fr,1fr] items-center gap-2"
+                          >
+                            <div className="text-gray-700 dark:text-gray-200">
+                              {label}
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 dark:text-gray-400">
+                                {tt(t, 'labelsQr.position.x', 'X')}
+                              </label>
+                              <Input
+                                type="number"
+                                step={0.5}
+                                value={cfg.offsetsMm[key].x}
+                                onChange={(e) =>
+                                  setLabelDialogConfig((p) => ({
+                                    ...(p ?? labelConfig),
+                                    offsetsMm: {
+                                      ...(p ?? labelConfig).offsetsMm,
+                                      [key]: {
+                                        ...(p ?? labelConfig).offsetsMm[key],
+                                        x: Number(e.target.value),
+                                      },
+                                    },
+                                  }))
+                                }
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-gray-500 dark:text-gray-400">
+                                {tt(t, 'labelsQr.position.y', 'Y')}
+                              </label>
+                              <Input
+                                type="number"
+                                step={0.5}
+                                value={cfg.offsetsMm[key].y}
+                                onChange={(e) =>
+                                  setLabelDialogConfig((p) => ({
+                                    ...(p ?? labelConfig),
+                                    offsetsMm: {
+                                      ...(p ?? labelConfig).offsetsMm,
+                                      [key]: {
+                                        ...(p ?? labelConfig).offsetsMm[key],
+                                        y: Number(e.target.value),
+                                      },
+                                    },
+                                  }))
+                                }
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Preview dentro del diálogo */}
+                {(() => {
+                  const cfg = labelDialogConfig ?? labelConfig;
+                  const widthPx = mmToPx(cfg.widthMm, cfg.dpi);
+                  const heightPx = mmToPx(cfg.heightMm, cfg.dpi);
+                  const qrSizePx = mmToPx(cfg.qrSizeMm, cfg.dpi);
+                  const paddingPx = mmToPx(cfg.paddingMm, cfg.dpi);
+                  const pxOff = (mm: number) => mmToPx(mm, cfg.dpi);
+
+                  return (
+                    <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
+                      <div className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                        {tt(t, 'labelsQr.label.preview', 'Preview')} ({cfg.widthMm}×
+                        {cfg.heightMm}mm @ {cfg.dpi}dpi)
+                      </div>
+                      <div className="overflow-auto">
+                        <div
+                          style={{
+                            width: `${widthPx}px`,
+                            height: `${heightPx}px`,
+                            background: '#ffffff',
+                            color: '#000000',
+                            position: 'relative',
+                            boxSizing: 'border-box',
+                            overflow: 'hidden',
+                          }}
+                        >
+                          {cfg.showQr && (selectedProduct.barcode ?? '').trim() && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                left: `${paddingPx + pxOff(cfg.offsetsMm.qr.x)}px`,
+                                top: `${paddingPx + pxOff(cfg.offsetsMm.qr.y)}px`,
+                                width: `${qrSizePx}px`,
+                                height: `${qrSizePx}px`,
+                                background: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              {labelDialogQrDataUrl ? (
+                                <img
+                                  src={labelDialogQrDataUrl}
+                                  alt="QR"
+                                  style={{ width: '100%', height: '100%' }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    border: '1px solid #eee',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: 10,
+                                  }}
+                                >
+                                  QR
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {(() => {
+                            const rightX =
+                              paddingPx + (cfg.showQr ? qrSizePx + paddingPx : 0);
+                            const lineH = Math.max(10, cfg.nameFontPx);
+
+                            const xCode = rightX + pxOff(cfg.offsetsMm.code.x);
+                            const yCode = paddingPx + pxOff(cfg.offsetsMm.code.y);
+
+                            const xBarcode = rightX + pxOff(cfg.offsetsMm.barcode.x);
+                            const yBarcode =
+                              paddingPx +
+                              cfg.codeFontPx +
+                              2 +
+                              pxOff(cfg.offsetsMm.barcode.y);
+
+                            const xLocation = rightX + pxOff(cfg.offsetsMm.location.x);
+                            const yLocation =
+                              paddingPx +
+                              cfg.codeFontPx +
+                              2 +
+                              lineH +
+                              pxOff(cfg.offsetsMm.location.y);
+
+                            const xWarehouse = rightX + pxOff(cfg.offsetsMm.warehouse.x);
+                            const yWarehouse =
+                              paddingPx +
+                              cfg.codeFontPx +
+                              2 +
+                              lineH +
+                              lineH +
+                              pxOff(cfg.offsetsMm.warehouse.y);
+
+                            const xName = rightX + pxOff(cfg.offsetsMm.name.x);
+                            const yName =
+                              heightPx -
+                              paddingPx -
+                              cfg.nameFontPx +
+                              pxOff(cfg.offsetsMm.name.y);
+
+                            return (
+                              <>
+                                {cfg.showCode && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: `${xCode}px`,
+                                      top: `${yCode}px`,
+                                      right: `${paddingPx}px`,
+                                      fontSize: cfg.codeFontPx,
+                                      fontWeight: 700,
+                                    }}
+                                  >
+                                    {selectedProduct.code}
+                                  </div>
+                                )}
+                                {cfg.showBarcode && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: `${xBarcode}px`,
+                                      top: `${yBarcode}px`,
+                                      right: `${paddingPx}px`,
+                                      fontSize: cfg.codeFontPx,
+                                    }}
+                                  >
+                                    {selectedProduct.barcode ?? ''}
+                                  </div>
+                                )}
+                                {cfg.showLocation && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: `${xLocation}px`,
+                                      top: `${yLocation}px`,
+                                      right: `${paddingPx}px`,
+                                      fontSize: Math.max(9, cfg.nameFontPx - 1),
+                                    }}
+                                  >
+                                    {locationText}
+                                  </div>
+                                )}
+                                {cfg.showWarehouse && warehouseText && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: `${xWarehouse}px`,
+                                      top: `${yWarehouse}px`,
+                                      right: `${paddingPx}px`,
+                                      fontSize: Math.max(9, cfg.nameFontPx - 1),
+                                    }}
+                                  >
+                                    {warehouseText}
+                                  </div>
+                                )}
+                                {cfg.showName && (
+                                  <div
+                                    style={{
+                                      position: 'absolute',
+                                      left: `${xName}px`,
+                                      top: `${yName}px`,
+                                      right: `${paddingPx}px`,
+                                      fontSize: cfg.nameFontPx,
+                                      fontWeight: 600,
+                                    }}
+                                  >
+                                    {selectedProduct.name}
+                                  </div>
+                                )}
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+            </>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => setLabelDialogOpen(false)}>
+            {tt(t, 'common.cancel', 'Cancelar')}
+          </Button>
+          <Button
+            onClick={() => {
+              const cfg = labelDialogConfig ?? labelConfig;
+              setLabelConfig(cfg);
+              setLabelQuality(labelDialogQuality);
+              setLabelEnabled(true);
+              setLabelPreviewOpen(true);
+              setLabelDialogOpen(false);
+              setLabelDialogConfig(null);
+            }}
+          >
+            {tt(t, 'common.confirm', 'Confirmar')}
+          </Button>
+        </DialogFooter>
+      </Dialog>
     </div>
   );
 }
