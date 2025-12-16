@@ -435,6 +435,8 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'labelsQr.products.noBarcode': 'Sin barcode',
     'labelsQr.products.qrStatus.ok': 'OK',
     'labelsQr.products.qrStatus.no': 'No',
+    'labelsQr.products.labelStatus.ok': 'OK',
+    'labelsQr.products.labelStatus.no': 'No',
     'labelsQr.loading': 'Cargando…',
     'labelsQr.selectProductHint':
       'Selecciona un producto para editar y generar QR/etiquetas.',
@@ -442,6 +444,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'labelsQr.table.name': 'Nombre',
     'labelsQr.table.barcode': 'Barcode',
     'labelsQr.table.qr': 'QR',
+    'labelsQr.table.label': 'Etiqueta',
     'labelsQr.barcode.title': 'Barcode',
     'labelsQr.barcode.inputPlaceholder': 'Introduce barcode…',
     'labelsQr.barcode.save': 'Guardar barcode',
@@ -1454,6 +1457,8 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'labelsQr.products.noBarcode': 'Sense barcode',
     'labelsQr.products.qrStatus.ok': 'OK',
     'labelsQr.products.qrStatus.no': 'No',
+    'labelsQr.products.labelStatus.ok': 'OK',
+    'labelsQr.products.labelStatus.no': 'No',
     'labelsQr.loading': 'Carregant…',
     'labelsQr.selectProductHint':
       'Selecciona un producte per editar i generar QR/etiquetes.',
@@ -1461,6 +1466,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'labelsQr.table.name': 'Nom',
     'labelsQr.table.barcode': 'Barcode',
     'labelsQr.table.qr': 'QR',
+    'labelsQr.table.label': 'Etiqueta',
     'labelsQr.barcode.title': 'Barcode',
     'labelsQr.barcode.inputPlaceholder': 'Introdueix barcode…',
     'labelsQr.barcode.save': 'Desar barcode',

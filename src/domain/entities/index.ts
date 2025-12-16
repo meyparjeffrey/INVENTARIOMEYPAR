@@ -3,6 +3,7 @@ export * from './User';
 export * from './Supplier';
 export * from './Product';
 export * from './ProductQrAsset';
+export * from './ProductLabelAsset';
 export * from './InventoryMovement';
 export * from './Ai';
 export * from './Audit';

@@ -3,6 +3,7 @@ import * as React from 'react';
 import { toPng } from 'html-to-image';
 import type { Product, ProductLocation } from '@domain/entities';
 import type { ProductQrAsset } from '@domain/entities/ProductQrAsset';
+import type { ProductLabelAsset } from '@domain/entities/ProductLabelAsset';
 import { QrCodeService } from '@application/services/QrCodeService';
 import QRCode from 'qrcode';
 import JSZip from 'jszip';
@@ -21,11 +22,13 @@ import { Dialog, DialogFooter } from '../components/ui/Dialog';
 import { useToast } from '../components/ui/Toast';
 import { supabaseClient } from '@infrastructure/supabase/supabaseClient';
 import { SupabaseProductQrRepository } from '@infrastructure/repositories/SupabaseProductQrRepository';
+import { SupabaseProductLabelRepository } from '@infrastructure/repositories/SupabaseProductLabelRepository';
 import {
   createProductQrSignedUrl,
   deleteProductQr,
   uploadProductQr,
 } from '@infrastructure/storage/qrStorage';
+import { uploadProductLabel } from '@infrastructure/storage/labelStorage';
 import { cn } from '../lib/cn';
 
 type BulkZipMode = 'qr' | 'labels' | 'both';
@@ -54,6 +57,26 @@ function withEtPrefix(code: string) {
 function tt(t: (k: string) => string, key: string, fallback: string) {
   const v = t(key);
   return v === key ? fallback : v;
+}
+
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj).sort();
+  return `{${keys
+    .map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`)
+    .join(',')}}`;
+}
+
+function hashStringToBase36(input: string): string {
+  // djb2
+  let hash = 5381;
+  for (let i = 0; i < input.length; i++) {
+    hash = (hash * 33) ^ input.charCodeAt(i);
+  }
+  // unsigned
+  return (hash >>> 0).toString(36);
 }
 
 function downloadBlob(blob: Blob, fileName: string) {
@@ -164,11 +187,15 @@ export function LabelsQrPage() {
   const { getAll, update } = useProducts();
 
   const qrRepo = React.useMemo(() => new SupabaseProductQrRepository(), []);
+  const labelRepo = React.useMemo(() => new SupabaseProductLabelRepository(), []);
 
   const [loading, setLoading] = React.useState(true);
   const [products, setProducts] = React.useState<Product[]>([]);
   const [assetsByProductId, setAssetsByProductId] = React.useState<
     Map<string, ProductQrAsset>
+  >(() => new Map());
+  const [labelAssetsByProductId, setLabelAssetsByProductId] = React.useState<
+    Map<string, ProductLabelAsset>
   >(() => new Map());
 
   const [search, setSearch] = React.useState('');
@@ -180,12 +207,12 @@ export function LabelsQrPage() {
 
   // Reset etiqueta UI al cambiar de producto seleccionado
   React.useEffect(() => {
-    setLabelEnabled(false);
+    setLabelEnabled(!!(selectedId && labelAssetsByProductId.has(selectedId)));
     setLabelPreviewOpen(true);
     setLabelDialogOpen(false);
     setLabelDialogConfig(null);
     setLabelDialogQrDataUrl(null);
-  }, [selectedId]);
+  }, [selectedId, labelAssetsByProductId]);
 
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(() => new Set());
   const [bulkZipMode, setBulkZipMode] = React.useState<BulkZipMode>('both');
@@ -379,6 +406,15 @@ export function LabelsQrPage() {
       const ids = all.map((p) => p.id);
       const assets = await qrRepo.getByProductIds(ids);
       setAssetsByProductId(new Map(assets.map((a) => [a.productId, a])));
+      try {
+        const labelAssets = await labelRepo.getLatestByProductIds(ids);
+        setLabelAssetsByProductId(new Map(labelAssets.map((a) => [a.productId, a])));
+      } catch (err) {
+        // Si la migración/bucket de etiquetas aún no está aplicada, no rompemos la página.
+        setLabelAssetsByProductId(new Map());
+        // eslint-disable-next-line no-console
+        console.warn('[LabelsQrPage] No se pudieron cargar assets de etiquetas:', err);
+      }
     } catch (err) {
       toast.error(
         'Error',
@@ -387,7 +423,7 @@ export function LabelsQrPage() {
     } finally {
       setLoading(false);
     }
-  }, [getAll, qrRepo, toast]);
+  }, [getAll, qrRepo, labelRepo, toast]);
 
   React.useEffect(() => {
     reload();
@@ -690,6 +726,39 @@ export function LabelsQrPage() {
       });
       const res = await fetch(dataUrl);
       const blob = await res.blob();
+
+      // Guardar etiqueta en Storage/DB (best-effort)
+      try {
+        const locKey =
+          selectedLocation?.id ??
+          `legacy:${selectedProduct.aisle ?? ''}-${selectedProduct.shelf ?? ''}:${selectedProduct.warehouse ?? ''}`;
+        const configJson = {
+          cfg: labelConfig,
+          locationId: selectedLocation?.id ?? null,
+          locationKey: locKey,
+        } as const;
+        const configHash = hashStringToBase36(stableStringify(configJson));
+        const labelPath = await uploadProductLabel({
+          productId: selectedProduct.id,
+          configHash,
+          pngBlob: blob,
+        });
+        const asset = await labelRepo.upsert({
+          productId: selectedProduct.id,
+          labelPath,
+          configHash,
+          configJson: configJson as unknown as Record<string, unknown>,
+        });
+        setLabelAssetsByProductId((prev) => {
+          const next = new Map(prev);
+          next.set(selectedProduct.id, asset);
+          return next;
+        });
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.warn('[LabelsQrPage] No se pudo guardar etiqueta en Storage/DB:', err);
+      }
+
       downloadBlob(blob, withEtPrefix(selectedProduct.code));
     } catch (err) {
       toast.error(
@@ -930,192 +999,210 @@ export function LabelsQrPage() {
               </div>
 
               {/* Tipografía (aplica al ZIP) */}
-              <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-                <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
-                  {tt(t, 'labelsQr.typography.title', 'Tipografía')}
+              {(bulkLabelConfig.showCode ||
+                bulkLabelConfig.showBarcode ||
+                bulkLabelConfig.showLocation ||
+                bulkLabelConfig.showWarehouse ||
+                bulkLabelConfig.showName) && (
+                <div className="mt-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                  <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    {tt(t, 'labelsQr.typography.title', 'Tipografía')}
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 text-sm">
+                    {bulkLabelConfig.showCode && (
+                      <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                        <div className="text-gray-700 dark:text-gray-200">
+                          {tt(t, 'labelsQr.typography.code', 'Código')}
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 dark:text-gray-400">
+                            {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
+                          </label>
+                          <Input
+                            type="number"
+                            min={8}
+                            step={1}
+                            value={bulkLabelConfig.codeFontPx}
+                            onChange={(e) =>
+                              setBulkLabelConfig((p) =>
+                                p ? { ...p, codeFontPx: Number(e.target.value) } : p,
+                              )
+                            }
+                          />
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {tt(t, 'labelsQr.typography.bold', 'Negrita')}: ✓
+                        </div>
+                      </div>
+                    )}
+
+                    {bulkLabelConfig.showBarcode && (
+                      <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                        <div className="text-gray-700 dark:text-gray-200">
+                          {tt(t, 'labelsQr.typography.barcode', 'Barcode')}
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 dark:text-gray-400">
+                            {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
+                          </label>
+                          <Input
+                            type="number"
+                            min={8}
+                            step={1}
+                            value={bulkLabelConfig.barcodeFontPx}
+                            onChange={(e) =>
+                              setBulkLabelConfig((p) =>
+                                p ? { ...p, barcodeFontPx: Number(e.target.value) } : p,
+                              )
+                            }
+                          />
+                        </div>
+                        <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                          <input
+                            type="checkbox"
+                            checked={bulkLabelConfig.barcodeBold}
+                            onChange={(e) =>
+                              setBulkLabelConfig((p) =>
+                                p ? { ...p, barcodeBold: e.target.checked } : p,
+                              )
+                            }
+                          />
+                          {tt(t, 'labelsQr.typography.bold', 'Negrita')}
+                        </label>
+                      </div>
+                    )}
+
+                    {bulkLabelConfig.showLocation && (
+                      <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                        <div className="text-gray-700 dark:text-gray-200">
+                          {tt(t, 'labelsQr.typography.location', 'Ubicación')}
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 dark:text-gray-400">
+                            {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
+                          </label>
+                          <Input
+                            type="number"
+                            min={8}
+                            step={1}
+                            value={bulkLabelConfig.locationFontPx}
+                            onChange={(e) =>
+                              setBulkLabelConfig((p) =>
+                                p ? { ...p, locationFontPx: Number(e.target.value) } : p,
+                              )
+                            }
+                          />
+                        </div>
+                        <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                          <input
+                            type="checkbox"
+                            checked={bulkLabelConfig.locationBold}
+                            onChange={(e) =>
+                              setBulkLabelConfig((p) =>
+                                p ? { ...p, locationBold: e.target.checked } : p,
+                              )
+                            }
+                          />
+                          {tt(t, 'labelsQr.typography.bold', 'Negrita')}
+                        </label>
+                      </div>
+                    )}
+
+                    {bulkLabelConfig.showWarehouse && (
+                      <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                        <div className="text-gray-700 dark:text-gray-200">
+                          {tt(t, 'labelsQr.typography.warehouse', 'Almacén')}
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 dark:text-gray-400">
+                            {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
+                          </label>
+                          <Input
+                            type="number"
+                            min={8}
+                            step={1}
+                            value={bulkLabelConfig.warehouseFontPx}
+                            onChange={(e) =>
+                              setBulkLabelConfig((p) =>
+                                p ? { ...p, warehouseFontPx: Number(e.target.value) } : p,
+                              )
+                            }
+                          />
+                        </div>
+                        <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                          <input
+                            type="checkbox"
+                            checked={bulkLabelConfig.warehouseBold}
+                            onChange={(e) =>
+                              setBulkLabelConfig((p) =>
+                                p ? { ...p, warehouseBold: e.target.checked } : p,
+                              )
+                            }
+                          />
+                          {tt(t, 'labelsQr.typography.bold', 'Negrita')}
+                        </label>
+                      </div>
+                    )}
+
+                    {bulkLabelConfig.showName && (
+                      <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                        <div className="text-gray-700 dark:text-gray-200">
+                          {tt(t, 'labelsQr.typography.name', 'Nombre')}
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 dark:text-gray-400">
+                            {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
+                          </label>
+                          <Input
+                            type="number"
+                            min={8}
+                            step={1}
+                            value={bulkLabelConfig.nameFontPx}
+                            onChange={(e) =>
+                              setBulkLabelConfig((p) =>
+                                p ? { ...p, nameFontPx: Number(e.target.value) } : p,
+                              )
+                            }
+                          />
+                        </div>
+                        <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                          <input
+                            type="checkbox"
+                            checked={bulkLabelConfig.nameBold}
+                            onChange={(e) =>
+                              setBulkLabelConfig((p) =>
+                                p ? { ...p, nameBold: e.target.checked } : p,
+                              )
+                            }
+                          />
+                          {tt(t, 'labelsQr.typography.bold', 'Negrita')}
+                        </label>
+                      </div>
+                    )}
+
+                    {bulkLabelConfig.showName && (
+                      <div className="grid grid-cols-[1fr,1fr] items-end gap-2">
+                        <div className="text-gray-700 dark:text-gray-200">
+                          {tt(t, 'labelsQr.typography.lines', 'Líneas')} (
+                          {tt(t, 'labelsQr.typography.name', 'Nombre')})
+                        </div>
+                        <Input
+                          type="number"
+                          min={1}
+                          max={5}
+                          step={1}
+                          value={bulkLabelConfig.nameMaxLines}
+                          onChange={(e) =>
+                            setBulkLabelConfig((p) =>
+                              p ? { ...p, nameMaxLines: Number(e.target.value) } : p,
+                            )
+                          }
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="grid grid-cols-1 gap-3 text-sm">
-                  <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
-                    <div className="text-gray-700 dark:text-gray-200">
-                      {tt(t, 'labelsQr.typography.code', 'Código')}
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 dark:text-gray-400">
-                        {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
-                      </label>
-                      <Input
-                        type="number"
-                        min={8}
-                        step={1}
-                        value={bulkLabelConfig.codeFontPx}
-                        onChange={(e) =>
-                          setBulkLabelConfig((p) =>
-                            p ? { ...p, codeFontPx: Number(e.target.value) } : p,
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {tt(t, 'labelsQr.typography.bold', 'Negrita')}: ✓
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
-                    <div className="text-gray-700 dark:text-gray-200">
-                      {tt(t, 'labelsQr.typography.barcode', 'Barcode')}
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 dark:text-gray-400">
-                        {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
-                      </label>
-                      <Input
-                        type="number"
-                        min={8}
-                        step={1}
-                        value={bulkLabelConfig.barcodeFontPx}
-                        onChange={(e) =>
-                          setBulkLabelConfig((p) =>
-                            p ? { ...p, barcodeFontPx: Number(e.target.value) } : p,
-                          )
-                        }
-                      />
-                    </div>
-                    <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
-                      <input
-                        type="checkbox"
-                        checked={bulkLabelConfig.barcodeBold}
-                        onChange={(e) =>
-                          setBulkLabelConfig((p) =>
-                            p ? { ...p, barcodeBold: e.target.checked } : p,
-                          )
-                        }
-                      />
-                      {tt(t, 'labelsQr.typography.bold', 'Negrita')}
-                    </label>
-                  </div>
-
-                  <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
-                    <div className="text-gray-700 dark:text-gray-200">
-                      {tt(t, 'labelsQr.typography.location', 'Ubicación')}
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 dark:text-gray-400">
-                        {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
-                      </label>
-                      <Input
-                        type="number"
-                        min={8}
-                        step={1}
-                        value={bulkLabelConfig.locationFontPx}
-                        onChange={(e) =>
-                          setBulkLabelConfig((p) =>
-                            p ? { ...p, locationFontPx: Number(e.target.value) } : p,
-                          )
-                        }
-                      />
-                    </div>
-                    <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
-                      <input
-                        type="checkbox"
-                        checked={bulkLabelConfig.locationBold}
-                        onChange={(e) =>
-                          setBulkLabelConfig((p) =>
-                            p ? { ...p, locationBold: e.target.checked } : p,
-                          )
-                        }
-                      />
-                      {tt(t, 'labelsQr.typography.bold', 'Negrita')}
-                    </label>
-                  </div>
-
-                  <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
-                    <div className="text-gray-700 dark:text-gray-200">
-                      {tt(t, 'labelsQr.typography.warehouse', 'Almacén')}
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 dark:text-gray-400">
-                        {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
-                      </label>
-                      <Input
-                        type="number"
-                        min={8}
-                        step={1}
-                        value={bulkLabelConfig.warehouseFontPx}
-                        onChange={(e) =>
-                          setBulkLabelConfig((p) =>
-                            p ? { ...p, warehouseFontPx: Number(e.target.value) } : p,
-                          )
-                        }
-                      />
-                    </div>
-                    <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
-                      <input
-                        type="checkbox"
-                        checked={bulkLabelConfig.warehouseBold}
-                        onChange={(e) =>
-                          setBulkLabelConfig((p) =>
-                            p ? { ...p, warehouseBold: e.target.checked } : p,
-                          )
-                        }
-                      />
-                      {tt(t, 'labelsQr.typography.bold', 'Negrita')}
-                    </label>
-                  </div>
-
-                  <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
-                    <div className="text-gray-700 dark:text-gray-200">
-                      {tt(t, 'labelsQr.typography.name', 'Nombre')}
-                    </div>
-                    <div>
-                      <label className="text-xs text-gray-500 dark:text-gray-400">
-                        {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
-                      </label>
-                      <Input
-                        type="number"
-                        min={8}
-                        step={1}
-                        value={bulkLabelConfig.nameFontPx}
-                        onChange={(e) =>
-                          setBulkLabelConfig((p) =>
-                            p ? { ...p, nameFontPx: Number(e.target.value) } : p,
-                          )
-                        }
-                      />
-                    </div>
-                    <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
-                      <input
-                        type="checkbox"
-                        checked={bulkLabelConfig.nameBold}
-                        onChange={(e) =>
-                          setBulkLabelConfig((p) =>
-                            p ? { ...p, nameBold: e.target.checked } : p,
-                          )
-                        }
-                      />
-                      {tt(t, 'labelsQr.typography.bold', 'Negrita')}
-                    </label>
-                  </div>
-
-                  <div className="grid grid-cols-[1fr,1fr] items-end gap-2">
-                    <div className="text-gray-700 dark:text-gray-200">
-                      {tt(t, 'labelsQr.typography.lines', 'Líneas')} (
-                      {tt(t, 'labelsQr.typography.name', 'Nombre')})
-                    </div>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={5}
-                      step={1}
-                      value={bulkLabelConfig.nameMaxLines}
-                      onChange={(e) =>
-                        setBulkLabelConfig((p) =>
-                          p ? { ...p, nameMaxLines: Number(e.target.value) } : p,
-                        )
-                      }
-                    />
-                  </div>
-                </div>
-              </div>
+              )}
 
               {(bulkLabelConfig.showQr ||
                 bulkLabelConfig.showCode ||
@@ -1394,7 +1481,8 @@ export function LabelsQrPage() {
                                       left: `${xBarcode}px`,
                                       top: `${yBarcode}px`,
                                       right: `${paddingPx}px`,
-                                      fontSize: bulkLabelConfig.codeFontPx,
+                                      fontSize: bulkLabelConfig.barcodeFontPx,
+                                      fontWeight: bulkLabelConfig.barcodeBold ? 700 : 400,
                                     }}
                                   >
                                     {bulkPreviewProduct.barcode ?? ''}
@@ -1408,10 +1496,10 @@ export function LabelsQrPage() {
                                       left: `${xLocation}px`,
                                       top: `${yLocation}px`,
                                       right: `${paddingPx}px`,
-                                      fontSize: Math.max(
-                                        9,
-                                        bulkLabelConfig.nameFontPx - 1,
-                                      ),
+                                      fontSize: bulkLabelConfig.locationFontPx,
+                                      fontWeight: bulkLabelConfig.locationBold
+                                        ? 700
+                                        : 400,
                                     }}
                                   >
                                     {bulkPreviewProduct.aisle}-{bulkPreviewProduct.shelf}
@@ -1426,10 +1514,10 @@ export function LabelsQrPage() {
                                         left: `${xWarehouse}px`,
                                         top: `${yWarehouse}px`,
                                         right: `${paddingPx}px`,
-                                        fontSize: Math.max(
-                                          9,
-                                          bulkLabelConfig.nameFontPx - 1,
-                                        ),
+                                        fontSize: bulkLabelConfig.warehouseFontPx,
+                                        fontWeight: bulkLabelConfig.warehouseBold
+                                          ? 700
+                                          : 400,
                                       }}
                                     >
                                       {bulkPreviewProduct.warehouse}
@@ -1589,6 +1677,39 @@ export function LabelsQrPage() {
                         labelScale,
                       );
                       folderLabels?.file(withEtPrefix(p.code), labelBlob);
+
+                      // Guardar etiqueta en Storage/DB (best-effort)
+                      try {
+                        const locKey =
+                          loc?.id ??
+                          `legacy:${labelProduct.aisle ?? ''}-${labelProduct.shelf ?? ''}:${labelProduct.warehouse ?? ''}`;
+                        const configJson = {
+                          cfg: labelCfg,
+                          locationId: loc?.id ?? null,
+                          locationKey: locKey,
+                        } as const;
+                        const configHash = hashStringToBase36(
+                          stableStringify(configJson),
+                        );
+                        const labelPath = await uploadProductLabel({
+                          productId: p.id,
+                          configHash,
+                          pngBlob: labelBlob,
+                        });
+                        const asset = await labelRepo.upsert({
+                          productId: p.id,
+                          labelPath,
+                          configHash,
+                          configJson: configJson as unknown as Record<string, unknown>,
+                        });
+                        setLabelAssetsByProductId((prev) => {
+                          const next = new Map(prev);
+                          next.set(p.id, asset);
+                          return next;
+                        });
+                      } catch {
+                        // no-op: no rompemos el ZIP
+                      }
                     }
 
                     setBulkProgress((prev) =>
@@ -1675,12 +1796,17 @@ export function LabelsQrPage() {
                         {tt(t, 'labelsQr.table.barcode', 'Barcode')}
                       </th>
                       <th className="py-2 pr-4">{tt(t, 'labelsQr.table.qr', 'QR')}</th>
+                      <th className="py-2 pr-4">
+                        {tt(t, 'labelsQr.table.label', 'Etiqueta')}
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
                     {filtered.map((p) => {
                       const asset = assetsByProductId.get(p.id);
                       const hasQr = !!asset;
+                      const labelAsset = labelAssetsByProductId.get(p.id);
+                      const hasLabel = !!labelAsset;
                       return (
                         <tr
                           key={p.id}
@@ -1723,6 +1849,17 @@ export function LabelsQrPage() {
                             ) : (
                               <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
                                 {tt(t, 'labelsQr.products.qrStatus.no', 'No')}
+                              </span>
+                            )}
+                          </td>
+                          <td className="py-2 pr-4">
+                            {hasLabel ? (
+                              <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300">
+                                {tt(t, 'labelsQr.products.labelStatus.ok', 'OK')}
+                              </span>
+                            ) : (
+                              <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                                {tt(t, 'labelsQr.products.labelStatus.no', 'No')}
                               </span>
                             )}
                           </td>
@@ -2052,7 +2189,8 @@ export function LabelsQrPage() {
                                       left: `${xBarcode}px`,
                                       top: `${yBarcode}px`,
                                       right: `${paddingPx}px`,
-                                      fontSize: labelConfig.codeFontPx,
+                                      fontSize: labelConfig.barcodeFontPx,
+                                      fontWeight: labelConfig.barcodeBold ? 700 : 400,
                                     }}
                                   >
                                     {selectedProduct.barcode ?? ''}
@@ -2066,7 +2204,8 @@ export function LabelsQrPage() {
                                       left: `${xLocation}px`,
                                       top: `${yLocation}px`,
                                       right: `${paddingPx}px`,
-                                      fontSize: Math.max(9, labelConfig.nameFontPx - 1),
+                                      fontSize: labelConfig.locationFontPx,
+                                      fontWeight: labelConfig.locationBold ? 700 : 400,
                                     }}
                                   >
                                     {locationText}
@@ -2080,7 +2219,8 @@ export function LabelsQrPage() {
                                       left: `${xWarehouse}px`,
                                       top: `${yWarehouse}px`,
                                       right: `${paddingPx}px`,
-                                      fontSize: Math.max(9, labelConfig.nameFontPx - 1),
+                                      fontSize: labelConfig.warehouseFontPx,
+                                      fontWeight: labelConfig.warehouseBold ? 700 : 400,
                                     }}
                                   >
                                     {warehouseText}
@@ -2317,208 +2457,231 @@ export function LabelsQrPage() {
                 </div>
 
                 {/* Tipografía */}
-                <div className="mt-4 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
-                  <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
-                    {tt(t, 'labelsQr.typography.title', 'Tipografía')}
-                  </div>
-
-                  {(() => {
-                    const cfg = labelDialogConfig ?? labelConfig;
-                    return (
-                      <div className="grid grid-cols-1 gap-3 text-sm">
-                        <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
-                          <div className="text-gray-700 dark:text-gray-200">
-                            {tt(t, 'labelsQr.typography.code', 'Código')}
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-500 dark:text-gray-400">
-                              {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
-                            </label>
-                            <Input
-                              type="number"
-                              min={8}
-                              step={1}
-                              value={cfg.codeFontPx}
-                              onChange={(e) =>
-                                setLabelDialogConfig((p) => ({
-                                  ...(p ?? labelConfig),
-                                  codeFontPx: Number(e.target.value),
-                                }))
-                              }
-                            />
-                          </div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">
-                            {tt(t, 'labelsQr.typography.bold', 'Negrita')}: ✓
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
-                          <div className="text-gray-700 dark:text-gray-200">
-                            {tt(t, 'labelsQr.typography.barcode', 'Barcode')}
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-500 dark:text-gray-400">
-                              {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
-                            </label>
-                            <Input
-                              type="number"
-                              min={8}
-                              step={1}
-                              value={cfg.barcodeFontPx}
-                              onChange={(e) =>
-                                setLabelDialogConfig((p) => ({
-                                  ...(p ?? labelConfig),
-                                  barcodeFontPx: Number(e.target.value),
-                                }))
-                              }
-                            />
-                          </div>
-                          <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
-                            <input
-                              type="checkbox"
-                              checked={cfg.barcodeBold}
-                              onChange={(e) =>
-                                setLabelDialogConfig((p) => ({
-                                  ...(p ?? labelConfig),
-                                  barcodeBold: e.target.checked,
-                                }))
-                              }
-                            />
-                            {tt(t, 'labelsQr.typography.bold', 'Negrita')}
-                          </label>
-                        </div>
-
-                        <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
-                          <div className="text-gray-700 dark:text-gray-200">
-                            {tt(t, 'labelsQr.typography.location', 'Ubicación')}
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-500 dark:text-gray-400">
-                              {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
-                            </label>
-                            <Input
-                              type="number"
-                              min={8}
-                              step={1}
-                              value={cfg.locationFontPx}
-                              onChange={(e) =>
-                                setLabelDialogConfig((p) => ({
-                                  ...(p ?? labelConfig),
-                                  locationFontPx: Number(e.target.value),
-                                }))
-                              }
-                            />
-                          </div>
-                          <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
-                            <input
-                              type="checkbox"
-                              checked={cfg.locationBold}
-                              onChange={(e) =>
-                                setLabelDialogConfig((p) => ({
-                                  ...(p ?? labelConfig),
-                                  locationBold: e.target.checked,
-                                }))
-                              }
-                            />
-                            {tt(t, 'labelsQr.typography.bold', 'Negrita')}
-                          </label>
-                        </div>
-
-                        <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
-                          <div className="text-gray-700 dark:text-gray-200">
-                            {tt(t, 'labelsQr.typography.warehouse', 'Almacén')}
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-500 dark:text-gray-400">
-                              {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
-                            </label>
-                            <Input
-                              type="number"
-                              min={8}
-                              step={1}
-                              value={cfg.warehouseFontPx}
-                              onChange={(e) =>
-                                setLabelDialogConfig((p) => ({
-                                  ...(p ?? labelConfig),
-                                  warehouseFontPx: Number(e.target.value),
-                                }))
-                              }
-                            />
-                          </div>
-                          <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
-                            <input
-                              type="checkbox"
-                              checked={cfg.warehouseBold}
-                              onChange={(e) =>
-                                setLabelDialogConfig((p) => ({
-                                  ...(p ?? labelConfig),
-                                  warehouseBold: e.target.checked,
-                                }))
-                              }
-                            />
-                            {tt(t, 'labelsQr.typography.bold', 'Negrita')}
-                          </label>
-                        </div>
-
-                        <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
-                          <div className="text-gray-700 dark:text-gray-200">
-                            {tt(t, 'labelsQr.typography.name', 'Nombre')}
-                          </div>
-                          <div>
-                            <label className="text-xs text-gray-500 dark:text-gray-400">
-                              {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
-                            </label>
-                            <Input
-                              type="number"
-                              min={8}
-                              step={1}
-                              value={cfg.nameFontPx}
-                              onChange={(e) =>
-                                setLabelDialogConfig((p) => ({
-                                  ...(p ?? labelConfig),
-                                  nameFontPx: Number(e.target.value),
-                                }))
-                              }
-                            />
-                          </div>
-                          <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
-                            <input
-                              type="checkbox"
-                              checked={cfg.nameBold}
-                              onChange={(e) =>
-                                setLabelDialogConfig((p) => ({
-                                  ...(p ?? labelConfig),
-                                  nameBold: e.target.checked,
-                                }))
-                              }
-                            />
-                            {tt(t, 'labelsQr.typography.bold', 'Negrita')}
-                          </label>
-                        </div>
-
-                        <div className="grid grid-cols-[1fr,1fr] items-end gap-2">
-                          <div className="text-gray-700 dark:text-gray-200">
-                            {tt(t, 'labelsQr.typography.lines', 'Líneas')} (
-                            {tt(t, 'labelsQr.typography.name', 'Nombre')})
-                          </div>
-                          <Input
-                            type="number"
-                            min={1}
-                            max={5}
-                            step={1}
-                            value={cfg.nameMaxLines}
-                            onChange={(e) =>
-                              setLabelDialogConfig((p) => ({
-                                ...(p ?? labelConfig),
-                                nameMaxLines: Number(e.target.value),
-                              }))
-                            }
-                          />
-                        </div>
+                {(() => {
+                  const cfg = labelDialogConfig ?? labelConfig;
+                  const any =
+                    cfg.showCode ||
+                    cfg.showBarcode ||
+                    cfg.showLocation ||
+                    cfg.showWarehouse ||
+                    cfg.showName;
+                  if (!any) return null;
+                  return (
+                    <div className="mt-4 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+                      <div className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                        {tt(t, 'labelsQr.typography.title', 'Tipografía')}
                       </div>
-                    );
-                  })()}
-                </div>
+
+                      {(() => {
+                        return (
+                          <div className="grid grid-cols-1 gap-3 text-sm">
+                            {cfg.showCode && (
+                              <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                                <div className="text-gray-700 dark:text-gray-200">
+                                  {tt(t, 'labelsQr.typography.code', 'Código')}
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-500 dark:text-gray-400">
+                                    {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
+                                  </label>
+                                  <Input
+                                    type="number"
+                                    min={8}
+                                    step={1}
+                                    value={cfg.codeFontPx}
+                                    onChange={(e) =>
+                                      setLabelDialogConfig((p) => ({
+                                        ...(p ?? labelConfig),
+                                        codeFontPx: Number(e.target.value),
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <div className="text-xs text-gray-500 dark:text-gray-400">
+                                  {tt(t, 'labelsQr.typography.bold', 'Negrita')}: ✓
+                                </div>
+                              </div>
+                            )}
+
+                            {cfg.showBarcode && (
+                              <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                                <div className="text-gray-700 dark:text-gray-200">
+                                  {tt(t, 'labelsQr.typography.barcode', 'Barcode')}
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-500 dark:text-gray-400">
+                                    {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
+                                  </label>
+                                  <Input
+                                    type="number"
+                                    min={8}
+                                    step={1}
+                                    value={cfg.barcodeFontPx}
+                                    onChange={(e) =>
+                                      setLabelDialogConfig((p) => ({
+                                        ...(p ?? labelConfig),
+                                        barcodeFontPx: Number(e.target.value),
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={cfg.barcodeBold}
+                                    onChange={(e) =>
+                                      setLabelDialogConfig((p) => ({
+                                        ...(p ?? labelConfig),
+                                        barcodeBold: e.target.checked,
+                                      }))
+                                    }
+                                  />
+                                  {tt(t, 'labelsQr.typography.bold', 'Negrita')}
+                                </label>
+                              </div>
+                            )}
+
+                            {cfg.showLocation && (
+                              <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                                <div className="text-gray-700 dark:text-gray-200">
+                                  {tt(t, 'labelsQr.typography.location', 'Ubicación')}
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-500 dark:text-gray-400">
+                                    {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
+                                  </label>
+                                  <Input
+                                    type="number"
+                                    min={8}
+                                    step={1}
+                                    value={cfg.locationFontPx}
+                                    onChange={(e) =>
+                                      setLabelDialogConfig((p) => ({
+                                        ...(p ?? labelConfig),
+                                        locationFontPx: Number(e.target.value),
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={cfg.locationBold}
+                                    onChange={(e) =>
+                                      setLabelDialogConfig((p) => ({
+                                        ...(p ?? labelConfig),
+                                        locationBold: e.target.checked,
+                                      }))
+                                    }
+                                  />
+                                  {tt(t, 'labelsQr.typography.bold', 'Negrita')}
+                                </label>
+                              </div>
+                            )}
+
+                            {cfg.showWarehouse && (
+                              <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                                <div className="text-gray-700 dark:text-gray-200">
+                                  {tt(t, 'labelsQr.typography.warehouse', 'Almacén')}
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-500 dark:text-gray-400">
+                                    {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
+                                  </label>
+                                  <Input
+                                    type="number"
+                                    min={8}
+                                    step={1}
+                                    value={cfg.warehouseFontPx}
+                                    onChange={(e) =>
+                                      setLabelDialogConfig((p) => ({
+                                        ...(p ?? labelConfig),
+                                        warehouseFontPx: Number(e.target.value),
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={cfg.warehouseBold}
+                                    onChange={(e) =>
+                                      setLabelDialogConfig((p) => ({
+                                        ...(p ?? labelConfig),
+                                        warehouseBold: e.target.checked,
+                                      }))
+                                    }
+                                  />
+                                  {tt(t, 'labelsQr.typography.bold', 'Negrita')}
+                                </label>
+                              </div>
+                            )}
+
+                            {cfg.showName && (
+                              <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                                <div className="text-gray-700 dark:text-gray-200">
+                                  {tt(t, 'labelsQr.typography.name', 'Nombre')}
+                                </div>
+                                <div>
+                                  <label className="text-xs text-gray-500 dark:text-gray-400">
+                                    {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
+                                  </label>
+                                  <Input
+                                    type="number"
+                                    min={8}
+                                    step={1}
+                                    value={cfg.nameFontPx}
+                                    onChange={(e) =>
+                                      setLabelDialogConfig((p) => ({
+                                        ...(p ?? labelConfig),
+                                        nameFontPx: Number(e.target.value),
+                                      }))
+                                    }
+                                  />
+                                </div>
+                                <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                                  <input
+                                    type="checkbox"
+                                    checked={cfg.nameBold}
+                                    onChange={(e) =>
+                                      setLabelDialogConfig((p) => ({
+                                        ...(p ?? labelConfig),
+                                        nameBold: e.target.checked,
+                                      }))
+                                    }
+                                  />
+                                  {tt(t, 'labelsQr.typography.bold', 'Negrita')}
+                                </label>
+                              </div>
+                            )}
+
+                            {cfg.showName && (
+                              <div className="grid grid-cols-[1fr,1fr] items-end gap-2">
+                                <div className="text-gray-700 dark:text-gray-200">
+                                  {tt(t, 'labelsQr.typography.lines', 'Líneas')} (
+                                  {tt(t, 'labelsQr.typography.name', 'Nombre')})
+                                </div>
+                                <Input
+                                  type="number"
+                                  min={1}
+                                  max={5}
+                                  step={1}
+                                  value={cfg.nameMaxLines}
+                                  onChange={(e) =>
+                                    setLabelDialogConfig((p) => ({
+                                      ...(p ?? labelConfig),
+                                      nameMaxLines: Number(e.target.value),
+                                    }))
+                                  }
+                                />
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  );
+                })()}
 
                 {/* Posición solo para campos activos */}
                 {(() => {
@@ -2743,7 +2906,8 @@ export function LabelsQrPage() {
                                       left: `${xBarcode}px`,
                                       top: `${yBarcode}px`,
                                       right: `${paddingPx}px`,
-                                      fontSize: cfg.codeFontPx,
+                                      fontSize: cfg.barcodeFontPx,
+                                      fontWeight: cfg.barcodeBold ? 700 : 400,
                                     }}
                                   >
                                     {selectedProduct.barcode ?? ''}
@@ -2756,7 +2920,8 @@ export function LabelsQrPage() {
                                       left: `${xLocation}px`,
                                       top: `${yLocation}px`,
                                       right: `${paddingPx}px`,
-                                      fontSize: Math.max(9, cfg.nameFontPx - 1),
+                                      fontSize: cfg.locationFontPx,
+                                      fontWeight: cfg.locationBold ? 700 : 400,
                                     }}
                                   >
                                     {locationText}
@@ -2769,7 +2934,8 @@ export function LabelsQrPage() {
                                       left: `${xWarehouse}px`,
                                       top: `${yWarehouse}px`,
                                       right: `${paddingPx}px`,
-                                      fontSize: Math.max(9, cfg.nameFontPx - 1),
+                                      fontSize: cfg.warehouseFontPx,
+                                      fontWeight: cfg.warehouseBold ? 700 : 400,
                                     }}
                                   >
                                     {warehouseText}
@@ -2813,14 +2979,74 @@ export function LabelsQrPage() {
             {tt(t, 'common.cancel', 'Cancelar')}
           </Button>
           <Button
-            onClick={() => {
+            onClick={async () => {
+              if (!selectedProduct) return;
+
               const cfg = labelDialogConfig ?? labelConfig;
               setLabelConfig(cfg);
               setLabelQuality(labelDialogQuality);
               setLabelEnabled(true);
               setLabelPreviewOpen(true);
-              setLabelDialogOpen(false);
-              setLabelDialogConfig(null);
+
+              // Guardar etiqueta en Storage/DB (best-effort)
+              try {
+                const barcode = (selectedProduct.barcode ?? '').trim();
+                let qrDataUrl: string | null = null;
+                if (cfg.showQr && barcode) {
+                  const s = qualityScale(labelDialogQuality, cfg.dpi);
+                  qrDataUrl = await QRCode.toDataURL(barcode, {
+                    type: 'image/png',
+                    width: 512 * s,
+                    margin: 4,
+                    errorCorrectionLevel: 'M',
+                    color: { dark: '#000000', light: '#FFFFFF' },
+                  });
+                }
+
+                const labelProduct: Product = {
+                  ...selectedProduct,
+                  aisle: selectedLocation?.aisle ?? selectedProduct.aisle,
+                  shelf: selectedLocation?.shelf ?? selectedProduct.shelf,
+                  warehouse: selectedLocation?.warehouse ?? selectedProduct.warehouse,
+                };
+
+                const widthPx = mmToPx(cfg.widthMm, cfg.dpi);
+                const heightPx = mmToPx(cfg.heightMm, cfg.dpi);
+                const scale = qualityScale(labelDialogQuality, cfg.dpi);
+                const svg = buildLabelSvg(labelProduct, qrDataUrl, cfg);
+                const pngBlob = await svgToPngBlob(svg, widthPx, heightPx, scale);
+
+                const locKey =
+                  selectedLocation?.id ??
+                  `legacy:${labelProduct.aisle ?? ''}-${labelProduct.shelf ?? ''}:${labelProduct.warehouse ?? ''}`;
+                const configJson = {
+                  cfg,
+                  locationId: selectedLocation?.id ?? null,
+                  locationKey: locKey,
+                } as const;
+                const configHash = hashStringToBase36(stableStringify(configJson));
+                const labelPath = await uploadProductLabel({
+                  productId: selectedProduct.id,
+                  configHash,
+                  pngBlob,
+                });
+                const asset = await labelRepo.upsert({
+                  productId: selectedProduct.id,
+                  labelPath,
+                  configHash,
+                  configJson: configJson as unknown as Record<string, unknown>,
+                });
+                setLabelAssetsByProductId((prev) => {
+                  const next = new Map(prev);
+                  next.set(selectedProduct.id, asset);
+                  return next;
+                });
+              } catch {
+                // no-op
+              } finally {
+                setLabelDialogOpen(false);
+                setLabelDialogConfig(null);
+              }
             }}
           >
             {tt(t, 'common.confirm', 'Confirmar')}
