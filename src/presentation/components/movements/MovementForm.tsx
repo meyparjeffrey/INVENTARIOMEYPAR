@@ -121,10 +121,7 @@ export function MovementForm({
       return;
     }
 
-    if (!requestReason.trim()) {
-      setError(t('movements.error.noPerson'));
-      return;
-    }
+    // Personal ya no es obligatorio
 
     // Validar stock para salidas
     if (movementType === 'OUT' && qty > selectedProduct.stockCurrent) {
@@ -355,7 +352,7 @@ export function MovementForm({
 
         {/* Personal */}
         <div>
-          <Label htmlFor="requestReason">{t('movements.person')} *</Label>
+          <Label htmlFor="requestReason">{t('movements.person')}</Label>
           <Input
             id="requestReason"
             type="text"
