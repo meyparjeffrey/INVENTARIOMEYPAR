@@ -119,16 +119,15 @@ export function MovementForm({
 
   // Filtrar productos por búsqueda
   const filteredProducts = React.useMemo(() => {
-    if (!productSearch) return products.slice(0, 10);
+    // Sin límite: mostrar todos los productos disponibles
+    if (!productSearch) return products;
     const search = productSearch.toLowerCase();
-    return products
-      .filter(
-        (p) =>
-          p.name.toLowerCase().includes(search) ||
-          p.code.toLowerCase().includes(search) ||
-          p.barcode?.toLowerCase().includes(search),
-      )
-      .slice(0, 10);
+    return products.filter(
+      (p) =>
+        p.name.toLowerCase().includes(search) ||
+        p.code.toLowerCase().includes(search) ||
+        p.barcode?.toLowerCase().includes(search),
+    );
   }, [products, productSearch]);
 
   const handleSubmit = async (e: React.FormEvent) => {
