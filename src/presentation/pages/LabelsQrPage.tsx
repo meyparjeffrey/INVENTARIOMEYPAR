@@ -246,6 +246,10 @@ export function LabelsQrPage() {
   );
 
   const [qrPreviewUrl, setQrPreviewUrl] = React.useState<string | null>(null);
+  const [qrPreviewOpen, setQrPreviewOpen] = React.useState(true);
+  const [qrPreviewLoading, setQrPreviewLoading] = React.useState(false);
+  const [qrPreviewError, setQrPreviewError] = React.useState(false);
+  const [qrPreviewReloadKey, setQrPreviewReloadKey] = React.useState(0);
   const [generatingQr, setGeneratingQr] = React.useState(false);
   const [confirmReplaceQrOpen, setConfirmReplaceQrOpen] = React.useState(false);
 
@@ -287,6 +291,7 @@ export function LabelsQrPage() {
   });
 
   const labelRef = React.useRef<HTMLDivElement>(null);
+  const detailsRef = React.useRef<HTMLDivElement>(null);
 
   const [labelQuality, setLabelQuality] = React.useState<PngQuality>('auto');
   const [labelEnabled, setLabelEnabled] = React.useState(false);
@@ -517,7 +522,50 @@ export function LabelsQrPage() {
 
   React.useEffect(() => {
     setQrPreviewUrl(null);
+    // UX: al cambiar de producto, mostrar previews por defecto (como en etiqueta).
+    setQrPreviewOpen(true);
+    setLabelPreviewOpen(true);
+    setQrPreviewLoading(false);
+    setQrPreviewError(false);
   }, [selectedProduct?.id]);
+
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!qrPreviewOpen) return;
+      if (!selectedAsset) {
+        setQrPreviewUrl(null);
+        setQrPreviewLoading(false);
+        setQrPreviewError(false);
+        return;
+      }
+      try {
+        setQrPreviewLoading(true);
+        setQrPreviewError(false);
+        const signed = await createProductQrSignedUrl(selectedAsset.qrPath, 60 * 10);
+        if (!cancelled) {
+          setQrPreviewUrl(signed);
+          setQrPreviewLoading(false);
+          setQrPreviewError(false);
+        }
+      } catch (err) {
+        // Si no hay conexión (o falla Supabase), no spamear toasts.
+        if (!cancelled) {
+          setQrPreviewUrl(null);
+          setQrPreviewLoading(false);
+          setQrPreviewError(true);
+          // eslint-disable-next-line no-console
+          console.warn('[LabelsQrPage] No se pudo cargar preview QR:', err);
+        }
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [qrPreviewOpen, qrPreviewReloadKey, selectedAsset?.qrPath]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -642,15 +690,38 @@ export function LabelsQrPage() {
     });
   };
 
-  const loadQrPreview = React.useCallback(async () => {
-    if (!selectedAsset) return;
-    try {
-      const signed = await createProductQrSignedUrl(selectedAsset.qrPath, 60 * 10);
-      setQrPreviewUrl(signed);
-    } catch (err) {
-      toast.error('QR', err instanceof Error ? err.message : 'Error cargando preview');
+  const scrollDetailsIntoView = React.useCallback(() => {
+    const el = detailsRef.current;
+    if (!el) return;
+
+    // En esta app el scroll suele estar en el <main> (overflow-y-auto).
+    // scrollIntoView no siempre desplaza ese contenedor, así que lo hacemos explícito.
+    const container = el.closest('main') as HTMLElement | null;
+    if (container) {
+      const containerRect = container.getBoundingClientRect();
+      const elRect = el.getBoundingClientRect();
+      const top = container.scrollTop + (elRect.top - containerRect.top) - 12;
+      container.scrollTo({ top, behavior: 'smooth' });
+      return;
     }
-  }, [selectedAsset, toast]);
+
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  const selectProductAndFocus = React.useCallback(
+    (productId: string) => {
+      setSelectedId(productId);
+      // UX: al seleccionar desde el listado, llevar al panel derecho (QR/Etiqueta).
+      setQrPreviewOpen(true);
+      setLabelPreviewOpen(true);
+      // En pantallas grandes el panel es sticky y siempre visible; evitamos saltos de scroll.
+      const isLg = window.matchMedia?.('(min-width: 1024px)')?.matches ?? false;
+      if (!isLg) {
+        window.requestAnimationFrame(scrollDetailsIntoView);
+      }
+    },
+    [scrollDetailsIntoView],
+  );
 
   const handleGenerateQr = async () => {
     if (!selectedProduct) return;
@@ -1942,7 +2013,7 @@ export function LabelsQrPage() {
                           <td className="py-2 pr-4">
                             <button
                               className="font-medium text-gray-900 hover:underline dark:text-gray-50"
-                              onClick={() => setSelectedId(p.id)}
+                              onClick={() => selectProductAndFocus(p.id)}
                             >
                               {p.code}
                             </button>
@@ -1983,7 +2054,7 @@ export function LabelsQrPage() {
         </div>
 
         {/* Detalle */}
-        <div className="lg:col-span-1">
+        <div ref={detailsRef} className="lg:col-span-1 self-start lg:sticky lg:top-6">
           <div className="space-y-6">
             {/* QR */}
             <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
@@ -2036,37 +2107,61 @@ export function LabelsQrPage() {
                   </div>
 
                   {selectedAsset && (
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        if (qrPreviewUrl) {
-                          setQrPreviewUrl(null);
-                          return;
-                        }
-                        void loadQrPreview();
-                      }}
-                    >
-                      {qrPreviewUrl
+                    <Button variant="outline" onClick={() => setQrPreviewOpen((p) => !p)}>
+                      {qrPreviewOpen
                         ? tt(t, 'labelsQr.qr.hidePreview', 'Ocultar vista previa')
-                        : tt(t, 'labelsQr.qr.loadPreview', 'Cargar preview')}
+                        : tt(t, 'labelsQr.qr.showPreview', 'Ver vista previa')}
                     </Button>
                   )}
 
-                  {qrPreviewUrl && (
+                  {qrPreviewOpen && selectedAsset && (
                     <div className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-900">
-                      <img
-                        src={qrPreviewUrl}
-                        alt={`QR ${selectedProduct.code}`}
-                        className="mx-auto h-44 w-44"
-                      />
-                      <p className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
-                        {(() => {
-                          const content = buildQrPayload(selectedProduct);
-                          return tt(t, 'labelsQr.qr.content', 'Contenido QR: {{content}}')
-                            .replace('{{content}}', content)
-                            .replace('{{barcode}}', content);
-                        })()}
-                      </p>
+                      {qrPreviewLoading ? (
+                        <div className="flex items-center justify-center gap-2 py-10 text-sm text-gray-600 dark:text-gray-300">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          {tt(t, 'labelsQr.qr.loadingPreview', 'Cargando…')}
+                        </div>
+                      ) : qrPreviewUrl ? (
+                        <>
+                          <img
+                            src={qrPreviewUrl}
+                            alt={`QR ${selectedProduct.code}`}
+                            className="mx-auto h-44 w-44"
+                          />
+                          <p className="mt-2 text-center text-xs text-gray-500 dark:text-gray-400">
+                            {(() => {
+                              const content = buildQrPayload(selectedProduct);
+                              return tt(
+                                t,
+                                'labelsQr.qr.content',
+                                'Contenido QR: {{content}}',
+                              )
+                                .replace('{{content}}', content)
+                                .replace('{{barcode}}', content);
+                            })()}
+                          </p>
+                        </>
+                      ) : qrPreviewError ? (
+                        <div className="space-y-2 py-4 text-center">
+                          <p className="text-sm text-gray-600 dark:text-gray-300">
+                            {tt(
+                              t,
+                              'labelsQr.qr.previewError',
+                              'No se pudo cargar la vista previa.',
+                            )}
+                          </p>
+                          <Button
+                            variant="outline"
+                            onClick={() => setQrPreviewReloadKey((k) => k + 1)}
+                          >
+                            {tt(t, 'labelsQr.qr.retryPreview', 'Reintentar')}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="py-10 text-center text-sm text-gray-600 dark:text-gray-300">
+                          {tt(t, 'labelsQr.qr.loadingPreview', 'Cargando…')}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
