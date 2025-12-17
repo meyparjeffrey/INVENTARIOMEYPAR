@@ -2,9 +2,9 @@ import type {
   InventoryMovement,
   MovementReasonCategory,
   MovementType,
-  UUID
-} from "@domain/entities";
-import type { PaginationParams, PaginatedResult } from "./types";
+  UUID,
+} from '@domain/entities';
+import type { PaginationParams, PaginatedResult } from './types';
 
 export interface MovementFilters {
   productId?: UUID;
@@ -14,9 +14,9 @@ export interface MovementFilters {
   dateFrom?: string;
   dateTo?: string;
   search?: string; // Búsqueda por texto (código antiguo, nombre producto, comentarios, etc.)
-  adjustmentType?: "CODE" | "NAME" | "DESCRIPTION"; // Tipo de ajuste específico
-  orderBy?: "date" | "product"; // Ordenar por fecha o producto
-  orderDirection?: "asc" | "desc"; // Dirección de ordenación
+  adjustmentType?: 'CODE' | 'NAME' | 'DESCRIPTION'; // Tipo de ajuste específico
+  orderBy?: 'date' | 'product'; // Ordenar por fecha o producto
+  orderDirection?: 'asc' | 'desc'; // Dirección de ordenación
 }
 
 export interface CreateInventoryMovementInput {
@@ -34,6 +34,7 @@ export interface CreateInventoryMovementInput {
   sourceLocation?: string;
   destinationLocation?: string;
   movementDate?: string;
+  warehouse?: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA'; // Almacén donde se realiza el movimiento
 }
 
 export interface InventoryMovementRepository {
@@ -42,14 +43,11 @@ export interface InventoryMovementRepository {
    */
   list(
     filters?: MovementFilters,
-    pagination?: PaginationParams
+    pagination?: PaginationParams,
   ): Promise<PaginatedResult<InventoryMovement>>;
 
   /**
    * Registra un movimiento y devuelve la fila completa.
    */
-  recordMovement(
-    payload: CreateInventoryMovementInput
-  ): Promise<InventoryMovement>;
+  recordMovement(payload: CreateInventoryMovementInput): Promise<InventoryMovement>;
 }
-

@@ -14,6 +14,8 @@ import { Label } from '../ui/Label';
 import { Dialog } from '../ui/Dialog';
 import { useLanguage } from '../../context/LanguageContext';
 import { cn } from '../../lib/cn';
+import { SupabaseProductRepository } from '@infrastructure/repositories/SupabaseProductRepository';
+import { supabaseClient } from '@infrastructure/supabase/supabaseClient';
 
 interface MovementFormProps {
   isOpen: boolean;
@@ -24,6 +26,7 @@ interface MovementFormProps {
     quantity: number;
     requestReason: string;
     comments?: string;
+    warehouse?: 'MEYPAR' | 'OLIVA_TORRAS';
   }) => Promise<void>;
   products: Product[];
   preselectedProduct?: Product;
@@ -65,6 +68,7 @@ export function MovementForm({
   const { t } = useLanguage();
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const repositoryRef = React.useRef(new SupabaseProductRepository(supabaseClient));
 
   // Form state
   const [movementType, setMovementType] = React.useState<MovementType>(
@@ -78,6 +82,10 @@ export function MovementForm({
   const [quantity, setQuantity] = React.useState('');
   const [requestReason, setRequestReason] = React.useState('');
   const [comments, setComments] = React.useState('');
+  const [warehouse, setWarehouse] = React.useState<'MEYPAR' | 'OLIVA_TORRAS'>('MEYPAR');
+  const [productStocksByWarehouse, setProductStocksByWarehouse] = React.useState<
+    Array<{ warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA'; quantity: number }>
+  >([]);
 
   // Reset form when dialog opens
   React.useEffect(() => {
@@ -88,9 +96,33 @@ export function MovementForm({
       setQuantity('');
       setRequestReason('');
       setComments('');
+      setWarehouse('MEYPAR');
+      setProductStocksByWarehouse([]);
       setError(null);
     }
   }, [isOpen, preselectedProduct, preselectedMovementType]);
+
+  // Cargar stocks por almacén cuando se selecciona un producto
+  React.useEffect(() => {
+    if (selectedProduct?.id) {
+      repositoryRef.current
+        .getProductStocksByWarehouse(selectedProduct.id)
+        .then((stocks) => {
+          setProductStocksByWarehouse(
+            stocks.map((s) => ({
+              warehouse: s.warehouse,
+              quantity: s.quantity,
+            })),
+          );
+        })
+        .catch((err) => {
+          console.warn('Error al cargar stocks por almacén:', err);
+          setProductStocksByWarehouse([]);
+        });
+    } else {
+      setProductStocksByWarehouse([]);
+    }
+  }, [selectedProduct?.id]);
 
   // Filtrar productos por búsqueda
   const filteredProducts = React.useMemo(() => {
@@ -123,12 +155,14 @@ export function MovementForm({
 
     // Personal ya no es obligatorio
 
-    // Validar stock para salidas
-    if (movementType === 'OUT' && qty > selectedProduct.stockCurrent) {
+    // Validar stock para salidas (usar stock del almacén específico)
+    const currentStockInWarehouse =
+      productStocksByWarehouse.find((s) => s.warehouse === warehouse)?.quantity ?? 0;
+    if (movementType === 'OUT' && qty > currentStockInWarehouse) {
       setError(
         t('movements.error.insufficientStock').replace(
           '{current}',
-          String(selectedProduct.stockCurrent),
+          String(currentStockInWarehouse),
         ),
       );
       return;
@@ -142,6 +176,7 @@ export function MovementForm({
         quantity: qty,
         requestReason: requestReason.trim(),
         comments: comments.trim() || undefined,
+        warehouse,
       });
       onClose();
     } catch (err) {
@@ -216,7 +251,7 @@ export function MovementForm({
                     {selectedProduct.name}
                   </div>
                   <div className="text-sm text-gray-500 dark:text-gray-400">
-                    {selectedProduct.code} · Stock: {selectedProduct.stockCurrent}
+                    {selectedProduct.code} · Stock total: {selectedProduct.stockCurrent}
                   </div>
                 </div>
               </div>
@@ -271,7 +306,7 @@ export function MovementForm({
                               {product.name}
                             </div>
                             <div className="text-xs text-gray-500 dark:text-gray-400">
-                              {product.code} · Stock: {product.stockCurrent}
+                              {product.code} · Stock total: {product.stockCurrent}
                             </div>
                           </div>
                         </button>
@@ -283,6 +318,59 @@ export function MovementForm({
             </div>
           )}
         </div>
+
+        {/* Selector de almacén */}
+        {selectedProduct && (
+          <div>
+            <Label>{t('movements.warehouse') || 'Almacén'}</Label>
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setWarehouse('MEYPAR')}
+                className={cn(
+                  'flex items-center justify-center gap-2 rounded-lg border-2 p-3 transition-all',
+                  warehouse === 'MEYPAR'
+                    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+                    : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600',
+                )}
+              >
+                <span className="text-sm font-medium">
+                  {t('form.warehouse.meypar') || 'MEYPAR'}
+                </span>
+                {productStocksByWarehouse.find((s) => s.warehouse === 'MEYPAR') && (
+                  <span className="text-xs text-gray-500">
+                    (
+                    {productStocksByWarehouse.find((s) => s.warehouse === 'MEYPAR')
+                      ?.quantity ?? 0}
+                    )
+                  </span>
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setWarehouse('OLIVA_TORRAS')}
+                className={cn(
+                  'flex items-center justify-center gap-2 rounded-lg border-2 p-3 transition-all',
+                  warehouse === 'OLIVA_TORRAS'
+                    ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-400'
+                    : 'border-gray-200 hover:border-gray-300 dark:border-gray-700 dark:hover:border-gray-600',
+                )}
+              >
+                <span className="text-sm font-medium">
+                  {t('form.warehouse.olivaTorras') || 'Oliva Torras'}
+                </span>
+                {productStocksByWarehouse.find((s) => s.warehouse === 'OLIVA_TORRAS') && (
+                  <span className="text-xs text-gray-500">
+                    (
+                    {productStocksByWarehouse.find((s) => s.warehouse === 'OLIVA_TORRAS')
+                      ?.quantity ?? 0}
+                    )
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Cantidad */}
         <div>
@@ -306,7 +394,13 @@ export function MovementForm({
           {selectedProduct && (
             <div className="mt-2 space-y-1">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                {t('movements.availableStock')}: {selectedProduct.stockCurrent}
+                {t('movements.availableStock')} (
+                {warehouse === 'MEYPAR'
+                  ? t('form.warehouse.meypar') || 'MEYPAR'
+                  : t('form.warehouse.olivaTorras') || 'Oliva Torras'}
+                ):{' '}
+                {productStocksByWarehouse.find((s) => s.warehouse === warehouse)
+                  ?.quantity ?? 0}
               </p>
               {quantity &&
                 !isNaN(parseInt(quantity, 10)) &&
@@ -314,15 +408,24 @@ export function MovementForm({
                   <div className="rounded-lg border border-gray-200 bg-gray-50 p-2 dark:border-gray-700 dark:bg-gray-800">
                     <div className="flex items-center justify-between text-sm">
                       <span className="text-gray-600 dark:text-gray-400">
-                        {t('movements.stockBefore')}:
+                        {t('movements.stockBefore')} (
+                        {warehouse === 'MEYPAR'
+                          ? t('form.warehouse.meypar') || 'MEYPAR'
+                          : t('form.warehouse.olivaTorras') || 'Oliva Torras'}
+                        ):
                       </span>
                       <span className="font-medium text-gray-900 dark:text-gray-50">
-                        {selectedProduct.stockCurrent}
+                        {productStocksByWarehouse.find((s) => s.warehouse === warehouse)
+                          ?.quantity ?? 0}
                       </span>
                     </div>
                     <div className="mt-1 flex items-center justify-between text-sm">
                       <span className="text-gray-600 dark:text-gray-400">
-                        {t('movements.stockAfter')}:
+                        {t('movements.stockAfter')} (
+                        {warehouse === 'MEYPAR'
+                          ? t('form.warehouse.meypar') || 'MEYPAR'
+                          : t('form.warehouse.olivaTorras') || 'Oliva Torras'}
+                        ):
                       </span>
                       <span
                         className={cn(
@@ -335,13 +438,19 @@ export function MovementForm({
                         )}
                       >
                         {movementType === 'IN'
-                          ? selectedProduct.stockCurrent + parseInt(quantity, 10)
+                          ? (productStocksByWarehouse.find(
+                              (s) => s.warehouse === warehouse,
+                            )?.quantity ?? 0) + parseInt(quantity, 10)
                           : movementType === 'OUT'
                             ? Math.max(
                                 0,
-                                selectedProduct.stockCurrent - parseInt(quantity, 10),
+                                (productStocksByWarehouse.find(
+                                  (s) => s.warehouse === warehouse,
+                                )?.quantity ?? 0) - parseInt(quantity, 10),
                               )
-                            : selectedProduct.stockCurrent}
+                            : (productStocksByWarehouse.find(
+                                (s) => s.warehouse === warehouse,
+                              )?.quantity ?? 0)}
                       </span>
                     </div>
                   </div>

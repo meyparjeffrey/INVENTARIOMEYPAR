@@ -168,6 +168,24 @@ export function ProductForm({
   // Estado para mostrar/ocultar el formulario de añadir ubicación
   const [showAddLocationForm, setShowAddLocationForm] = React.useState(false);
 
+  // Stocks por almacén
+  const [stocksByWarehouse, setStocksByWarehouse] = React.useState<
+    Array<{
+      warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA';
+      quantity: number;
+      locationAisle?: string;
+      locationShelf?: string;
+      id?: string;
+    }>
+  >([]);
+  const [newStock, setNewStock] = React.useState({
+    warehouse: 'MEYPAR' as 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
+    quantity: 0,
+    locationAisle: '',
+    locationShelf: '',
+  });
+  const [showAddStockForm, setShowAddStockForm] = React.useState(false);
+
   const repositoryRef = React.useRef(new SupabaseProductRepository(supabaseClient));
   // Determinar warehouse inicial basado en el producto existente
   const getInitialWarehouse = (): 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA' => {
@@ -232,7 +250,7 @@ export function ProductForm({
     notes: product?.notes ?? '',
   });
 
-  // Cargar ubicaciones cuando se edita un producto
+  // Cargar ubicaciones y stocks por almacén cuando se edita un producto
   React.useEffect(() => {
     if (product?.id) {
       // Cargar todas las ubicaciones desde product_locations (independientemente del warehouse del producto)
@@ -335,11 +353,32 @@ export function ProductForm({
             setLocations([]);
           }
         });
+
+      // Cargar stocks por almacén
+      repositoryRef.current
+        .getProductStocksByWarehouse(product.id)
+        .then((loadedStocks) => {
+          setStocksByWarehouse(
+            loadedStocks.map((s) => ({
+              warehouse: s.warehouse,
+              quantity: s.quantity,
+              locationAisle: s.locationAisle || undefined,
+              locationShelf: s.locationShelf || undefined,
+              id: s.id,
+            })),
+          );
+        })
+        .catch((err) => {
+          console.warn('Error al cargar stocks por almacén:', err);
+          setStocksByWarehouse([]);
+        });
     } else if (!product) {
-      // Producto nuevo: no inicializar ubicaciones, el usuario las añadirá manualmente
+      // Producto nuevo: no inicializar ubicaciones ni stocks, el usuario los añadirá manualmente
       setLocations([]);
+      setStocksByWarehouse([]);
     } else {
       setLocations([]);
+      setStocksByWarehouse([]);
     }
   }, [product?.id, product]);
 
@@ -708,6 +747,59 @@ export function ProductForm({
           }
 
           console.log('Todas las ubicaciones procesadas correctamente');
+
+          // Gestionar stocks por almacén
+          if (savedProduct && stocksByWarehouse.length > 0) {
+            try {
+              // Obtener stocks actuales
+              const currentStocks =
+                await repositoryRef.current.getProductStocksByWarehouse(savedProduct.id);
+
+              // Actualizar o crear stocks
+              for (const stock of stocksByWarehouse) {
+                if (stock.quantity > 0) {
+                  await repositoryRef.current.setProductStockByWarehouse(
+                    savedProduct.id,
+                    stock.warehouse,
+                    stock.quantity,
+                    stock.locationAisle || null,
+                    stock.locationShelf || null,
+                    userId,
+                  );
+                } else {
+                  // Si la cantidad es 0, eliminar el stock
+                  await repositoryRef.current.removeProductStockByWarehouse(
+                    savedProduct.id,
+                    stock.warehouse,
+                    userId,
+                  );
+                }
+              }
+
+              // Eliminar stocks que ya no existen en la lista
+              for (const currentStock of currentStocks) {
+                const exists = stocksByWarehouse.find(
+                  (s) => s.warehouse === currentStock.warehouse,
+                );
+                if (!exists) {
+                  await repositoryRef.current.removeProductStockByWarehouse(
+                    savedProduct.id,
+                    currentStock.warehouse,
+                    userId,
+                  );
+                }
+              }
+
+              console.log('Todos los stocks por almacén procesados correctamente');
+            } catch (error) {
+              console.error('Error al gestionar stocks por almacén:', error);
+              showError(
+                t('form.errorManagingStocks') || 'Error al gestionar stocks por almacén',
+                error instanceof Error ? error.message : String(error),
+              );
+              // No re-lanzar el error para que el producto se guarde aunque falle la gestión de stocks
+            }
+          }
         } catch (error) {
           console.error('Error al gestionar ubicaciones:', error);
           showError(
@@ -878,6 +970,61 @@ export function ProductForm({
       newLocations[0].isPrimary = true;
     }
     setLocations(newLocations);
+  };
+
+  const addStock = (): boolean => {
+    const warehouse = newStock.warehouse;
+    const quantity = Number(newStock.quantity);
+
+    if (quantity <= 0) {
+      showError(
+        t('form.invalidQuantity') || 'Cantidad inválida',
+        t('form.quantityMustBePositive') || 'La cantidad debe ser mayor que 0',
+      );
+      return false;
+    }
+
+    // Validar si el stock ya existe en este almacén
+    const exists = stocksByWarehouse.some((s) => s.warehouse === warehouse);
+
+    if (exists) {
+      showError(
+        t('form.stockExists') || 'Stock existente',
+        t('form.stockExistsMessage') ||
+          'Ya existe stock para este almacén. Edita el existente o elimínalo primero.',
+      );
+      return false;
+    }
+
+    setStocksByWarehouse((prev) => [
+      ...prev,
+      {
+        warehouse,
+        quantity,
+        locationAisle: newStock.locationAisle || undefined,
+        locationShelf: newStock.locationShelf || undefined,
+      },
+    ]);
+
+    // Reset form
+    setNewStock({
+      warehouse: 'MEYPAR',
+      quantity: 0,
+      locationAisle: '',
+      locationShelf: '',
+    });
+    setShowAddStockForm(false);
+    return true;
+  };
+
+  const removeStock = (index: number) => {
+    setStocksByWarehouse((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const updateStockQuantity = (index: number, quantity: number) => {
+    setStocksByWarehouse((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, quantity } : s)),
+    );
   };
 
   const setPrimaryLocation = (index: number) => {
@@ -1090,7 +1237,12 @@ export function ProductForm({
             error={errors.stockCurrent}
             touched={touchedFields.has('stockCurrent')}
           >
-            <Label htmlFor="stockCurrent">{t('form.stockCurrent')}</Label>
+            <Label htmlFor="stockCurrent">
+              {t('form.stockCurrent')}{' '}
+              {isEditing && (
+                <span className="text-xs text-gray-500">(calculado automáticamente)</span>
+              )}
+            </Label>
             <Input
               id="stockCurrent"
               type="number"
@@ -1098,13 +1250,21 @@ export function ProductForm({
               value={formData.stockCurrent}
               onChange={(e) => handleChange('stockCurrent', Number(e.target.value) || 0)}
               onBlur={() => handleBlur('stockCurrent')}
+              disabled={isEditing}
               className={cn(
                 'transition-all duration-200',
+                isEditing && 'bg-gray-50 dark:bg-gray-800 cursor-not-allowed',
                 errors.stockCurrent && touchedFields.has('stockCurrent')
                   ? 'border-red-500 focus:border-red-500 focus:ring-red-500'
                   : 'focus:border-primary-500 focus:ring-primary-500',
               )}
             />
+            {isEditing && (
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                El stock total se calcula automáticamente como la suma de todos los
+                almacenes. Gestiona el stock por almacén en la sección inferior.
+              </p>
+            )}
           </FieldWrapper>
 
           <FieldWrapper error={errors.stockMin} touched={touchedFields.has('stockMin')}>
@@ -1150,6 +1310,205 @@ export function ProductForm({
             />
           </FieldWrapper>
         </div>
+
+        {/* Gestión de stocks por almacén */}
+        {isEditing && (
+          <div className="mt-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-sm font-medium">
+                {t('form.stocksByWarehouse') || 'Stock por almacén'}
+              </Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAddStockForm(!showAddStockForm)}
+              >
+                {showAddStockForm
+                  ? t('common.cancel') || 'Cancelar'
+                  : t('form.addStock') || 'Añadir stock'}
+              </Button>
+            </div>
+
+            {/* Lista de stocks por almacén */}
+            {stocksByWarehouse.length > 0 && (
+              <div className="space-y-2">
+                {stocksByWarehouse.map((stock, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-700 dark:bg-gray-800"
+                  >
+                    <div className="flex flex-1 items-center gap-3">
+                      <span
+                        className={cn(
+                          'inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold ring-1 ring-inset',
+                          stock.warehouse === 'MEYPAR' &&
+                            'bg-blue-50 text-blue-700 ring-blue-700/10 dark:bg-blue-400/10 dark:text-blue-400 dark:ring-blue-400/20',
+                          stock.warehouse === 'OLIVA_TORRAS' &&
+                            'bg-green-50 text-green-700 ring-green-700/10 dark:bg-green-400/10 dark:text-green-400 dark:ring-green-400/20',
+                          stock.warehouse === 'FURGONETA' &&
+                            'bg-purple-50 text-purple-700 ring-purple-700/10 dark:bg-purple-400/10 dark:text-purple-400 dark:ring-purple-400/20',
+                        )}
+                      >
+                        {stock.warehouse === 'MEYPAR'
+                          ? t('form.warehouse.meypar') || 'MEYPAR'
+                          : stock.warehouse === 'OLIVA_TORRAS'
+                            ? t('form.warehouse.olivaTorras') || 'Oliva Torras'
+                            : t('form.warehouse.furgoneta') || 'Furgoneta'}
+                      </span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="1"
+                        value={stock.quantity}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          const numVal = val === '' ? 0 : Number(val);
+                          if (!isNaN(numVal) && numVal >= 0) {
+                            updateStockQuantity(index, numVal);
+                          }
+                        }}
+                        className="w-24"
+                      />
+                      <span className="text-sm text-gray-500 dark:text-gray-400">
+                        {formData.unitOfMeasure || 'unidades'}
+                      </span>
+                      {(stock.locationAisle || stock.locationShelf) && (
+                        <span className="text-xs text-gray-500 dark:text-gray-400">
+                          ({stock.locationAisle || ''}
+                          {stock.locationAisle && stock.locationShelf ? '-' : ''}
+                          {stock.locationShelf || ''})
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeStock(index)}
+                      className="rounded p-1.5 text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-900/20"
+                      title={t('form.removeStock') || 'Eliminar stock'}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Formulario para añadir nuevo stock */}
+            {showAddStockForm && (
+              <div className="rounded-lg border border-primary-200 bg-primary-50 p-4 dark:border-primary-700 dark:bg-primary-900/20">
+                <div className="space-y-3">
+                  <div>
+                    <Label>{t('form.warehouse') || 'Almacén'}</Label>
+                    <select
+                      value={newStock.warehouse}
+                      onChange={(e) =>
+                        setNewStock((prev) => ({
+                          ...prev,
+                          warehouse: e.target.value as
+                            | 'MEYPAR'
+                            | 'OLIVA_TORRAS'
+                            | 'FURGONETA',
+                        }))
+                      }
+                      className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-50"
+                    >
+                      <option value="MEYPAR">
+                        {t('form.warehouse.meypar') || 'MEYPAR'}
+                      </option>
+                      <option value="OLIVA_TORRAS">
+                        {t('form.warehouse.olivaTorras') || 'Oliva Torras'}
+                      </option>
+                      <option value="FURGONETA">
+                        {t('form.warehouse.furgoneta') || 'Furgoneta'}
+                      </option>
+                    </select>
+                  </div>
+                  <div>
+                    <Label>{t('form.quantity') || 'Cantidad'}</Label>
+                    <Input
+                      type="number"
+                      min="0"
+                      value={newStock.quantity}
+                      onChange={(e) =>
+                        setNewStock((prev) => ({
+                          ...prev,
+                          quantity: Number(e.target.value) || 0,
+                        }))
+                      }
+                      className="mt-1"
+                    />
+                  </div>
+                  {newStock.warehouse === 'MEYPAR' && (
+                    <>
+                      <div>
+                        <Label>{t('form.aisle') || 'Pasillo'}</Label>
+                        <Input
+                          type="text"
+                          value={newStock.locationAisle}
+                          onChange={(e) =>
+                            setNewStock((prev) => ({
+                              ...prev,
+                              locationAisle: e.target.value,
+                            }))
+                          }
+                          className="mt-1"
+                          placeholder={t('form.aislePlaceholder') || 'Ej: 1'}
+                        />
+                      </div>
+                      <div>
+                        <Label>{t('form.shelf') || 'Estante'}</Label>
+                        <Input
+                          type="text"
+                          value={newStock.locationShelf}
+                          onChange={(e) =>
+                            setNewStock((prev) => ({
+                              ...prev,
+                              locationShelf: e.target.value,
+                            }))
+                          }
+                          className="mt-1"
+                          placeholder={t('form.shelfPlaceholder') || 'Ej: A'}
+                        />
+                      </div>
+                    </>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="sm"
+                      onClick={() => {
+                        const success = addStock();
+                        if (success) {
+                          setShowAddStockForm(false);
+                        }
+                      }}
+                    >
+                      {t('form.addStock') || 'Añadir'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setShowAddStockForm(false);
+                        setNewStock({
+                          warehouse: 'MEYPAR',
+                          quantity: 0,
+                          locationAisle: '',
+                          locationShelf: '',
+                        });
+                      }}
+                    >
+                      {t('common.cancel') || 'Cancelar'}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </SectionCard>
 
       {/* Ubicación */}

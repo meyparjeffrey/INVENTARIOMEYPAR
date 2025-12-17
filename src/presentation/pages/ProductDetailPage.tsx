@@ -14,6 +14,7 @@ import * as React from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useProducts } from '../hooks/useProducts';
+import { useLanguage } from '../context/LanguageContext';
 import { Button } from '../components/ui/Button';
 import { cn } from '../lib/cn';
 import type { Product } from '@domain/entities';
@@ -27,6 +28,7 @@ export function ProductDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { authContext } = useAuth();
   const { getById, loading, error } = useProducts();
+  const { t } = useLanguage();
   const [product, setProduct] = React.useState<Product | null>(null);
 
   // Determinar la ruta de retorno según el estado de navegación
@@ -264,6 +266,48 @@ export function ProductDetailPage() {
                 {product.stockCurrent} {product.unitOfMeasure || 'unidades'}
               </dd>
             </div>
+            {/* Desglose de stock por almacén */}
+            {product.stocksByWarehouse &&
+              Array.isArray(product.stocksByWarehouse) &&
+              product.stocksByWarehouse.length > 0 && (
+                <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
+                  <dt className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Desglose por almacén:
+                  </dt>
+                  <dd className="space-y-2">
+                    {product.stocksByWarehouse
+                      .filter((s) => s.quantity > 0)
+                      .map((stock) => (
+                        <div
+                          key={stock.id}
+                          className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm dark:bg-gray-800"
+                        >
+                          <span className="font-medium text-gray-900 dark:text-gray-50">
+                            {stock.warehouse === 'MEYPAR'
+                              ? t('form.warehouse.meypar') || 'MEYPAR'
+                              : stock.warehouse === 'OLIVA_TORRAS'
+                                ? t('form.warehouse.olivaTorras') || 'Oliva Torras'
+                                : stock.warehouse === 'FURGONETA'
+                                  ? t('form.warehouse.furgoneta') || 'Furgoneta'
+                                  : stock.warehouse}
+                            {stock.locationAisle || stock.locationShelf
+                              ? ` (${stock.locationAisle || ''}${stock.locationAisle && stock.locationShelf ? '-' : ''}${stock.locationShelf || ''})`
+                              : ''}
+                          </span>
+                          <span className="font-semibold text-gray-900 dark:text-gray-50">
+                            {stock.quantity} {product.unitOfMeasure || 'unidades'}
+                          </span>
+                        </div>
+                      ))}
+                    {product.stocksByWarehouse.filter((s) => s.quantity > 0).length ===
+                      0 && (
+                      <p className="text-sm text-gray-500 dark:text-gray-400">
+                        No hay stock en ningún almacén
+                      </p>
+                    )}
+                  </dd>
+                </div>
+              )}
             <div>
               <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
                 Stock Mínimo

@@ -10,7 +10,7 @@ export interface ProductDimensions {
 
 /**
  * Ubicación de un producto en el almacén.
- * 
+ *
  * Permite que un producto tenga múltiples ubicaciones (ej: A1, A2, B3).
  * Una ubicación está compuesta por aisle (pasillo/estantería) y shelf (estante).
  */
@@ -27,6 +27,22 @@ export interface ProductLocation {
   updatedBy?: Nullable<UUID>;
 }
 
+/**
+ * Stock de un producto en un almacén específico.
+ */
+export interface ProductStockByWarehouse {
+  id: UUID;
+  productId: UUID;
+  warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA';
+  quantity: number;
+  locationAisle?: Nullable<string>;
+  locationShelf?: Nullable<string>;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  createdBy?: Nullable<UUID>;
+  updatedBy?: Nullable<UUID>;
+}
+
 export interface Product {
   id: UUID;
   code: string;
@@ -34,14 +50,15 @@ export interface Product {
   name: string;
   description?: Nullable<string>;
   category?: Nullable<string>;
-  stockCurrent: number;
+  stockCurrent: number; // Suma calculada de todos los almacenes
   stockMin: number;
   stockMax?: Nullable<number>;
   aisle: string; // Mantener para compatibilidad (ubicación primaria)
   shelf: string; // Mantener para compatibilidad (ubicación primaria)
   locations?: ProductLocation[]; // Múltiples ubicaciones
   locationExtra?: Nullable<string>;
-  warehouse?: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA';
+  warehouse?: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA'; // Mantener para compatibilidad (almacén primario)
+  stocksByWarehouse?: ProductStockByWarehouse[]; // Stock por almacén
   costPrice: number;
   salePrice?: Nullable<number>;
   purchaseUrl?: Nullable<string>;

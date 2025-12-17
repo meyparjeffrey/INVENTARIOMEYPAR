@@ -1,4 +1,10 @@
-import type { BatchDefectReport, Product, ProductBatch, UUID } from '@domain/entities';
+import type {
+  BatchDefectReport,
+  Product,
+  ProductBatch,
+  ProductStockByWarehouse,
+  UUID,
+} from '@domain/entities';
 import type { PaginationParams, PaginatedResult } from './types';
 
 export interface ProductFilters {
@@ -251,4 +257,31 @@ export interface ProductRepository {
     isPrimary: boolean,
     userId: UUID,
   ): Promise<ProductLocation>;
+
+  /**
+   * Obtiene todos los stocks por almacén de un producto.
+   */
+  getProductStocksByWarehouse(productId: UUID): Promise<ProductStockByWarehouse[]>;
+
+  /**
+   * Establece o actualiza el stock de un producto en un almacén específico.
+   * Si el registro existe, lo actualiza; si no, lo crea.
+   */
+  setProductStockByWarehouse(
+    productId: UUID,
+    warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
+    quantity: number,
+    locationAisle?: string | null,
+    locationShelf?: string | null,
+    userId?: UUID,
+  ): Promise<ProductStockByWarehouse>;
+
+  /**
+   * Elimina el stock de un producto en un almacén específico (establece quantity a 0 o elimina el registro).
+   */
+  removeProductStockByWarehouse(
+    productId: UUID,
+    warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
+    userId?: UUID,
+  ): Promise<void>;
 }

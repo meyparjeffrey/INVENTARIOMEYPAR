@@ -1,16 +1,16 @@
-import * as React from "react";
+import * as React from 'react';
 import type {
   InventoryMovement,
   MovementType,
   MovementReasonCategory,
   UUID,
-  Product
-} from "@domain/entities";
-import type { MovementFilters } from "@domain/repositories/InventoryMovementRepository";
-import { SupabaseInventoryMovementRepository } from "@infrastructure/repositories/SupabaseInventoryMovementRepository";
-import { SupabaseProductRepository } from "@infrastructure/repositories/SupabaseProductRepository";
-import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
-import { MovementService } from "@application/services/MovementService";
+  Product,
+} from '@domain/entities';
+import type { MovementFilters } from '@domain/repositories/InventoryMovementRepository';
+import { SupabaseInventoryMovementRepository } from '@infrastructure/repositories/SupabaseInventoryMovementRepository';
+import { SupabaseProductRepository } from '@infrastructure/repositories/SupabaseProductRepository';
+import { supabaseClient } from '@infrastructure/supabase/supabaseClient';
+import { MovementService } from '@application/services/MovementService';
 
 const movementRepository = new SupabaseInventoryMovementRepository(supabaseClient);
 const productRepository = new SupabaseProductRepository(supabaseClient);
@@ -45,6 +45,7 @@ interface UseMovementsReturn {
     reasonCategory?: MovementReasonCategory;
     referenceDocument?: string;
     comments?: string;
+    warehouse?: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA';
   }) => Promise<InventoryMovement>;
 }
 
@@ -85,28 +86,28 @@ export function useMovements(): UseMovementsReturn {
 
     try {
       const result = await movementService.list(filters, { page, pageSize });
-      
+
       // Cargar productos asociados
       const productIds = result.data.map((m) => m.productId);
       const productsMap = await loadProductsMap(productIds);
 
       // Enriquecer movimientos con datos de producto y usuario
-      const enrichedMovements = result.data.map((m: any) => ({
+      const enrichedMovements: MovementWithProduct[] = result.data.map((m) => ({
         ...m,
         product: productsMap[m.productId],
         userFirstName: m.userFirstName,
         userLastName: m.userLastName,
         productCode: m.productCode,
-        productName: m.productName
+        productName: m.productName,
       }));
 
       setMovements(enrichedMovements);
       setTotalCount(result.totalCount);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Error al cargar movimientos";
+      const message = err instanceof Error ? err.message : 'Error al cargar movimientos';
       setError(message);
       // eslint-disable-next-line no-console
-      console.error("[useMovements] Error:", err);
+      console.error('[useMovements] Error:', err);
     } finally {
       setLoading(false);
     }
@@ -127,14 +128,17 @@ export function useMovements(): UseMovementsReturn {
       reasonCategory?: MovementReasonCategory;
       referenceDocument?: string;
       comments?: string;
+      warehouse?: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA';
     }) => {
       // Obtener userId de la sesión actual
-      const { data: { session } } = await supabaseClient.auth.getSession();
+      const {
+        data: { session },
+      } = await supabaseClient.auth.getSession();
       const userId = session?.user?.id;
 
       const movement = await movementService.recordMovement({
         ...input,
-        userId
+        userId,
       });
 
       // Recargar lista
@@ -142,7 +146,7 @@ export function useMovements(): UseMovementsReturn {
 
       return movement;
     },
-    [loadMovements]
+    [loadMovements],
   );
 
   return {
@@ -157,7 +161,6 @@ export function useMovements(): UseMovementsReturn {
     setFilters,
     setPage,
     refresh: loadMovements,
-    recordMovement
+    recordMovement,
   };
 }
-

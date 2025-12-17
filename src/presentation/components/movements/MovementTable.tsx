@@ -402,6 +402,23 @@ export const MovementTable = React.memo(function MovementTable({
                     {t('movements.stockAfter')}
                   </th>
                 ))}
+              {isColumnVisible('warehouse') &&
+                (onColumnResize ? (
+                  <ResizableColumnHeader
+                    initialWidth={getColumnWidth('warehouse')}
+                    minWidth={100}
+                    onResize={(width) => onColumnResize('warehouse', width)}
+                    className="group"
+                  >
+                    <div className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      {t('movements.warehouse') || 'Almacén'}
+                    </div>
+                  </ResizableColumnHeader>
+                ) : (
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    {t('movements.warehouse') || 'Almacén'}
+                  </th>
+                ))}
               {isColumnVisible('reason') &&
                 (onColumnResize ? (
                   <ResizableColumnHeader
@@ -507,6 +524,7 @@ export const MovementTable = React.memo(function MovementTable({
               const quantityWidth = getColumnWidth('quantity');
               const stockBeforeWidth = getColumnWidth('stockBefore');
               const stockAfterWidth = getColumnWidth('stockAfter');
+              const warehouseWidth = getColumnWidth('warehouse');
               const reasonWidth = getColumnWidth('reason');
               const categoryWidth = getColumnWidth('category');
               const userWidth = getColumnWidth('user');
@@ -670,6 +688,34 @@ export const MovementTable = React.memo(function MovementTable({
                       }
                     >
                       {movement.quantityAfter}
+                    </td>
+                  )}
+                  {isColumnVisible('warehouse') && (
+                    <td
+                      className="whitespace-nowrap px-4 py-3 text-sm text-gray-900 dark:text-gray-50"
+                      style={
+                        warehouseWidth
+                          ? {
+                              width: `${warehouseWidth}px`,
+                              minWidth: `${warehouseWidth}px`,
+                              maxWidth: `${warehouseWidth}px`,
+                            }
+                          : undefined
+                      }
+                    >
+                      {movement.warehouse ? (
+                        <span className="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium bg-primary-100 text-primary-800 dark:bg-primary-900/30 dark:text-primary-300">
+                          {movement.warehouse === 'MEYPAR'
+                            ? t('form.warehouse.meypar') || 'MEYPAR'
+                            : movement.warehouse === 'OLIVA_TORRAS'
+                              ? t('form.warehouse.olivaTorras') || 'Oliva Torras'
+                              : movement.warehouse === 'FURGONETA'
+                                ? t('form.warehouse.furgoneta') || 'Furgoneta'
+                                : movement.warehouse}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
                     </td>
                   )}
                   {isColumnVisible('reason') && (

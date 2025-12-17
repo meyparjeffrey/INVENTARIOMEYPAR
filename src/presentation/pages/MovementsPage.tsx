@@ -230,6 +230,7 @@ export function MovementsPage() {
     reasonCategory?: string;
     comments?: string;
     referenceDocument?: string;
+    warehouse?: 'MEYPAR' | 'OLIVA_TORRAS';
   }) => {
     await recordMovement({
       productId: data.productId,
@@ -239,6 +240,7 @@ export function MovementsPage() {
       reasonCategory: data.reasonCategory as MovementReasonCategory | undefined,
       comments: data.comments,
       referenceDocument: data.referenceDocument,
+      warehouse: data.warehouse,
     });
 
     // Cerrar modales

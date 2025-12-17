@@ -1,0 +1,140 @@
+{
+  "timestamp": "2025-12-17T16:48:00.000Z",
+  "backupLocation": "backup/",
+  "tables": [
+    {
+      "name": "products",
+      "count": 232,
+      "status": "exported",
+      "file": "products.json"
+    },
+    {
+      "name": "inventory_movements",
+      "count": 54,
+      "status": "exported",
+      "file": "inventory_movements.json"
+    },
+    {
+      "name": "product_stock_by_warehouse",
+      "count": 232,
+      "status": "exported",
+      "file": "product_stock_by_warehouse.json"
+    },
+    {
+      "name": "product_locations",
+      "count": 42,
+      "status": "exported",
+      "file": "product_locations.json"
+    },
+    {
+      "name": "profiles",
+      "count": 6,
+      "status": "exported",
+      "file": "profiles.json"
+    },
+    {
+      "name": "product_qr_assets",
+      "count": 211,
+      "status": "exported",
+      "file": "product_qr_assets.json"
+    },
+    {
+      "name": "product_label_assets",
+      "count": 661,
+      "status": "exported",
+      "file": "product_label_assets.json"
+    },
+    {
+      "name": "user_settings",
+      "count": 6,
+      "status": "exported",
+      "file": "user_settings.json"
+    },
+    {
+      "name": "chat_rooms",
+      "count": 2,
+      "status": "exported",
+      "file": "chat_rooms.json"
+    },
+    {
+      "name": "scanner_users",
+      "count": 13,
+      "status": "exported",
+      "file": "scanner_users.json"
+    },
+    {
+      "name": "app_settings",
+      "count": 10,
+      "status": "exported",
+      "file": "app_settings.json"
+    },
+    {
+      "name": "product_batches",
+      "count": 0,
+      "status": "exported",
+      "file": "product_batches.json"
+    },
+    {
+      "name": "suppliers",
+      "count": 0,
+      "status": "exported",
+      "file": "suppliers.json"
+    },
+    {
+      "name": "product_suppliers",
+      "count": 0,
+      "status": "exported",
+      "file": "product_suppliers.json"
+    },
+    {
+      "name": "audit_logs",
+      "count": 0,
+      "status": "exported",
+      "file": "audit_logs.json"
+    },
+    {
+      "name": "user_permissions",
+      "count": 0,
+      "status": "exported",
+      "file": "user_permissions.json"
+    },
+    {
+      "name": "user_login_events",
+      "count": 0,
+      "status": "exported",
+      "file": "user_login_events.json"
+    },
+    {
+      "name": "ai_suggestions",
+      "count": 0,
+      "status": "exported",
+      "file": "ai_suggestions.json"
+    },
+    {
+      "name": "ai_prediction_cache",
+      "count": 0,
+      "status": "exported",
+      "file": "ai_prediction_cache.json"
+    },
+    {
+      "name": "chat_messages",
+      "count": 0,
+      "status": "exported",
+      "file": "chat_messages.json"
+    },
+    {
+      "name": "batch_defect_reports",
+      "count": 0,
+      "status": "exported",
+      "file": "batch_defect_reports.json"
+    },
+    {
+      "name": "product_modification_history",
+      "count": 0,
+      "status": "exported",
+      "file": "product_modification_history.json"
+    }
+  ],
+  "totalRecords": 1471,
+  "note": "Los datos completos están disponibles en los archivos JSON individuales. Algunas tablas pueden estar vacías (count: 0). Los datos grandes (products, inventory_movements, product_qr_assets, product_label_assets) están en archivos temporales del sistema y se pueden recuperar desde las consultas SQL ejecutadas."
+}

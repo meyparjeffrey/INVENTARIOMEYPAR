@@ -3,6 +3,7 @@ import type {
   Product,
   ProductBatch,
   ProductLocation,
+  ProductStockByWarehouse,
 } from '@domain/entities';
 import type {
   BatchFilters,
@@ -114,6 +115,19 @@ type ProductLocationRow = {
   updated_by: string | null;
 };
 
+type ProductStockByWarehouseRow = {
+  id: string;
+  product_id: string;
+  warehouse: string;
+  quantity: number;
+  location_aisle: string | null;
+  location_shelf: string | null;
+  created_at: string;
+  updated_at: string;
+  created_by: string | null;
+  updated_by: string | null;
+};
+
 const parseDimensions = (raw: string | null) => {
   if (!raw) return null;
   try {
@@ -136,7 +150,26 @@ const mapLocation = (row: ProductLocationRow): ProductLocation => ({
   updatedBy: row.updated_by,
 });
 
-const mapProduct = (row: ProductRow, locations?: ProductLocationRow[]): Product => ({
+const mapStockByWarehouse = (
+  row: ProductStockByWarehouseRow,
+): ProductStockByWarehouse => ({
+  id: row.id,
+  productId: row.product_id,
+  warehouse: row.warehouse as 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
+  quantity: row.quantity,
+  locationAisle: row.location_aisle,
+  locationShelf: row.location_shelf,
+  createdAt: row.created_at,
+  updatedAt: row.updated_at,
+  createdBy: row.created_by,
+  updatedBy: row.updated_by,
+});
+
+const mapProduct = (
+  row: ProductRow,
+  locations?: ProductLocationRow[],
+  stocksByWarehouse?: ProductStockByWarehouseRow[],
+): Product => ({
   id: row.id,
   // Si code está vacío o es "-", usar notes como código
   code:
@@ -154,6 +187,10 @@ const mapProduct = (row: ProductRow, locations?: ProductLocationRow[]): Product 
     locations && Array.isArray(locations) ? locations.map(mapLocation) : undefined,
   locationExtra: row.location_extra,
   warehouse: (row.warehouse as 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA') || undefined,
+  stocksByWarehouse:
+    stocksByWarehouse && Array.isArray(stocksByWarehouse)
+      ? stocksByWarehouse.map(mapStockByWarehouse)
+      : undefined,
   costPrice: row.cost_price,
   salePrice: row.sale_price,
   purchaseUrl: row.purchase_url,
@@ -976,7 +1013,23 @@ export class SupabaseProductRepository
       // Si falla cargar ubicaciones, continuar sin ellas
       console.warn('No se pudieron cargar las ubicaciones del producto:', err);
     }
-    return mapProduct(data as ProductRow, locationsData);
+
+    // Cargar stocks por almacén (si falla, continuar sin stocks)
+    let stocksData: ProductStockByWarehouseRow[] | undefined;
+    try {
+      const { data: stockData } = await this.client
+        .from('product_stock_by_warehouse')
+        .select('*')
+        .eq('product_id', id)
+        .order('warehouse', { ascending: true });
+
+      stocksData = stockData && Array.isArray(stockData) ? stockData : undefined;
+    } catch (err) {
+      // Si falla cargar stocks, continuar sin ellos
+      console.warn('No se pudieron cargar los stocks por almacén del producto:', err);
+    }
+
+    return mapProduct(data as ProductRow, locationsData, stocksData);
   }
 
   async findByCodeOrBarcode(term: string) {
@@ -1025,7 +1078,23 @@ export class SupabaseProductRepository
       // Si falla cargar ubicaciones, continuar sin ellas
       console.warn('No se pudieron cargar las ubicaciones del producto:', err);
     }
-    return mapProduct(byBarcode.data as ProductRow, locationsData);
+
+    // Cargar stocks por almacén (si falla, continuar sin stocks)
+    let stocksData: ProductStockByWarehouseRow[] | undefined;
+    try {
+      const { data: stockData } = await this.client
+        .from('product_stock_by_warehouse')
+        .select('*')
+        .eq('product_id', byBarcode.data.id)
+        .order('warehouse', { ascending: true });
+
+      stocksData = stockData && Array.isArray(stockData) ? stockData : undefined;
+    } catch (err) {
+      // Si falla cargar stocks, continuar sin ellos
+      console.warn('No se pudieron cargar los stocks por almacén del producto:', err);
+    }
+
+    return mapProduct(byBarcode.data as ProductRow, locationsData, stocksData);
   }
 
   async getBatches(productId: string, filters?: BatchFilters) {
@@ -1346,5 +1415,111 @@ export class SupabaseProductRepository
 
     this.handleError('actualizar lote', error);
     return mapBatch(data as BatchRow);
+  }
+
+  /**
+   * Obtiene todos los stocks por almacén de un producto.
+   */
+  async getProductStocksByWarehouse(
+    productId: string,
+  ): Promise<ProductStockByWarehouse[]> {
+    const { data, error } = await this.client
+      .from('product_stock_by_warehouse')
+      .select('*')
+      .eq('product_id', productId)
+      .order('warehouse', { ascending: true });
+
+    this.handleError('obtener stocks por almacén', error);
+    return (data || []).map(mapStockByWarehouse);
+  }
+
+  /**
+   * Establece o actualiza el stock de un producto en un almacén específico.
+   * Si el registro existe, lo actualiza; si no, lo crea (UPSERT).
+   */
+  async setProductStockByWarehouse(
+    productId: string,
+    warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
+    quantity: number,
+    locationAisle?: string | null,
+    locationShelf?: string | null,
+    userId?: string,
+  ): Promise<ProductStockByWarehouse> {
+    // Verificar que el producto existe
+    const { data: productExists } = await this.client
+      .from('products')
+      .select('id')
+      .eq('id', productId)
+      .maybeSingle();
+
+    if (!productExists) {
+      throw new Error(`Producto con ID ${productId} no encontrado`);
+    }
+
+    // UPSERT: insertar o actualizar
+    const row: Partial<ProductStockByWarehouseRow> = {
+      product_id: productId,
+      warehouse,
+      quantity: Math.max(0, quantity), // Asegurar que no sea negativo
+      location_aisle: locationAisle ?? null,
+      location_shelf: locationShelf ?? null,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (userId) {
+      row.updated_by = userId;
+      // Si es creación, también establecer created_by
+      const { data: existing } = await this.client
+        .from('product_stock_by_warehouse')
+        .select('id')
+        .eq('product_id', productId)
+        .eq('warehouse', warehouse)
+        .maybeSingle();
+
+      if (!existing && userId) {
+        row.created_by = userId;
+      }
+    }
+
+    const { data, error } = await this.client
+      .from('product_stock_by_warehouse')
+      .upsert(row, {
+        onConflict: 'product_id,warehouse',
+      })
+      .select('*')
+      .single();
+
+    this.handleError('establecer stock por almacén', error);
+    return mapStockByWarehouse(data as ProductStockByWarehouseRow);
+  }
+
+  /**
+   * Elimina el stock de un producto en un almacén específico (establece quantity a 0).
+   */
+  async removeProductStockByWarehouse(
+    productId: string,
+    warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
+    userId?: string,
+  ): Promise<void> {
+    // Establecer quantity a 0 en lugar de eliminar el registro
+    const row: Partial<ProductStockByWarehouseRow> = {
+      quantity: 0,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (userId) {
+      row.updated_by = userId;
+    }
+
+    const { error } = await this.client
+      .from('product_stock_by_warehouse')
+      .update(row)
+      .eq('product_id', productId)
+      .eq('warehouse', warehouse);
+
+    // Si no existe el registro, no es un error (ya está "eliminado")
+    if (error && error.code !== 'PGRST116') {
+      this.handleError('eliminar stock por almacén', error);
+    }
   }
 }

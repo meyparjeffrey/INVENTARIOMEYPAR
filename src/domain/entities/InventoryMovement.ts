@@ -1,17 +1,17 @@
-import type { Nullable, Timestamp, UUID } from "./common";
+import type { Nullable, Timestamp, UUID } from './common';
 
-export type MovementType = "IN" | "OUT" | "ADJUSTMENT" | "TRANSFER";
+export type MovementType = 'IN' | 'OUT' | 'ADJUSTMENT' | 'TRANSFER';
 
 export type MovementReasonCategory =
-  | "PURCHASE"
-  | "RETURN"
-  | "PRODUCTION"
-  | "CONSUMPTION"
-  | "DEFECTIVE"
-  | "EXPIRED"
-  | "CORRECTION"
-  | "INVENTORY_COUNT"
-  | "OTHER";
+  | 'PURCHASE'
+  | 'RETURN'
+  | 'PRODUCTION'
+  | 'CONSUMPTION'
+  | 'DEFECTIVE'
+  | 'EXPIRED'
+  | 'CORRECTION'
+  | 'INVENTORY_COUNT'
+  | 'OTHER';
 
 export interface InventoryMovement {
   id: UUID;
@@ -29,5 +29,6 @@ export interface InventoryMovement {
   comments?: Nullable<string>;
   sourceLocation?: Nullable<string>;
   destinationLocation?: Nullable<string>;
+  warehouse?: Nullable<'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA'>; // Almacén donde se realizó el movimiento
   createdAt: Timestamp;
 }
