@@ -32,6 +32,9 @@ export function ProductDetailPage() {
   // Determinar la ruta de retorno según el estado de navegación
   const getBackPath = () => {
     const state = location.state as { from?: string } | null;
+    if (state?.from === 'scanner') {
+      return '/scanner';
+    }
     if (state?.from === 'alarms') {
       return '/alerts';
     }

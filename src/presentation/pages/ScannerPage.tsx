@@ -616,7 +616,7 @@ export function ScannerPage() {
       // V: Ver producto
       if (e.key === 'V' || e.key === 'v') {
         e.preventDefault();
-        navigate(`/products/${lastScan.product.id}`);
+        navigate(`/products/${lastScan.product.id}`, { state: { from: 'scanner' } });
         return;
       }
 
@@ -840,7 +840,11 @@ export function ScannerPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => navigate(`/products/${lastScan.product!.id}`)}
+                    onClick={() =>
+                      navigate(`/products/${lastScan.product!.id}`, {
+                        state: { from: 'scanner' },
+                      })
+                    }
                     className="gap-2"
                     title={t('scanner.shortcuts.view') || 'Atajo: V'}
                   >
@@ -923,7 +927,11 @@ export function ScannerPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => navigate(`/products/${scan.product!.id}`)}
+                          onClick={() =>
+                            navigate(`/products/${scan.product!.id}`, {
+                              state: { from: 'scanner' },
+                            })
+                          }
                           className="gap-1 h-7 px-2"
                           title={t('scanner.viewProduct')}
                         >
