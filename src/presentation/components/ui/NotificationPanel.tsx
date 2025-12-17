@@ -123,7 +123,7 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
   React.useEffect(() => {
     if (!isOpen) return;
 
-    const onPointerDown = (e: PointerEvent) => {
+    const onDocumentClick = (e: MouseEvent) => {
       const target = e.target as Node | null;
       if (!target) return;
 
@@ -140,10 +140,11 @@ export function NotificationPanel({ className }: NotificationPanelProps) {
       }
     };
 
-    document.addEventListener('pointerdown', onPointerDown, true);
+    // Nota: usamos 'click' (captura) porque algunos entornos no disparan 'pointerdown' de forma consistente.
+    document.addEventListener('click', onDocumentClick, true);
     document.addEventListener('keydown', onKeyDown);
     return () => {
-      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('click', onDocumentClick, true);
       document.removeEventListener('keydown', onKeyDown);
     };
   }, [isOpen]);
