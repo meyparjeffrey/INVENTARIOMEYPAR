@@ -1,19 +1,18 @@
-import * as React from "react";
-import { SupabaseProductRepository } from "@infrastructure/repositories/SupabaseProductRepository";
-import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
-import { useRealtime } from "./useRealtime";
+import * as React from 'react';
+import { SupabaseProductRepository } from '@infrastructure/repositories/SupabaseProductRepository';
+import { supabaseClient } from '@infrastructure/supabase/supabaseClient';
+import { useRealtime } from './useRealtime';
+
+export type DashboardRange = '7d' | '30d' | '12m';
 
 export interface DashboardStats {
   totalProducts: number;
   lowStockCount: number;
-  criticalBatches: number;
   aiSuggestions: number;
-  inventoryValue: number;
-  inventoryValueAtSale: number;
   totalUnits: number;
   categoriesCount: number;
   movementsToday: number;
-  movementsWeek: number;
+  movementsRange: number;
 }
 
 export interface MovementChartData {
@@ -23,134 +22,184 @@ export interface MovementChartData {
   adjustments: number;
 }
 
+function startOfDay(date: Date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}
+
+function pad2(n: number) {
+  return String(n).padStart(2, '0');
+}
+
+function getRangeStart(now: Date, range: DashboardRange) {
+  const today = startOfDay(now);
+  if (range === '7d') {
+    const d = new Date(today);
+    d.setDate(d.getDate() - 6);
+    return d;
+  }
+  if (range === '30d') {
+    const d = new Date(today);
+    d.setDate(d.getDate() - 29);
+    return d;
+  }
+  // 12m: desde el primer día del mes de hace 11 meses
+  return new Date(now.getFullYear(), now.getMonth() - 11, 1);
+}
+
 /**
  * Hook para obtener datos del dashboard con métricas avanzadas.
  */
 export function useDashboard() {
   const [loading, setLoading] = React.useState(true);
+  const [range, setRange] = React.useState<DashboardRange>('7d');
   const [stats, setStats] = React.useState<DashboardStats>({
     totalProducts: 0,
     lowStockCount: 0,
-    criticalBatches: 0,
     aiSuggestions: 0,
-    inventoryValue: 0,
-    inventoryValueAtSale: 0,
     totalUnits: 0,
     categoriesCount: 0,
     movementsToday: 0,
-    movementsWeek: 0
+    movementsRange: 0,
   });
-  const [movementChartData, setMovementChartData] = React.useState<MovementChartData[]>([]);
+  const [movementChartData, setMovementChartData] = React.useState<MovementChartData[]>(
+    [],
+  );
 
   const loadStats = React.useCallback(async () => {
     try {
+      setLoading(true);
       const productRepo = new SupabaseProductRepository(supabaseClient);
 
       // Obtener total de productos activos
-      const activeProducts = await productRepo.list({ includeInactive: false }, { page: 1, pageSize: 1 });
+      const activeProducts = await productRepo.list(
+        { includeInactive: false },
+        { page: 1, pageSize: 1 },
+      );
       const totalProducts = activeProducts.total ?? 0;
 
-      // Obtener todos los productos para calcular valor del inventario
+      // Obtener todos los productos para calcular KPIs operativos (sin precios)
       const allProducts = await productRepo.list(
         { includeInactive: false },
-        { page: 1, pageSize: 10000 }
+        { page: 1, pageSize: 10000 },
       );
 
-      // Calcular estadísticas de inventario
-      let inventoryValue = 0;
-      let inventoryValueAtSale = 0;
+      // Calcular estadísticas operativas
       let totalUnits = 0;
       const categories = new Set<string>();
       let lowStockCount = 0;
 
       allProducts.data.forEach((p) => {
-        inventoryValue += p.stockCurrent * (p.costPrice ?? 0);
-        inventoryValueAtSale += p.stockCurrent * (p.salePrice ?? p.costPrice ?? 0);
         totalUnits += p.stockCurrent;
         if (p.category) categories.add(p.category);
         if (p.stockCurrent <= p.stockMin) lowStockCount++;
       });
 
-      // Obtener lotes críticos
-      const { count: criticalBatchesCount } = await supabaseClient
-        .from("product_batches")
-        .select("*", { count: "exact", head: true })
-        .in("status", ["DEFECTIVE", "BLOCKED"]);
-
       // Obtener sugerencias IA pendientes
       const { count: suggestionsCount } = await supabaseClient
-        .from("ai_suggestions")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "PENDING");
+        .from('ai_suggestions')
+        .select('*', { count: 'exact', head: true })
+        .eq('status', 'PENDING');
 
-      // Obtener movimientos de hoy
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const { count: movementsTodayCount } = await supabaseClient
-        .from("inventory_movements")
-        .select("*", { count: "exact", head: true })
-        .gte("movement_date", today.toISOString());
+      // Movimientos: 1 query por rango + agrupación en cliente
+      const now = new Date();
+      const todayStart = startOfDay(now);
+      const rangeStart = getRangeStart(now, range);
 
-      // Obtener movimientos de la semana
-      const weekAgo = new Date();
-      weekAgo.setDate(weekAgo.getDate() - 7);
-      const { count: movementsWeekCount } = await supabaseClient
-        .from("inventory_movements")
-        .select("*", { count: "exact", head: true })
-        .gte("movement_date", weekAgo.toISOString());
+      const { data: movements } = await supabaseClient
+        .from('inventory_movements')
+        .select('movement_type, quantity, movement_date')
+        .gte('movement_date', rangeStart.toISOString())
+        .lte('movement_date', now.toISOString());
 
-      // Obtener datos para gráfico de movimientos (últimos 7 días)
-      const chartData: MovementChartData[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const date = new Date();
-        date.setDate(date.getDate() - i);
-        date.setHours(0, 0, 0, 0);
-        const nextDate = new Date(date);
-        nextDate.setDate(nextDate.getDate() + 1);
+      const movementRows = movements ?? [];
 
-        const { data: dayMovements } = await supabaseClient
-          .from("inventory_movements")
-          .select("movement_type, quantity")
-          .gte("movement_date", date.toISOString())
-          .lt("movement_date", nextDate.toISOString());
+      const movementsToday = movementRows.filter((m) => {
+        const d = new Date(m.movement_date);
+        return d.getTime() >= todayStart.getTime();
+      }).length;
 
-        const dayData: MovementChartData = {
-          date: date.toLocaleDateString("es-ES", { weekday: "short", day: "numeric" }),
-          entries: 0,
-          exits: 0,
-          adjustments: 0
-        };
+      const movementsRange = movementRows.length;
 
-        (dayMovements ?? []).forEach((m) => {
-          if (m.movement_type === "IN") dayData.entries += m.quantity;
-          else if (m.movement_type === "OUT") dayData.exits += m.quantity;
-          else if (m.movement_type === "ADJUSTMENT") dayData.adjustments += m.quantity;
-        });
+      const chartBuckets: Array<{
+        key: string;
+        label: string;
+        entries: number;
+        exits: number;
+        adjustments: number;
+      }> = [];
 
-        chartData.push(dayData);
+      if (range === '12m') {
+        // 12 meses: del mes actual hacia atrás 11 meses
+        for (let i = 11; i >= 0; i--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+          const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+          const label = d.toLocaleDateString('es-ES', {
+            month: 'short',
+            year: '2-digit',
+          });
+          chartBuckets.push({ key, label, entries: 0, exits: 0, adjustments: 0 });
+        }
+      } else {
+        const days = range === '30d' ? 30 : 7;
+        for (let i = days - 1; i >= 0; i--) {
+          const d = new Date(todayStart);
+          d.setDate(d.getDate() - i);
+          const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+          const label = d.toLocaleDateString('es-ES', {
+            weekday: 'short',
+            day: 'numeric',
+          });
+          chartBuckets.push({ key, label, entries: 0, exits: 0, adjustments: 0 });
+        }
       }
 
-      setMovementChartData(chartData);
+      const bucketMap = new Map(chartBuckets.map((b) => [b.key, b]));
+
+      movementRows.forEach((m) => {
+        const d = new Date(m.movement_date);
+        const type = m.movement_type;
+        const qty = typeof m.quantity === 'number' ? m.quantity : Number(m.quantity) || 0;
+
+        const key =
+          range === '12m'
+            ? `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`
+            : `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+        const bucket = bucketMap.get(key);
+        if (!bucket) return;
+
+        if (type === 'IN') bucket.entries += qty;
+        else if (type === 'OUT') bucket.exits += qty;
+        else if (type === 'ADJUSTMENT') bucket.adjustments += Math.abs(qty);
+      });
+
+      setMovementChartData(
+        chartBuckets.map((b) => ({
+          date: b.label,
+          entries: b.entries,
+          exits: b.exits,
+          adjustments: b.adjustments,
+        })),
+      );
 
       setStats({
         totalProducts,
         lowStockCount,
-        criticalBatches: criticalBatchesCount ?? 0,
         aiSuggestions: suggestionsCount ?? 0,
-        inventoryValue,
-        inventoryValueAtSale,
         totalUnits,
         categoriesCount: categories.size,
-        movementsToday: movementsTodayCount ?? 0,
-        movementsWeek: movementsWeekCount ?? 0
+        movementsToday,
+        movementsRange,
       });
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error("Error cargando estadísticas del dashboard:", error);
+      console.error('Error cargando estadísticas del dashboard:', error);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [range]);
 
   React.useEffect(() => {
     loadStats();
@@ -158,7 +207,7 @@ export function useDashboard() {
 
   // Recargar estadísticas cuando cambien los productos
   useRealtime({
-    table: "products",
+    table: 'products',
     onInsert: () => {
       // Recargar stats cuando se añade un producto
       loadStats();
@@ -170,25 +219,16 @@ export function useDashboard() {
     onDelete: () => {
       // Recargar stats cuando se elimina un producto
       loadStats();
-    }
+    },
   });
 
   // Recargar stats cuando cambien las sugerencias IA
   useRealtime({
-    table: "ai_suggestions",
+    table: 'ai_suggestions',
     onInsert: () => loadStats(),
     onUpdate: () => loadStats(),
-    onDelete: () => loadStats()
+    onDelete: () => loadStats(),
   });
 
-  // Recargar stats cuando cambien los lotes
-  useRealtime({
-    table: "product_batches",
-    onInsert: () => loadStats(),
-    onUpdate: () => loadStats(),
-    onDelete: () => loadStats()
-  });
-
-  return { stats, loading, movementChartData, refresh: loadStats };
+  return { stats, loading, movementChartData, range, setRange, refresh: loadStats };
 }
-
