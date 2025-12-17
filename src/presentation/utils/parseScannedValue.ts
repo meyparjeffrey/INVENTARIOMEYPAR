@@ -9,6 +9,8 @@ const SEPARATORS = [
   'º', // teclado ES: a veces se recibe en lugar de '|' - charCode 186
   '°', // degree sign U+00B0 - charCode 176
   '¦', // broken bar U+00A6 - charCode 166
+  'Ç', // algunos escáneres / layouts lo envían en lugar de '|'
+  'ç',
   '│', // box drawings light vertical U+2502
   '┃', // box drawings heavy vertical U+2503
   '︱', // presentation form for vertical em dash U+FE31
@@ -25,6 +27,8 @@ const SEPARATOR_CHAR_CODES = new Set([
   166, // ¦
   176, // °
   186, // º
+  199, // Ç
+  231, // ç
   9474, // │
   9475, // ┃
   65372, // ｜
@@ -36,6 +40,32 @@ const SEPARATOR_CHAR_CODES = new Set([
   30, // RS
   31, // US
 ]);
+
+function normalizeLookupCode(input: string): string {
+  const code = input.trim();
+  if (!code) return code;
+
+  // Muchos escáneres USB HID dependen del layout del teclado del PC.
+  // En algunos layouts, el '-' puede llegar como comillas/apóstrofos.
+  const replaced = code
+    // variantes de apóstrofo/comillas/acentos que a veces sustituyen '-'
+    .replace(/[\u2018\u2019\u02BC\u2032\u00B4`']/g, '-')
+    // guiones “raros” a guion normal
+    .replace(/[–—−]/g, '-')
+    // algunos teclados meten espacios no deseados
+    .replace(/\s+/g, '');
+
+  const collapsed = replaced.replace(/-+/g, '-');
+  if (collapsed === code) return code;
+
+  // Solo aceptar la normalización si queda con un patrón típico de código (al menos 1 guion).
+  // Ej: MPE50-30124, PLA01-30127-C, etc.
+  if (/^[A-Za-z0-9]+(-[A-Za-z0-9]+)+$/.test(collapsed)) {
+    return collapsed;
+  }
+
+  return code;
+}
 
 /**
  * Parsea un valor escaneado (QR / barcode / teclado) y extrae el `lookupKey` (código) para búsqueda.
@@ -112,7 +142,8 @@ export function parseScannedValue(raw: string): {
   // Formato QR: CODE|NAME_TRUNC → extraer CODE
   if (idx >= 0) {
     const code = printable.slice(0, idx).trim();
-    const lookupKey = code || printable;
+    const normalized = normalizeLookupCode(code);
+    const lookupKey = normalized || code || printable;
     // eslint-disable-next-line no-console
     console.log('[parseScannedValue] Resultado:', { lookupKey });
     return { raw: printable, lookupKey };
@@ -120,6 +151,7 @@ export function parseScannedValue(raw: string): {
 
   // Formato legacy: barcode/código directo
   // eslint-disable-next-line no-console
-  console.log('[parseScannedValue] Resultado (sin separador):', { lookupKey: printable });
-  return { raw: printable, lookupKey: printable };
+  const legacyKey = normalizeLookupCode(printable) || printable;
+  console.log('[parseScannedValue] Resultado (sin separador):', { lookupKey: legacyKey });
+  return { raw: printable, lookupKey: legacyKey };
 }
