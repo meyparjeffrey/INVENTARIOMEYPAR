@@ -53,6 +53,18 @@ body {
   font-family: "Plus Jakarta Sans", system-ui, sans-serif;
 }
 
+/* Quitar flechas (spinners) de inputs type="number" */
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 /* Utilidades de la app */
 @layer components {
   .btn-primary {
