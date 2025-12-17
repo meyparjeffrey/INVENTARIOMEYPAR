@@ -27,6 +27,18 @@ export interface MovementChartData {
   adjustments: number;
 }
 
+export interface AlarmProductLite {
+  id: string;
+  code: string;
+  name: string;
+  stockCurrent: number;
+  stockMin: number;
+  category?: string | null;
+  warehouse?: string | null;
+  aisle?: string | null;
+  shelf?: string | null;
+}
+
 function startOfDay(date: Date) {
   const d = new Date(date);
   d.setHours(0, 0, 0, 0);
@@ -41,6 +53,7 @@ function startOfDay(date: Date) {
 export function useDashboard(locale: string = 'es-ES') {
   const [loading, setLoading] = React.useState(true);
   const [range, setRange] = React.useState<DashboardRange>('7d');
+  const [alarmProducts, setAlarmProducts] = React.useState<AlarmProductLite[]>([]);
   const [stats, setStats] = React.useState<DashboardStats>({
     totalProducts: 0,
     lowStockCount: 0,
@@ -82,6 +95,23 @@ export function useDashboard(locale: string = 'es-ES') {
         if (p.category) categories.add(p.category);
         if (p.stockCurrent <= p.stockMin) lowStockCount++;
       });
+
+      // Lista para alarmas actuales (sin queries extra)
+      setAlarmProducts(
+        allProducts.data
+          .filter((p) => p.stockCurrent <= p.stockMin)
+          .map((p) => ({
+            id: p.id,
+            code: p.code,
+            name: p.name,
+            stockCurrent: p.stockCurrent,
+            stockMin: p.stockMin,
+            category: p.category ?? null,
+            warehouse: p.warehouse ?? null,
+            aisle: p.aisle ?? null,
+            shelf: p.shelf ?? null,
+          })),
+      );
 
       // Obtener sugerencias IA pendientes
       const { count: suggestionsCount } = await supabaseClient
@@ -166,5 +196,13 @@ export function useDashboard(locale: string = 'es-ES') {
     onDelete: () => loadStats(),
   });
 
-  return { stats, loading, movementChartData, range, setRange, refresh: loadStats };
+  return {
+    stats,
+    loading,
+    movementChartData,
+    range,
+    setRange,
+    alarmProducts,
+    refresh: loadStats,
+  };
 }

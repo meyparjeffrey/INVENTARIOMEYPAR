@@ -13,7 +13,7 @@ import { AlertList } from '../components/dashboard/AlertList';
 import { ActivityFeed } from '../components/dashboard/ActivityFeed';
 import { KPICard } from '../components/dashboard/KPICard';
 import { MovementsChart } from '../components/dashboard/MovementsChart';
-import { MovementsMixChart } from '../components/dashboard/MovementsMixChart';
+import { CurrentAlarmsCard } from '../components/dashboard/CurrentAlarmsCard';
 import { TopProducts } from '../components/dashboard/TopProducts';
 import { useDashboard } from '../hooks/useDashboard';
 import { useLanguage } from '../context/LanguageContext';
@@ -25,7 +25,7 @@ import { Button } from '../components/ui/Button';
 export function DashboardPage() {
   const navigate = useNavigate();
   const { t, language } = useLanguage();
-  const { stats, loading, movementChartData, range, setRange, refresh } =
+  const { stats, loading, movementChartData, range, setRange, alarmProducts, refresh } =
     useDashboard(language);
   const [refreshing, setRefreshing] = React.useState(false);
 
@@ -158,24 +158,23 @@ export function DashboardPage() {
           </div>
         </div>
 
-        {/* Categorías */}
-        <div className="relative overflow-hidden rounded-xl border-l-4 border-l-orange-500 bg-gradient-to-br from-white to-orange-50 p-6 shadow-sm dark:from-gray-800 dark:to-orange-950/20">
+        {/* En alarma */}
+        <div className="relative overflow-hidden rounded-xl border-l-4 border-l-amber-500 bg-gradient-to-br from-white to-amber-50 p-6 shadow-sm dark:from-gray-800 dark:to-amber-950/20">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                {t('dashboard.categories')}
+                {t('dashboard.lowStockAlerts')}
               </p>
               <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-50">
-                {loading ? '...' : stats.categoriesCount.toLocaleString(language)}
+                {loading ? '...' : stats.lowStockCount.toLocaleString(language)}
               </p>
               <p className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
                 <Package className="mr-1 h-4 w-4" />
-                {loading ? '...' : stats.totalProducts.toLocaleString(language)}{' '}
                 {t('dashboard.products')}
               </p>
             </div>
-            <div className="rounded-full bg-orange-100 p-3 dark:bg-orange-900/30">
-              <Layers className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+            <div className="rounded-full bg-amber-100 p-3 dark:bg-amber-900/30">
+              <AlertTriangle className="h-6 w-6 text-amber-600 dark:text-amber-400" />
             </div>
           </div>
         </div>
@@ -224,13 +223,6 @@ export function DashboardPage() {
           icon={<ArrowUpRight className="h-8 w-8" />}
           accentColor="blue"
           onClick={() => navigate('/movements')}
-        />
-        <KPICard
-          title={t('dashboard.aiSuggestions')}
-          value={loading ? '...' : stats.aiSuggestions.toString()}
-          icon={<Lightbulb className="h-8 w-8" />}
-          accentColor="blue"
-          onClick={() => navigate('/dashboard?tab=suggestions')}
         />
       </div>
 
@@ -286,18 +278,9 @@ export function DashboardPage() {
           <MovementsChart data={movementChartData} />
         </div>
 
-        {/* Columna derecha: mix + alertas */}
+        {/* Columna derecha: alarmas actuales + alertas */}
         <div className="space-y-6">
-          <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-            <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
-              {t('dashboard.mixTitle')} ({rangeLabel})
-            </h3>
-            <MovementsMixChart
-              entries={totals.entries}
-              exits={totals.exits}
-              adjustments={totals.adjustments}
-            />
-          </div>
+          <CurrentAlarmsCard products={alarmProducts} />
           <AlertList />
         </div>
       </div>
