@@ -10,6 +10,46 @@ const path = require('path');
 const { existsSync } = require('fs');
 
 const isDev = process.env.NODE_ENV === "development";
+// electron-builder portable define esta env var al arrancar el exe portable.
+const isPortable = Boolean(process.env.PORTABLE_EXECUTABLE_DIR);
+// Modo DevTools para depurar en PCs (sin instalador).
+const devToolsEnabled =
+    isDev || isPortable || process.env.INVENTARIO_DEVTOOLS === "1";
+
+function setupAppMenu(win: any) {
+    if (!devToolsEnabled) {
+        // UI más profesional (sin menú) en builds normales.
+        Menu.setApplicationMenu(null);
+        return;
+    }
+
+    // Menú mínimo para soporte/diagnóstico (portable/dev).
+    const template = [
+        {
+            label: "Herramientas",
+            submenu: [
+                {
+                    label: "Abrir DevTools",
+                    accelerator: "F12",
+                    click: () => win.webContents.openDevTools({ mode: "detach" }),
+                },
+                {
+                    label: "Recargar",
+                    accelerator: "CommandOrControl+R",
+                    click: () => win.webContents.reload(),
+                },
+                {
+                    label: "Forzar recarga",
+                    accelerator: "CommandOrControl+Shift+R",
+                    click: () => win.webContents.reloadIgnoringCache(),
+                },
+            ],
+        },
+    ];
+
+    const menu = Menu.buildFromTemplate(template);
+    Menu.setApplicationMenu(menu);
+}
 
 /**
  * Obtiene la ruta del icono de la app para Windows.
@@ -97,16 +137,18 @@ async function createWindow() {
         }
     });
 
-    // Ocultar menú por defecto para UI más profesional
-    Menu.setApplicationMenu(null);
+    // Menú: oculto en producción normal, visible en portable/dev para depurar
+    setupAppMenu(win);
 
-    // Atajo de teclado para abrir DevTools (Ctrl+Shift+I o F12)
-    globalShortcut.register("CommandOrControl+Shift+I", () => {
-        win.webContents.openDevTools();
-    });
-    globalShortcut.register("F12", () => {
-        win.webContents.openDevTools();
-    });
+    // Atajos de teclado para abrir DevTools (Ctrl+Shift+I o F12) en modo debug/portable.
+    if (devToolsEnabled) {
+        globalShortcut.register("CommandOrControl+Shift+I", () => {
+            win.webContents.openDevTools({ mode: "detach" });
+        });
+        globalShortcut.register("F12", () => {
+            win.webContents.openDevTools({ mode: "detach" });
+        });
+    }
 
     // En producción, usar app.getAppPath() para obtener la ruta correcta del asar
     const appPath = app.getAppPath();
@@ -141,6 +183,12 @@ async function createWindow() {
             splash.close();
             win.show();
             win.focus();
+            win.webContents.focus();
+
+            // En portable/dev, abrir DevTools automáticamente para capturar logs (escáner HID).
+            if (devToolsEnabled && (isPortable || process.env.INVENTARIO_DEVTOOLS_AUTO === "1")) {
+                win.webContents.openDevTools({ mode: "detach" });
+            }
         }, 3000);
     });
 
