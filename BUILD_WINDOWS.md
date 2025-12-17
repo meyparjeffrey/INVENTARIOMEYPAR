@@ -38,7 +38,7 @@ El instalador se genera en:
 
 Para la versión actual:
 
-- `release/INVENTARI MEYPAR-0.5.0-x64.exe`
+- `release/INVENTARI MEYPAR-0.6.0-x64.exe`
 
 ## Si falla
 

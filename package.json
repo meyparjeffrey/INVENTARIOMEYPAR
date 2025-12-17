@@ -1,6 +1,6 @@
 {
   "name": "inventario-almacen",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "private": true,
   "type": "module",
   "description": "Aplicación de inventario con Electron, React, Supabase e IA.",

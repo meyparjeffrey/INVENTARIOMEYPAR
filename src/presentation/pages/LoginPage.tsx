@@ -26,7 +26,7 @@ import { cn } from '../lib/cn';
  *
  * Nota: Se mantiene en sincronía con `package.json` (versión usada en el build Windows).
  */
-const APP_VERSION = '0.5.0';
+const APP_VERSION = '0.6.0';
 
 /**
  * Pantalla de inicio de sesión moderna y profesional con diseño de dos columnas.
