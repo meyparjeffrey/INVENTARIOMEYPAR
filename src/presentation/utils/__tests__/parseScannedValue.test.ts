@@ -31,6 +31,14 @@ describe('parseScannedValue', () => {
     });
   });
 
+  it('fallback: si no detecta separador, extrae el código inicial y lo normaliza', () => {
+    // Simula el caso reportado donde el separador no se detecta por algún motivo,
+    // pero la cadena empieza con el código.
+    expect(
+      parseScannedValue("MPE50'30124ÇADPATADOR CARRIL DIN para MTX'T").lookupKey,
+    ).toBe('MPE50-30124');
+  });
+
   it('acepta separadores similares (¦, │)', () => {
     expect(parseScannedValue('CODI¦NOM')).toEqual({ raw: 'CODI¦NOM', lookupKey: 'CODI' });
     expect(parseScannedValue('CODI│NOM')).toEqual({ raw: 'CODI│NOM', lookupKey: 'CODI' });

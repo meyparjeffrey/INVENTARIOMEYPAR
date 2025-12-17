@@ -67,6 +67,22 @@ function normalizeLookupCode(input: string): string {
   return code;
 }
 
+function extractLeadingCodeCandidate(input: string): string {
+  // Captura códigos típicos al inicio aunque el escáner “mangle” el separador y/o el guion.
+  // Ej: "MPE50'30124ÇADPATADOR..." -> "MPE50'30124"
+  // Ej: "PLA01-30127-C:705050_22" -> "PLA01-30127-C" (ojo: luego el repo busca exacto, así que en legacy no usamos esto)
+  const m = input.match(/^([A-Za-z0-9]+(?:[-'`][A-Za-z0-9]+)+)/);
+  return m?.[1] ?? '';
+}
+
+function hasControlSeparators(input: string): boolean {
+  for (let i = 0; i < input.length; i++) {
+    const code = input.charCodeAt(i);
+    if (code >= 28 && code <= 31) return true; // FS/GS/RS/US
+  }
+  return false;
+}
+
 /**
  * Parsea un valor escaneado (QR / barcode / teclado) y extrae el `lookupKey` (código) para búsqueda.
  *
@@ -151,7 +167,22 @@ export function parseScannedValue(raw: string): {
 
   // Formato legacy: barcode/código directo
   // eslint-disable-next-line no-console
-  const legacyKey = normalizeLookupCode(printable) || printable;
-  console.log('[parseScannedValue] Resultado (sin separador):', { lookupKey: legacyKey });
+  // Si viene un QR “mangleado” sin separador detectable, al menos extraer el código inicial.
+  // IMPORTANTE: no aplicar esto a barcodes legacy que incluyen ':' u otros formatos internos.
+  const looksLikeQrPayload =
+    printable.includes(' ') ||
+    /[|｜∣º°¦│┃︱ǀÇç]/.test(printable) ||
+    hasControlSeparators(printable);
+
+  const leading = looksLikeQrPayload ? extractLeadingCodeCandidate(printable) : '';
+  const leadingNormalized = leading ? normalizeLookupCode(leading) : '';
+  const legacyKey = leadingNormalized || normalizeLookupCode(printable) || printable;
+
+  console.log('[parseScannedValue] Resultado (sin separador):', {
+    lookupKey: legacyKey,
+    looksLikeQrPayload,
+    leading,
+    leadingNormalized,
+  });
   return { raw: printable, lookupKey: legacyKey };
 }
