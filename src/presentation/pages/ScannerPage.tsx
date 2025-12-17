@@ -98,9 +98,11 @@ export function ScannerPage() {
   const [isFocused, setIsFocused] = React.useState(false);
 
   const [scanValue, setScanValue] = React.useState('');
+  const scanValueRef = React.useRef('');
   const [lastScan, setLastScan] = React.useState<ScanResult | null>(null);
   const [scanHistory, setScanHistory] = React.useState<ScanResult[]>([]);
   const [searching, setSearching] = React.useState(false);
+  const searchingRef = React.useRef(false);
   const [isMovementFormOpen, setIsMovementFormOpen] = React.useState(false);
   const [selectedProductForMovement, setSelectedProductForMovement] =
     React.useState<Product | null>(null);
@@ -115,6 +117,23 @@ export function ScannerPage() {
   const scannerSoundEnabled = authContext?.settings?.scannerSoundEnabled ?? true;
   const scannerVibrationEnabled = authContext?.settings?.scannerVibrationEnabled ?? false;
   const userId = authContext?.profile?.id || 'anonymous';
+
+  // Detección de escáner USB (HID): entrada muy rápida sin pulsar Enter.
+  const scanTimingRef = React.useRef<{ firstAt: number | null; lastAt: number | null }>({
+    firstAt: null,
+    lastAt: null,
+  });
+  const autoScanTimerRef = React.useRef<number | null>(null);
+  const pendingScanRef = React.useRef<string | null>(null);
+  const lastInputAtRef = React.useRef<number>(0);
+
+  React.useEffect(() => {
+    scanValueRef.current = scanValue;
+  }, [scanValue]);
+
+  React.useEffect(() => {
+    searchingRef.current = searching;
+  }, [searching]);
 
   /**
    * Genera un beep usando Web Audio API.
@@ -494,9 +513,70 @@ export function ScannerPage() {
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const value = e.target.value;
       setScanValue(value);
+      scanValueRef.current = value;
+
+      const now = Date.now();
+      lastInputAtRef.current = now;
+
+      // Reset si se vacía
+      if (!value.trim()) {
+        scanTimingRef.current.firstAt = null;
+        scanTimingRef.current.lastAt = null;
+        if (autoScanTimerRef.current) {
+          window.clearTimeout(autoScanTimerRef.current);
+          autoScanTimerRef.current = null;
+        }
+        return;
+      }
+
+      if (scanTimingRef.current.firstAt === null) scanTimingRef.current.firstAt = now;
+      scanTimingRef.current.lastAt = now;
+
+      // Auto-búsqueda si parece entrada de escáner (muy rápida) aunque no envíe Enter.
+      if (autoScanTimerRef.current) window.clearTimeout(autoScanTimerRef.current);
+      autoScanTimerRef.current = window.setTimeout(() => {
+        autoScanTimerRef.current = null;
+        const current = scanValueRef.current.trim();
+        if (!current) return;
+
+        const firstAt = scanTimingRef.current.firstAt ?? now;
+        const lastAt = scanTimingRef.current.lastAt ?? now;
+        const durationMs = Math.max(0, lastAt - firstAt);
+        const chars = current.length;
+
+        const hasLikelySeparator =
+          /[|｜∣º°¦│┃︱ǀÇç]/.test(current) || current.includes(' ');
+        const looksLikeScanner =
+          (chars >= 6 && durationMs > 0 && durationMs <= 300) ||
+          (chars >= 12 && durationMs > 0 && durationMs <= 800);
+
+        // Si no parece escáner, no auto-ejecutar (para que escribir manualmente no dispare búsquedas).
+        if (!looksLikeScanner && !hasLikelySeparator) return;
+
+        if (searchingRef.current) {
+          pendingScanRef.current = current;
+          scanTimingRef.current.firstAt = null;
+          scanTimingRef.current.lastAt = null;
+          return;
+        }
+
+        // Ejecutar búsqueda automáticamente
+        scanTimingRef.current.firstAt = null;
+        scanTimingRef.current.lastAt = null;
+        processBarcode(current);
+      }, 140);
     },
-    [],
+    [processBarcode],
   );
+
+  // Si llega un segundo escaneo mientras estamos buscando, lo procesamos al terminar.
+  React.useEffect(() => {
+    if (searching) return;
+    const pending = pendingScanRef.current;
+    if (!pending) return;
+    pendingScanRef.current = null;
+    void processBarcode(pending);
+  }, [searching, processBarcode]);
 
   /**
    * Maneja las teclas presionadas, incluyendo Enter y atajos de teclado.
@@ -506,6 +586,12 @@ export function ScannerPage() {
       // Enter: Procesar escaneo
       if (e.key === 'Enter' && scanValue.trim() && !searching) {
         e.preventDefault();
+        if (autoScanTimerRef.current) {
+          window.clearTimeout(autoScanTimerRef.current);
+          autoScanTimerRef.current = null;
+        }
+        scanTimingRef.current.firstAt = null;
+        scanTimingRef.current.lastAt = null;
         processBarcode(scanValue.trim());
         return;
       }
@@ -519,18 +605,23 @@ export function ScannerPage() {
         return;
       }
 
+      // Evitar que el escáner dispare atajos (V/M) por caracteres del propio código.
+      // Solo permitimos atajos si el usuario mantiene ALT.
+      const recentTypingMs = Date.now() - (lastInputAtRef.current || 0);
+      if (!e.altKey || recentTypingMs < 300) return;
+
       // Atajos de teclado solo si hay un último escaneo exitoso
       if (!lastScan || lastScan.type !== 'product' || !lastScan.product) return;
 
       // V: Ver producto
-      if ((e.key === 'V' || e.key === 'v') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (e.key === 'V' || e.key === 'v') {
         e.preventDefault();
         navigate(`/products/${lastScan.product.id}`);
         return;
       }
 
       // M: Añadir movimiento
-      if ((e.key === 'M' || e.key === 'm') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      if (e.key === 'M' || e.key === 'm') {
         e.preventDefault();
         handleAddMovement(lastScan.product);
         return;
@@ -658,7 +749,6 @@ export function ScannerPage() {
               onChange={handleInputChange}
               onKeyDown={handleKeyDown}
               placeholder={searching ? t('scanner.searching') : t('scanner.placeholder')}
-              disabled={searching}
               className={cn(
                 'h-16 w-96 rounded-xl border-2 bg-white pl-14 pr-4 text-xl font-medium text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-4 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-gray-800 dark:text-gray-50 transition-all duration-300',
                 isFocused
