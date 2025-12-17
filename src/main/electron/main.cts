@@ -128,7 +128,7 @@ async function createWindow() {
         height: 800,
         minWidth: 1024,
         minHeight: 680,
-        title: "ALMACÉN MEYPAR",
+        title: "INVENTARI MEYPAR",
         show: false,
         ...(iconPath ? { icon: iconPath } : {}),
         webPreferences: {
