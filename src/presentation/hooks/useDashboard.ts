@@ -51,7 +51,7 @@ function getRangeStart(now: Date, range: DashboardRange) {
 /**
  * Hook para obtener datos del dashboard con métricas avanzadas.
  */
-export function useDashboard() {
+export function useDashboard(locale: string = 'es-ES') {
   const [loading, setLoading] = React.useState(true);
   const [range, setRange] = React.useState<DashboardRange>('7d');
   const [stats, setStats] = React.useState<DashboardStats>({
@@ -135,7 +135,7 @@ export function useDashboard() {
         for (let i = 11; i >= 0; i--) {
           const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
           const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
-          const label = d.toLocaleDateString('es-ES', {
+          const label = d.toLocaleDateString(locale, {
             month: 'short',
             year: '2-digit',
           });
@@ -147,7 +147,7 @@ export function useDashboard() {
           const d = new Date(todayStart);
           d.setDate(d.getDate() - i);
           const key = `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-          const label = d.toLocaleDateString('es-ES', {
+          const label = d.toLocaleDateString(locale, {
             weekday: 'short',
             day: 'numeric',
           });
@@ -199,7 +199,7 @@ export function useDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [range]);
+  }, [range, locale]);
 
   React.useEffect(() => {
     loadStats();

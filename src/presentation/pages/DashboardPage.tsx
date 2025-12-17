@@ -24,8 +24,9 @@ import { Button } from '../components/ui/Button';
  */
 export function DashboardPage() {
   const navigate = useNavigate();
-  const { stats, loading, movementChartData, range, setRange, refresh } = useDashboard();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const { stats, loading, movementChartData, range, setRange, refresh } =
+    useDashboard(language);
   const [refreshing, setRefreshing] = React.useState(false);
 
   const handleRefresh = async () => {
@@ -36,10 +37,10 @@ export function DashboardPage() {
 
   const rangeLabel =
     range === '7d'
-      ? 'últimos 7 días'
+      ? t('dashboard.range.last7Days')
       : range === '30d'
-        ? 'últimos 30 días'
-        : 'últimos 12 meses';
+        ? t('dashboard.range.last30Days')
+        : t('dashboard.range.last12Months');
 
   const totals = React.useMemo(() => {
     return movementChartData.reduce(
@@ -59,10 +60,10 @@ export function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-50">
-            Dashboard
+            {t('dashboard.title')}
           </h1>
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-            {new Date().toLocaleDateString('es-ES', {
+            {new Date().toLocaleDateString(language, {
               weekday: 'long',
               day: 'numeric',
               month: 'long',
@@ -86,9 +87,9 @@ export function DashboardPage() {
         <div className="rounded-lg border border-gray-200 bg-white p-1 shadow-sm dark:border-gray-700 dark:bg-gray-800">
           {(
             [
-              { key: '7d', label: '7 días' },
-              { key: '30d', label: '30 días' },
-              { key: '12m', label: '12 meses' },
+              { key: '7d', label: t('dashboard.range.7d') },
+              { key: '30d', label: t('dashboard.range.30d') },
+              { key: '12m', label: t('dashboard.range.12m') },
             ] as const
           ).map((opt) => (
             <button
@@ -121,11 +122,11 @@ export function DashboardPage() {
                 {t('dashboard.units')}
               </p>
               <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-50">
-                {loading ? '...' : stats.totalUnits.toLocaleString('es-ES')}
+                {loading ? '...' : stats.totalUnits.toLocaleString(language)}
               </p>
               <p className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
                 <Package className="mr-1 h-4 w-4" />
-                {loading ? '...' : stats.totalProducts.toLocaleString('es-ES')}{' '}
+                {loading ? '...' : stats.totalProducts.toLocaleString(language)}{' '}
                 {t('dashboard.products')}
               </p>
             </div>
@@ -143,11 +144,11 @@ export function DashboardPage() {
                 {t('dashboard.movementsToday')}
               </p>
               <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-50">
-                {loading ? '...' : stats.movementsToday.toLocaleString('es-ES')}
+                {loading ? '...' : stats.movementsToday.toLocaleString(language)}
               </p>
               <p className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
                 <Layers className="mr-1 h-4 w-4" />
-                {loading ? '...' : stats.movementsRange.toLocaleString('es-ES')} (
+                {loading ? '...' : stats.movementsRange.toLocaleString(language)} (
                 {rangeLabel})
               </p>
             </div>
@@ -165,11 +166,11 @@ export function DashboardPage() {
                 {t('dashboard.categories')}
               </p>
               <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-50">
-                {loading ? '...' : stats.categoriesCount.toLocaleString('es-ES')}
+                {loading ? '...' : stats.categoriesCount.toLocaleString(language)}
               </p>
               <p className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
                 <Package className="mr-1 h-4 w-4" />
-                {loading ? '...' : stats.totalProducts.toLocaleString('es-ES')}{' '}
+                {loading ? '...' : stats.totalProducts.toLocaleString(language)}{' '}
                 {t('dashboard.products')}
               </p>
             </div>
@@ -187,7 +188,7 @@ export function DashboardPage() {
                 {t('dashboard.aiSuggestions')}
               </p>
               <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-gray-50">
-                {loading ? '...' : stats.aiSuggestions.toLocaleString('es-ES')}
+                {loading ? '...' : stats.aiSuggestions.toLocaleString(language)}
               </p>
               <p className="mt-1 flex items-center text-sm text-gray-500 dark:text-gray-400">
                 <Lightbulb className="mr-1 h-4 w-4" />
@@ -205,7 +206,7 @@ export function DashboardPage() {
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
         <KPICard
           title={t('dashboard.activeProducts')}
-          value={loading ? '...' : stats.totalProducts.toLocaleString('es-ES')}
+          value={loading ? '...' : stats.totalProducts.toLocaleString(language)}
           icon={<Package className="h-8 w-8" />}
           accentColor="green"
           onClick={() => navigate('/products')}
@@ -262,7 +263,7 @@ export function DashboardPage() {
                 {t('dashboard.entries')}
               </div>
               <div className="font-semibold text-gray-900 dark:text-gray-50">
-                {totals.entries.toLocaleString('es-ES')}
+                {totals.entries.toLocaleString(language)}
               </div>
             </div>
             <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/30">
@@ -270,7 +271,7 @@ export function DashboardPage() {
                 {t('dashboard.exits')}
               </div>
               <div className="font-semibold text-gray-900 dark:text-gray-50">
-                {totals.exits.toLocaleString('es-ES')}
+                {totals.exits.toLocaleString(language)}
               </div>
             </div>
             <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-900/30">
@@ -278,7 +279,7 @@ export function DashboardPage() {
                 {t('dashboard.adjustments')}
               </div>
               <div className="font-semibold text-gray-900 dark:text-gray-50">
-                {totals.adjustments.toLocaleString('es-ES')}
+                {totals.adjustments.toLocaleString(language)}
               </div>
             </div>
           </div>
@@ -289,7 +290,7 @@ export function DashboardPage() {
         <div className="space-y-6">
           <div className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-700 dark:bg-gray-800">
             <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
-              Mix ({rangeLabel})
+              {t('dashboard.mixTitle')} ({rangeLabel})
             </h3>
             <MovementsMixChart
               entries={totals.entries}

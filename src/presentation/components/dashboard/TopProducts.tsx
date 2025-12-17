@@ -1,6 +1,7 @@
-import * as React from "react";
-import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
-import { useRealtime } from "../../hooks/useRealtime";
+import * as React from 'react';
+import { supabaseClient } from '@infrastructure/supabase/supabaseClient';
+import { useRealtime } from '../../hooks/useRealtime';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface TopProduct {
   productId: string;
@@ -10,14 +11,15 @@ interface TopProduct {
 }
 
 interface TopProductsProps {
-  period?: "month" | "quarter" | "year";
+  period?: 'month' | 'quarter' | 'year';
 }
 
 /**
  * Componente que muestra los top productos más consumidos.
  */
-export function TopProducts({ period: initialPeriod = "month" }: TopProductsProps) {
-  const [period, setPeriod] = React.useState<"month" | "quarter" | "year">(initialPeriod);
+export function TopProducts({ period: initialPeriod = 'month' }: TopProductsProps) {
+  const { t } = useLanguage();
+  const [period, setPeriod] = React.useState<'month' | 'quarter' | 'year'>(initialPeriod);
   const [products, setProducts] = React.useState<TopProduct[]>([]);
   const [loading, setLoading] = React.useState(true);
 
@@ -28,32 +30,35 @@ export function TopProducts({ period: initialPeriod = "month" }: TopProductsProp
       let startDate: Date;
 
       switch (period) {
-        case "month":
+        case 'month':
           startDate = new Date(now.getFullYear(), now.getMonth(), 1);
           break;
-        case "quarter":
+        case 'quarter': {
           const quarter = Math.floor(now.getMonth() / 3);
           startDate = new Date(now.getFullYear(), quarter * 3, 1);
           break;
-        case "year":
+        }
+        case 'year':
           startDate = new Date(now.getFullYear(), 0, 1);
           break;
       }
 
       // Obtener top productos consumidos (movimientos OUT)
       const { data: movements, error } = await supabaseClient
-        .from("inventory_movements")
-        .select(`
+        .from('inventory_movements')
+        .select(
+          `
           product_id,
           quantity,
           products:product_id (
             code,
             name
           )
-        `)
-        .eq("movement_type", "OUT")
-        .gte("movement_date", startDate.toISOString())
-        .order("movement_date", { ascending: false });
+        `,
+        )
+        .eq('movement_type', 'OUT')
+        .gte('movement_date', startDate.toISOString())
+        .order('movement_date', { ascending: false });
 
       if (error) throw error;
 
@@ -74,7 +79,7 @@ export function TopProducts({ period: initialPeriod = "month" }: TopProductsProp
             productId,
             productCode: product.code,
             productName: product.name,
-            totalQuantity: movement.quantity
+            totalQuantity: movement.quantity,
           });
         }
       });
@@ -87,7 +92,7 @@ export function TopProducts({ period: initialPeriod = "month" }: TopProductsProp
       setProducts(topProducts);
     } catch (error) {
       // eslint-disable-next-line no-console
-      console.error("Error cargando top productos:", error);
+      console.error('Error cargando top productos:', error);
     } finally {
       setLoading(false);
     }
@@ -99,44 +104,50 @@ export function TopProducts({ period: initialPeriod = "month" }: TopProductsProp
 
   // Suscripción en tiempo real para movimientos
   useRealtime({
-    table: "inventory_movements",
+    table: 'inventory_movements',
     onInsert: () => {
       loadTopProducts();
-    }
+    },
   });
 
   React.useEffect(() => {
     setPeriod(initialPeriod);
   }, [initialPeriod]);
 
-  const maxQuantity = products.length > 0 ? Math.max(...products.map((p) => p.totalQuantity)) : 1;
+  const maxQuantity =
+    products.length > 0 ? Math.max(...products.map((p) => p.totalQuantity)) : 1;
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
       <div className="mb-4 flex items-center justify-between">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
-          Top Productos Consumidos
+          {t('dashboard.topProductsConsumed')}
         </h3>
         <select
           value={period}
-          onChange={(e) => setPeriod(e.target.value as "month" | "quarter" | "year")}
+          onChange={(e) => setPeriod(e.target.value as 'month' | 'quarter' | 'year')}
           className="rounded border border-gray-300 bg-white px-2 py-1 text-xs dark:border-gray-600 dark:bg-gray-700"
         >
-          <option value="month">Este mes</option>
-          <option value="quarter">Este trimestre</option>
-          <option value="year">Este año</option>
+          <option value="month">{t('dashboard.period.month')}</option>
+          <option value="quarter">{t('dashboard.period.quarter')}</option>
+          <option value="year">{t('dashboard.period.year')}</option>
         </select>
       </div>
       <div className="space-y-2">
         {loading ? (
-          <div className="text-sm text-gray-500 dark:text-gray-400">Cargando...</div>
+          <div className="text-sm text-gray-500 dark:text-gray-400">
+            {t('common.loading')}
+          </div>
         ) : products.length === 0 ? (
           <div className="text-sm text-gray-500 dark:text-gray-400">
-            No hay movimientos en este período
+            {t('dashboard.topProducts.empty')}
           </div>
         ) : (
           products.map((product, index) => (
-            <div key={product.productId} className="flex items-center justify-between text-sm">
+            <div
+              key={product.productId}
+              className="flex items-center justify-between text-sm"
+            >
               <span className="text-gray-600 dark:text-gray-400">
                 {index + 1}. {product.productName}
               </span>
@@ -147,7 +158,9 @@ export function TopProducts({ period: initialPeriod = "month" }: TopProductsProp
                     style={{ width: `${(product.totalQuantity / maxQuantity) * 100}%` }}
                   />
                 </div>
-                <span className="text-gray-900 dark:text-gray-50">{product.totalQuantity} uds</span>
+                <span className="text-gray-900 dark:text-gray-50">
+                  {product.totalQuantity} {t('common.unitsAbbrev')}
+                </span>
               </div>
             </div>
           ))
@@ -156,4 +169,3 @@ export function TopProducts({ period: initialPeriod = "month" }: TopProductsProp
     </div>
   );
 }
-
