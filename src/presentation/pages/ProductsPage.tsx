@@ -796,6 +796,47 @@ export function ProductsPage() {
     [t],
   );
 
+  // Obtener ubicaciones para productos si no las tienen (para exportación)
+  const enrichProductsWithLocations = React.useCallback(
+    async (products: Product[]): Promise<Product[]> => {
+      // Verificar si algún producto no tiene locations
+      const productsWithoutLocations = products.filter(
+        (p) => !p.locations || p.locations.length === 0,
+      );
+
+      if (productsWithoutLocations.length === 0) {
+        return products; // Todos tienen locations
+      }
+
+      // Obtener ubicaciones para productos que no las tienen
+      const repository = new SupabaseProductRepository();
+
+      // Obtener ubicaciones en lotes
+      const enrichedProducts = [...products];
+      for (const product of productsWithoutLocations) {
+        try {
+          const locations = await repository.getProductLocations(product.id);
+          const productIndex = enrichedProducts.findIndex((p) => p.id === product.id);
+          if (productIndex >= 0) {
+            enrichedProducts[productIndex] = {
+              ...enrichedProducts[productIndex],
+              locations,
+            };
+          }
+        } catch (error) {
+          // Si falla, continuar sin locations
+          console.warn(
+            `Error al obtener ubicaciones para producto ${product.id}:`,
+            error,
+          );
+        }
+      }
+
+      return enrichedProducts;
+    },
+    [],
+  );
+
   const handleExportExcel = React.useCallback(
     async (
       selectedColumns: string[],
@@ -1111,47 +1152,6 @@ export function ProductsPage() {
       advancedFilters,
       enrichProductsWithLocations,
     ],
-  );
-
-  // Obtener ubicaciones para productos si no las tienen (para exportación)
-  const enrichProductsWithLocations = React.useCallback(
-    async (products: Product[]): Promise<Product[]> => {
-      // Verificar si algún producto no tiene locations
-      const productsWithoutLocations = products.filter(
-        (p) => !p.locations || p.locations.length === 0,
-      );
-
-      if (productsWithoutLocations.length === 0) {
-        return products; // Todos tienen locations
-      }
-
-      // Obtener ubicaciones para productos que no las tienen
-      const repository = new SupabaseProductRepository();
-
-      // Obtener ubicaciones en lotes
-      const enrichedProducts = [...products];
-      for (const product of productsWithoutLocations) {
-        try {
-          const locations = await repository.getProductLocations(product.id);
-          const productIndex = enrichedProducts.findIndex((p) => p.id === product.id);
-          if (productIndex >= 0) {
-            enrichedProducts[productIndex] = {
-              ...enrichedProducts[productIndex],
-              locations,
-            };
-          }
-        } catch (error) {
-          // Si falla, continuar sin locations
-          console.warn(
-            `Error al obtener ubicaciones para producto ${product.id}:`,
-            error,
-          );
-        }
-      }
-
-      return enrichedProducts;
-    },
-    [],
   );
 
   const canCreate = authContext?.permissions?.includes('products.create') ?? false;
