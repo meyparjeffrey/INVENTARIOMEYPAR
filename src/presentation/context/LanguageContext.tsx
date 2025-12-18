@@ -878,6 +878,10 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'movements.changes.barcode': 'Código de barras',
     'movements.changes.location': 'Ubicación',
     'movements.changes.active': 'Activo',
+    'movements.confirmDelete':
+      '¿Estás seguro de que deseas eliminar este movimiento? Esta acción no se puede deshacer.',
+    'movements.deleteSuccess': 'Movimiento eliminado correctamente',
+    'movements.deleteError': 'Error al eliminar el movimiento',
     // Alarmas
     'alarms.title': 'Alarmas de Stock',
     'alarms.productsInAlarm': 'productos en alarma',
@@ -1975,6 +1979,10 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'movements.changes.barcode': 'Codi de barres',
     'movements.changes.location': 'Ubicació',
     'movements.changes.active': 'Actiu',
+    'movements.confirmDelete':
+      'Estàs segur que vols eliminar aquest moviment? Aquesta acció no es pot desfer.',
+    'movements.deleteSuccess': 'Moviment eliminat correctament',
+    'movements.deleteError': 'Error en eliminar el moviment',
     'movements.error.noReason': 'El motiu és obligatori',
     'movements.error.insufficientStock': 'Estoc insuficient. Estoc actual: {current}',
     // Alarmes

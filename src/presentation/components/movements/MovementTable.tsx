@@ -910,15 +910,17 @@ export const MovementTable = React.memo(function MovementTable({
                           : undefined
                       }
                     >
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onViewDetail?.(movement);
-                        }}
-                        className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
-                      >
-                        {t('common.view')}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onViewDetail?.(movement);
+                          }}
+                          className="text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-300"
+                        >
+                          {t('common.view')}
+                        </button>
+                      </div>
                     </td>
                   )}
                 </tr>

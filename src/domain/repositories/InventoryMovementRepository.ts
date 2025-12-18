@@ -51,4 +51,9 @@ export interface InventoryMovementRepository {
    * Registra un movimiento y devuelve la fila completa.
    */
   recordMovement(payload: CreateInventoryMovementInput): Promise<InventoryMovement>;
+
+  /**
+   * Elimina un movimiento por su ID.
+   */
+  delete(id: UUID): Promise<void>;
 }

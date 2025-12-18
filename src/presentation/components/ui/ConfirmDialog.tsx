@@ -1,15 +1,22 @@
-import { AlertTriangle } from "lucide-react";
-import * as React from "react";
-import { DialogRoot, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "./Dialog";
-import { Button } from "./Button";
-import { useLanguage } from "../../context/LanguageContext";
+import { AlertTriangle } from 'lucide-react';
+import * as React from 'react';
+import {
+  DialogRoot,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from './Dialog';
+import { Button } from './Button';
+import { useLanguage } from '../../context/LanguageContext';
 
 /**
  * Componente de diálogo de confirmación personalizado.
- * 
+ *
  * Reemplaza window.confirm con un diálogo centrado y estilizado
  * que mantiene la coherencia visual de la aplicación.
- * 
+ *
  * @component
  * @param {ConfirmDialogProps} props - Propiedades del componente
  * @param {boolean} props.isOpen - Indica si el diálogo está abierto
@@ -37,7 +44,7 @@ interface ConfirmDialogProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
-  variant?: "default" | "destructive";
+  variant?: 'default' | 'destructive';
 }
 
 export function ConfirmDialog({
@@ -48,13 +55,13 @@ export function ConfirmDialog({
   message,
   confirmText,
   cancelText,
-  variant = "destructive"
+  variant = 'destructive',
 }: ConfirmDialogProps) {
   const { t } = useLanguage();
 
   const handleConfirm = () => {
     onConfirm();
-    onClose();
+    // No cerramos aquí, dejamos que el componente padre maneje el cierre después de que onConfirm complete
   };
 
   return (
@@ -67,7 +74,7 @@ export function ConfirmDialog({
                 <AlertTriangle className="h-5 w-5 text-red-600 dark:text-red-400" />
               </div>
               <DialogTitle className="text-lg font-semibold text-gray-900 dark:text-gray-50">
-                {title || t("common.confirm") || "Confirmar"}
+                {title || t('common.confirm') || 'Confirmar'}
               </DialogTitle>
             </div>
             <DialogDescription className="text-sm text-gray-600 dark:text-gray-400 mt-2">
@@ -75,19 +82,15 @@ export function ConfirmDialog({
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="mt-6 flex-row justify-end gap-3">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="min-w-[100px]"
-            >
-              {cancelText || t("common.cancel") || "Cancelar"}
+            <Button variant="outline" onClick={onClose} className="min-w-[100px]">
+              {cancelText || t('common.cancel') || 'Cancelar'}
             </Button>
             <Button
-              variant={variant === "destructive" ? "destructive" : "primary"}
+              variant={variant === 'destructive' ? 'destructive' : 'primary'}
               onClick={handleConfirm}
               className="min-w-[100px]"
             >
-              {confirmText || t("common.confirm") || "Confirmar"}
+              {confirmText || t('common.confirm') || 'Confirmar'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -95,4 +98,3 @@ export function ConfirmDialog({
     </DialogRoot>
   );
 }
-

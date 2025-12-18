@@ -1,4 +1,4 @@
-import type { InventoryMovement } from '@domain/entities';
+import type { InventoryMovement, UUID } from '@domain/entities';
 import type {
   CreateInventoryMovementInput,
   InventoryMovementRepository,
@@ -241,5 +241,11 @@ export class SupabaseInventoryMovementRepository
 
     this.handleError('registrar movimiento', error);
     return mapMovement(data as MovementRow);
+  }
+
+  async delete(id: UUID): Promise<void> {
+    const { error } = await this.client.from('inventory_movements').delete().eq('id', id);
+
+    this.handleError('eliminar movimiento', error);
   }
 }

@@ -343,6 +343,19 @@ const routes: RouteObject[] = [
           </React.Suspense>
         ),
       },
+      {
+        path: '*',
+        element: (
+          <div className="flex h-full items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">404</h1>
+              <p className="mt-2 text-gray-600 dark:text-gray-400">
+                Página no encontrada
+              </p>
+            </div>
+          </div>
+        ),
+      },
     ],
   },
 ];
