@@ -6,6 +6,17 @@ function Write-Step($msg) {
 
 Write-Step 'Build Windows (Release) - INVENTARI MEYPAR'
 
+# 0) Limpiar output previo (evita que queden recursos/versiones antiguas en el instalador)
+Write-Step 'Limpiando dist/ y release/win-unpacked'
+$distDir = Join-Path (Get-Location) 'dist'
+if (Test-Path $distDir) {
+  Remove-Item -Recurse -Force $distDir
+}
+$winUnpackedDir = Join-Path (Join-Path (Get-Location) 'release') 'win-unpacked'
+if (Test-Path $winUnpackedDir) {
+  Remove-Item -Recurse -Force $winUnpackedDir
+}
+
 # 1) Limpiar caché winCodeSign (evita fallos por extracción anterior incompleta)
 $winCodeSignCache = Join-Path $env:LOCALAPPDATA 'electron-builder\Cache\winCodeSign'
 if (Test-Path $winCodeSignCache) {

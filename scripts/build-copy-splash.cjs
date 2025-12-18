@@ -14,7 +14,11 @@ if (fs.existsSync(src)) {
     }
     
     let content = fs.readFileSync(src, 'utf8');
-    // Reemplazar v0.6.0 o cualquier vX.X.X por la versión actual
+    // Mantener UNA sola fuente de verdad (package.json version).
+    // Soporta:
+    // - Placeholder: v__APP_VERSION__
+    // - Cualquier versión hardcodeada previa: vX.X.X
+    content = content.replace(/__APP_VERSION__/g, version);
     content = content.replace(/v\d+\.\d+\.\d+/g, `v${version}`);
     
     fs.writeFileSync(dst, content);
@@ -22,3 +26,4 @@ if (fs.existsSync(src)) {
 } else {
     console.error(`❌ No se encontró el splash en: ${src}`);
 }
+

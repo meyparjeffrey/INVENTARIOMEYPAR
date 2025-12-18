@@ -27,7 +27,7 @@ export default defineConfig(({ mode }) => {
         env.SUPABASE_ANON_KEY ?? '',
       ),
       'import.meta.env.VITE_APP_VERSION': JSON.stringify(
-        process.env.npm_package_version || '0.7.0',
+        process.env.npm_package_version || '0.0.0',
       ),
     },
     build: {
