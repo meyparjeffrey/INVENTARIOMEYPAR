@@ -364,7 +364,9 @@ async function svgToPngBlob(svg: string, widthPx: number): Promise<Blob> {
   });
   const pngData = resvg.render();
   const pngBuffer = pngData.asPng();
-  return new Blob([pngBuffer], { type: 'image/png' });
+  // Forzar a Uint8Array "plain" para evitar incompatibilidades TS (SharedArrayBuffer vs ArrayBuffer)
+  const pngBytes = Uint8Array.from(pngBuffer);
+  return new Blob([pngBytes], { type: 'image/png' });
 }
 
 async function generateQrPngBlob(text: string, sizePx: number = 1024): Promise<Blob> {
