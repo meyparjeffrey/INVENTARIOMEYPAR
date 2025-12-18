@@ -32,6 +32,7 @@ import {
   normalizePageSize,
 } from '../constants/pageSizeOptions';
 import { SupabaseUserRepository } from '@infrastructure/repositories/SupabaseUserRepository';
+import { SupabaseProductRepository } from '@infrastructure/repositories/SupabaseProductRepository';
 
 /**
  * Página principal de gestión de productos.
@@ -773,7 +774,14 @@ export function ProductsPage() {
       { key: 'code', label: t('table.code'), defaultSelected: true },
       { key: 'name', label: t('table.name'), defaultSelected: true },
       { key: 'category', label: t('table.category'), defaultSelected: false },
-      { key: 'stockCurrent', label: t('table.stock'), defaultSelected: true },
+      { key: 'stockMEYPAR', label: 'Stock MEYPAR', defaultSelected: true },
+      { key: 'stockOLIVA_TORRAS', label: 'Stock OLIVA TORRAS', defaultSelected: true },
+      { key: 'stockFURGONETA', label: 'Stock FURGONETA', defaultSelected: true },
+      {
+        key: 'stockCurrent',
+        label: t('table.stock') + ' (Total)',
+        defaultSelected: true,
+      },
       { key: 'stockMin', label: t('table.min'), defaultSelected: true },
       { key: 'stockMax', label: 'Stock Máximo', defaultSelected: true },
       { key: 'warehouse', label: 'Almacén', defaultSelected: true },
@@ -808,19 +816,23 @@ export function ProductsPage() {
               priceMin: advancedFilters.priceMin,
               priceMax: advancedFilters.priceMax,
               supplierCode: advancedFilters.supplierCode,
+              warehouse: advancedFilters.warehouse,
             }
           : undefined;
 
         // Obtener TODOS los productos (sin paginación)
         // Si filtersToApply es undefined, exportar TODOS los productos (activos e inactivos)
         // para cumplir con la solicitud del usuario de exportar todos los productos de la base de datos
-        const allProducts = await getAll(filtersToApply || { includeInactive: true });
+        let allProducts = await getAll(filtersToApply || { includeInactive: true });
 
         if (!allProducts || allProducts.length === 0) {
           // eslint-disable-next-line no-console
           console.warn('No hay productos para exportar');
           throw new Error('No hay productos para exportar');
         }
+
+        // Enriquecer productos con ubicaciones si no las tienen (necesario para calcular stock por almacén)
+        allProducts = await enrichProductsWithLocations(allProducts);
 
         if (selectedColumns.length === 0) {
           throw new Error('No hay columnas seleccionadas para exportar');
@@ -831,6 +843,36 @@ export function ProductsPage() {
           code: (p) => p.code,
           name: (p) => p.name,
           category: (p) => p.category || '',
+          stockMEYPAR: (p) => {
+            // Calcular stock en MEYPAR desde locations
+            if (p.locations && Array.isArray(p.locations) && p.locations.length > 0) {
+              return p.locations
+                .filter((loc) => loc.warehouse === 'MEYPAR')
+                .reduce((sum, loc) => sum + (loc.quantity || 0), 0);
+            }
+            // Fallback: si el producto tiene warehouse MEYPAR pero no locations
+            return p.warehouse === 'MEYPAR' ? p.stockCurrent : 0;
+          },
+          stockOLIVA_TORRAS: (p) => {
+            // Calcular stock en OLIVA_TORRAS desde locations
+            if (p.locations && Array.isArray(p.locations) && p.locations.length > 0) {
+              return p.locations
+                .filter((loc) => loc.warehouse === 'OLIVA_TORRAS')
+                .reduce((sum, loc) => sum + (loc.quantity || 0), 0);
+            }
+            // Fallback: si el producto tiene warehouse OLIVA_TORRAS pero no locations
+            return p.warehouse === 'OLIVA_TORRAS' ? p.stockCurrent : 0;
+          },
+          stockFURGONETA: (p) => {
+            // Calcular stock en FURGONETA desde locations
+            if (p.locations && Array.isArray(p.locations) && p.locations.length > 0) {
+              return p.locations
+                .filter((loc) => loc.warehouse === 'FURGONETA')
+                .reduce((sum, loc) => sum + (loc.quantity || 0), 0);
+            }
+            // Fallback: si el producto tiene warehouse FURGONETA pero no locations
+            return p.warehouse === 'FURGONETA' ? p.stockCurrent : 0;
+          },
           stockCurrent: (p) => p.stockCurrent,
           stockMin: (p) => p.stockMin,
           stockMax: (p) => p.stockMax || '',
@@ -961,10 +1003,13 @@ export function ProductsPage() {
         // Añadir fila de totales si hay columnas numéricas
         const numericColumns: Record<string, 'sum' | 'avg'> = {};
         headerRow.forEach((colName) => {
-          // Solo sumar Stock Actual (la columna con key "stockCurrent"), no Stock Máximo ni Stock Mínimo
-          // Buscar la columna que corresponde a stockCurrent por su label
-          const stockColumn = exportColumns.find((c) => c.key === 'stockCurrent');
-          if (stockColumn && colName === stockColumn.label) {
+          // Sumar todas las columnas de stock (por almacén y total)
+          if (
+            colName === 'Stock MEYPAR' ||
+            colName === 'Stock OLIVA TORRAS' ||
+            colName === 'Stock FURGONETA' ||
+            (colName.includes('Stock') && colName.includes('Total'))
+          ) {
             numericColumns[colName] = 'sum';
           } else if (colName.includes('Precio') || colName.includes('precio')) {
             numericColumns[colName] = 'sum';
@@ -1058,7 +1103,55 @@ export function ProductsPage() {
         throw error; // Re-lanzar el error para que el modal pueda manejarlo
       }
     },
-    [exportColumns, getAll, showInactive, showLowStock, advancedFilters],
+    [
+      exportColumns,
+      getAll,
+      showInactive,
+      showLowStock,
+      advancedFilters,
+      enrichProductsWithLocations,
+    ],
+  );
+
+  // Obtener ubicaciones para productos si no las tienen (para exportación)
+  const enrichProductsWithLocations = React.useCallback(
+    async (products: Product[]): Promise<Product[]> => {
+      // Verificar si algún producto no tiene locations
+      const productsWithoutLocations = products.filter(
+        (p) => !p.locations || p.locations.length === 0,
+      );
+
+      if (productsWithoutLocations.length === 0) {
+        return products; // Todos tienen locations
+      }
+
+      // Obtener ubicaciones para productos que no las tienen
+      const repository = new SupabaseProductRepository();
+
+      // Obtener ubicaciones en lotes
+      const enrichedProducts = [...products];
+      for (const product of productsWithoutLocations) {
+        try {
+          const locations = await repository.getProductLocations(product.id);
+          const productIndex = enrichedProducts.findIndex((p) => p.id === product.id);
+          if (productIndex >= 0) {
+            enrichedProducts[productIndex] = {
+              ...enrichedProducts[productIndex],
+              locations,
+            };
+          }
+        } catch (error) {
+          // Si falla, continuar sin locations
+          console.warn(
+            `Error al obtener ubicaciones para producto ${product.id}:`,
+            error,
+          );
+        }
+      }
+
+      return enrichedProducts;
+    },
+    [],
   );
 
   const canCreate = authContext?.permissions?.includes('products.create') ?? false;
