@@ -156,16 +156,19 @@ async function createWindow() {
     });
   }
 
-  // En producción, usar app.getAppPath() para obtener la ruta correcta del asar
+  // En desarrollo, cargar desde localhost; en producción, desde archivo estático
   const appPath = app.getAppPath();
   const indexPath = path.join(appPath, 'dist', 'renderer', 'index.html');
+  const devUrl = 'http://localhost:5173/';
 
   // eslint-disable-next-line no-console
   console.log('🔍 Rutas de depuración:', {
+    isDev,
     appPath,
     __dirname,
     indexPath,
     exists: existsSync(indexPath),
+    devUrl,
   });
 
   // Manejar errores de carga
@@ -211,12 +214,20 @@ async function createWindow() {
   });
 
   try {
-    await win.loadFile(indexPath);
-    // eslint-disable-next-line no-console
-    console.log('✅ Archivo cargado:', indexPath);
+    if (isDev) {
+      // En desarrollo, cargar desde el servidor Vite
+      await win.loadURL(devUrl);
+      // eslint-disable-next-line no-console
+      console.log('✅ Cargando desde localhost:', devUrl);
+    } else {
+      // En producción, cargar desde archivo estático
+      await win.loadFile(indexPath);
+      // eslint-disable-next-line no-console
+      console.log('✅ Archivo cargado:', indexPath);
+    }
   } catch (error) {
     // eslint-disable-next-line no-console
-    console.error('❌ Error al cargar index.html:', error);
+    console.error('❌ Error al cargar:', error);
     splash.close();
     win.show();
   }
