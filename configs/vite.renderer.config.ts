@@ -1,10 +1,21 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'node:path';
+import fs from 'node:fs';
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
   const isProduction = mode === 'production';
+  const pkgVersion = (() => {
+    try {
+      const pkgPath = new URL('../package.json', import.meta.url);
+      const pkgRaw = fs.readFileSync(pkgPath, 'utf-8');
+      const pkg = JSON.parse(pkgRaw) as { version?: string };
+      return pkg.version || process.env.npm_package_version || '0.0.0';
+    } catch {
+      return process.env.npm_package_version || '0.0.0';
+    }
+  })();
 
   return {
     base: isProduction ? './' : '/',
@@ -26,9 +37,8 @@ export default defineConfig(({ mode }) => {
       'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(
         env.SUPABASE_ANON_KEY ?? '',
       ),
-      'import.meta.env.VITE_APP_VERSION': JSON.stringify(
-        process.env.npm_package_version || '0.0.0',
-      ),
+      // Fuente de verdad: package.json version (fallback a npm_package_version)
+      'import.meta.env.VITE_APP_VERSION': JSON.stringify(pkgVersion),
     },
     build: {
       outDir: 'dist/renderer',

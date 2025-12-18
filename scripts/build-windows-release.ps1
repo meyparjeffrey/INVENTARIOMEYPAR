@@ -34,6 +34,10 @@ npm run build
 
 # 4) Empaquetado NSIS
 Write-Step 'Empaquetando instalador (NSIS)'
-node scripts\build-win.cjs
+$env:PATH = (Join-Path (Get-Location) 'scripts') + ';' + $env:PATH
+$env:CSC_IDENTITY_AUTO_DISCOVERY = 'false'
+
+# Usar la configuración única de electron-builder desde package.json ("build")
+npx electron-builder --win --x64
 
 Write-Step 'OK: build finalizado. Revisa la carpeta release/.'

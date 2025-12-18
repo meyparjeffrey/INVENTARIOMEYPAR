@@ -28,7 +28,7 @@ powershell -NoProfile -ExecutionPolicy Bypass -File scripts\build-windows-releas
 1. Limpia la caché de `winCodeSign` (si quedó corrupta por un intento anterior).
 2. Genera un `build/icon.ico` válido (a partir de `src/assets/logochat.svg`).
 3. Ejecuta el build del proyecto (`npm run build`).
-4. Empaqueta el instalador NSIS (`node scripts/build-win.cjs`).
+4. Empaqueta el instalador NSIS (usa la config única en `package.json` vía `electron-builder`).
 
 ## Resultado
 
