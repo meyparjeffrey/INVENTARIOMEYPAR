@@ -7,9 +7,10 @@ import { cn } from '../../lib/cn';
 
 interface MovementDetailModalProps {
   movement: InventoryMovement & {
-    product?: { code: string; name: string };
+    product?: { code: string; name: string; stockCurrent?: number };
     userFirstName?: string | null;
     userLastName?: string | null;
+    productStockCurrent?: number | null;
   };
   isOpen: boolean;
   onClose: () => void;
@@ -116,7 +117,7 @@ export function MovementDetailModal({
         )}
 
         {/* Cantidades */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
             <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
               {t('movements.quantity')}
@@ -155,6 +156,19 @@ export function MovementDetailModal({
             </div>
             <div className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-50">
               {movement.quantityAfter}
+            </div>
+          </div>
+
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800">
+            <div className="text-sm font-medium text-gray-500 dark:text-gray-400">
+              {t('movements.stockTotal')}
+            </div>
+            <div className="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {movement.product?.stockCurrent !== undefined
+                ? movement.product.stockCurrent
+                : movement.productStockCurrent !== undefined
+                  ? movement.productStockCurrent
+                  : '-'}
             </div>
           </div>
         </div>

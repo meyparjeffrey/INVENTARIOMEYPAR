@@ -22,6 +22,7 @@ interface MovementWithProduct extends InventoryMovement {
   userLastName?: string | null;
   productCode?: string | null;
   productName?: string | null;
+  productStockCurrent?: number | null;
 }
 
 interface MovementTableProps {
@@ -419,6 +420,23 @@ export const MovementTable = React.memo(function MovementTable({
                     {t('movements.warehouse') || 'Almacén'}
                   </th>
                 ))}
+              {isColumnVisible('stockTotal') &&
+                (onColumnResize ? (
+                  <ResizableColumnHeader
+                    initialWidth={getColumnWidth('stockTotal')}
+                    minWidth={100}
+                    onResize={(width) => onColumnResize('stockTotal', width)}
+                    className="group text-right"
+                  >
+                    <div className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                      {t('movements.stockTotal') || 'Stock Total'}
+                    </div>
+                  </ResizableColumnHeader>
+                ) : (
+                  <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    {t('movements.stockTotal') || 'Stock Total'}
+                  </th>
+                ))}
               {isColumnVisible('reason') &&
                 (onColumnResize ? (
                   <ResizableColumnHeader
@@ -525,6 +543,7 @@ export const MovementTable = React.memo(function MovementTable({
               const stockBeforeWidth = getColumnWidth('stockBefore');
               const stockAfterWidth = getColumnWidth('stockAfter');
               const warehouseWidth = getColumnWidth('warehouse');
+              const stockTotalWidth = getColumnWidth('stockTotal');
               const reasonWidth = getColumnWidth('reason');
               const categoryWidth = getColumnWidth('category');
               const userWidth = getColumnWidth('user');
@@ -716,6 +735,26 @@ export const MovementTable = React.memo(function MovementTable({
                       ) : (
                         <span className="text-gray-400">-</span>
                       )}
+                    </td>
+                  )}
+                  {isColumnVisible('stockTotal') && (
+                    <td
+                      className="whitespace-nowrap px-4 py-3 text-right text-sm font-semibold text-gray-900 dark:text-gray-50"
+                      style={
+                        stockTotalWidth
+                          ? {
+                              width: `${stockTotalWidth}px`,
+                              minWidth: `${stockTotalWidth}px`,
+                              maxWidth: `${stockTotalWidth}px`,
+                            }
+                          : undefined
+                      }
+                    >
+                      {movement.product?.stockCurrent !== undefined
+                        ? movement.product.stockCurrent
+                        : movement.productStockCurrent !== undefined
+                          ? movement.productStockCurrent
+                          : '-'}
                     </td>
                   )}
                   {isColumnVisible('reason') && (

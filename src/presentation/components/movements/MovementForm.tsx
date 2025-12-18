@@ -102,21 +102,52 @@ export function MovementForm({
     }
   }, [isOpen, preselectedProduct, preselectedMovementType]);
 
-  // Cargar stocks por almacén cuando se selecciona un producto
+  // Cargar ubicaciones cuando se selecciona un producto para calcular stock por almacén
   React.useEffect(() => {
     if (selectedProduct?.id) {
       repositoryRef.current
-        .getProductStocksByWarehouse(selectedProduct.id)
-        .then((stocks) => {
-          setProductStocksByWarehouse(
-            stocks.map((s) => ({
-              warehouse: s.warehouse,
-              quantity: s.quantity,
-            })),
-          );
+        .getProductLocations(selectedProduct.id)
+        .then((locations) => {
+          // Calcular stock por almacén desde las ubicaciones
+          const stocksByWarehouse: Array<{
+            warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA';
+            quantity: number;
+          }> = [];
+
+          // MEYPAR: sumar todas las ubicaciones de MEYPAR
+          const meyparStock = locations
+            .filter((loc) => loc.warehouse === 'MEYPAR')
+            .reduce((sum, loc) => sum + (loc.quantity ?? 0), 0);
+          if (meyparStock > 0 || locations.some((loc) => loc.warehouse === 'MEYPAR')) {
+            stocksByWarehouse.push({ warehouse: 'MEYPAR', quantity: meyparStock });
+          }
+
+          // OLIVA_TORRAS: sumar todas las ubicaciones de OLIVA_TORRAS
+          const olivaStock = locations
+            .filter((loc) => loc.warehouse === 'OLIVA_TORRAS')
+            .reduce((sum, loc) => sum + (loc.quantity ?? 0), 0);
+          if (
+            olivaStock > 0 ||
+            locations.some((loc) => loc.warehouse === 'OLIVA_TORRAS')
+          ) {
+            stocksByWarehouse.push({ warehouse: 'OLIVA_TORRAS', quantity: olivaStock });
+          }
+
+          // FURGONETA: sumar todas las ubicaciones de FURGONETA
+          const furgonetaStock = locations
+            .filter((loc) => loc.warehouse === 'FURGONETA')
+            .reduce((sum, loc) => sum + (loc.quantity ?? 0), 0);
+          if (
+            furgonetaStock > 0 ||
+            locations.some((loc) => loc.warehouse === 'FURGONETA')
+          ) {
+            stocksByWarehouse.push({ warehouse: 'FURGONETA', quantity: furgonetaStock });
+          }
+
+          setProductStocksByWarehouse(stocksByWarehouse);
         })
         .catch((err) => {
-          console.warn('Error al cargar stocks por almacén:', err);
+          console.warn('Error al cargar ubicaciones del producto:', err);
           setProductStocksByWarehouse([]);
         });
     } else {

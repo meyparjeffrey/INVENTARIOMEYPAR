@@ -30,6 +30,7 @@ export function ProductDetailPage() {
   const { getById, loading, error } = useProducts();
   const { t } = useLanguage();
   const [product, setProduct] = React.useState<Product | null>(null);
+  const [isWaitingDelay, setIsWaitingDelay] = React.useState(false);
 
   // Determinar la ruta de retorno según el estado de navegación
   const getBackPath = () => {
@@ -43,15 +44,50 @@ export function ProductDetailPage() {
     return '/products';
   };
 
-  // Carga inicial del producto
+  // Cargar producto: manejar carga inicial y recarga después de edición
   React.useEffect(() => {
-    if (id) {
-      getById(id).then(setProduct);
-    }
-  }, [id, getById]);
+    if (!id) return;
 
-  // Recargar producto cuando se vuelve a esta página (después de editar)
+    const state = location.state as { refresh?: boolean; timestamp?: number } | null;
+
+    // Si viene de una edición, esperar más tiempo para que Supabase guarde todo (producto + ubicaciones)
+    const delay = state?.refresh ? 1000 : 0;
+
+    const loadProduct = async () => {
+      try {
+        const loadedProduct = await getById(id);
+        if (loadedProduct) {
+          setProduct(loadedProduct);
+          // eslint-disable-next-line no-console
+          if (state?.refresh) {
+            console.log('Producto recargado después de edición:', loadedProduct);
+          }
+        }
+      } catch (error) {
+        // eslint-disable-next-line no-console
+        console.error('Error al cargar producto:', error);
+      } finally {
+        setIsWaitingDelay(false);
+      }
+    };
+
+    if (delay > 0) {
+      setIsWaitingDelay(true);
+      const timeoutId = setTimeout(loadProduct, delay);
+      // Limpiar el state después de cargar para evitar recargas innecesarias
+      window.history.replaceState({}, '');
+      return () => clearTimeout(timeoutId);
+    } else {
+      loadProduct();
+    }
+  }, [id, getById, location.state]);
+
+  // Recargar producto cuando se vuelve a esta página (solo si no viene de edición)
   React.useEffect(() => {
+    const state = location.state as { refresh?: boolean } | null;
+    // No recargar si acabamos de venir de una edición (ya se maneja arriba)
+    if (state?.refresh) return;
+
     const handleFocus = () => {
       if (id) {
         getById(id).then(setProduct);
@@ -68,42 +104,11 @@ export function ProductDetailPage() {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [id, getById]);
-
-  // Recargar cuando viene de una edición (state.refresh)
-  // IMPORTANTE: Este efecto debe ejecutarse DESPUÉS de que los datos se guarden en Supabase
-  React.useEffect(() => {
-    const state = location.state as { refresh?: boolean; timestamp?: number } | null;
-    if (state?.refresh && id) {
-      // Usar un timeout más largo para asegurar que Supabase termine de guardar
-      const timeoutId = setTimeout(() => {
-        // Forzar recarga del producto
-        getById(id)
-          .then((updatedProduct) => {
-            if (updatedProduct) {
-              setProduct(updatedProduct);
-              // eslint-disable-next-line no-console
-              console.log('Producto recargado después de edición:', updatedProduct);
-            }
-          })
-          .catch((error) => {
-            // eslint-disable-next-line no-console
-            console.error('Error al recargar producto:', error);
-          });
-      }, 500); // Timeout aumentado a 500ms
-
-      // Limpiar el state para evitar recargas innecesarias en el futuro
-      window.history.replaceState({}, '');
-
-      return () => {
-        clearTimeout(timeoutId);
-      };
-    }
-  }, [location.state, id, getById]);
+  }, [id, getById, location.state]);
 
   const canEdit = authContext?.permissions?.includes('products.edit') ?? false;
 
-  if (loading) {
+  if (loading || isWaitingDelay) {
     return (
       <div className="flex h-64 items-center justify-center">
         <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
@@ -266,45 +271,51 @@ export function ProductDetailPage() {
                 {product.stockCurrent} {product.unitOfMeasure || 'unidades'}
               </dd>
             </div>
-            {/* Desglose de stock por almacén */}
-            {product.stocksByWarehouse &&
-              Array.isArray(product.stocksByWarehouse) &&
-              product.stocksByWarehouse.length > 0 && (
+            {/* Desglose de stock por ubicación (TODAS las ubicaciones) */}
+            {product.locations &&
+              Array.isArray(product.locations) &&
+              product.locations.length > 0 && (
                 <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
-                  <dt className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Desglose por almacén:
-                  </dt>
+                  <div className="mb-3 flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                    <dt className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      {t('form.stockByLocation') || 'Desglose por ubicación:'}
+                    </dt>
+                  </div>
                   <dd className="space-y-2">
-                    {product.stocksByWarehouse
-                      .filter((s) => s.quantity > 0)
-                      .map((stock) => (
-                        <div
-                          key={stock.id}
-                          className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm dark:bg-gray-800"
-                        >
+                    {product.locations.map((loc) => (
+                      <div
+                        key={loc.id}
+                        className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm dark:bg-gray-800"
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="inline-flex items-center rounded-md bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700 ring-1 ring-inset ring-primary-700/10 dark:bg-primary-900/30 dark:text-primary-300 dark:ring-primary-300/20">
+                            {loc.warehouse === 'MEYPAR'
+                              ? 'MY'
+                              : loc.warehouse === 'OLIVA_TORRAS'
+                                ? 'OT'
+                                : 'FR'}
+                          </span>
                           <span className="font-medium text-gray-900 dark:text-gray-50">
-                            {stock.warehouse === 'MEYPAR'
-                              ? t('form.warehouse.meypar') || 'MEYPAR'
-                              : stock.warehouse === 'OLIVA_TORRAS'
+                            {loc.warehouse === 'MEYPAR'
+                              ? `${loc.aisle}${loc.shelf.toUpperCase()}`
+                              : loc.warehouse === 'OLIVA_TORRAS'
                                 ? t('form.warehouse.olivaTorras') || 'Oliva Torras'
-                                : stock.warehouse === 'FURGONETA'
-                                  ? t('form.warehouse.furgoneta') || 'Furgoneta'
-                                  : stock.warehouse}
-                            {stock.locationAisle || stock.locationShelf
-                              ? ` (${stock.locationAisle || ''}${stock.locationAisle && stock.locationShelf ? '-' : ''}${stock.locationShelf || ''})`
-                              : ''}
+                                : loc.warehouse === 'FURGONETA'
+                                  ? `${t('form.warehouse.furgoneta') || 'Furgoneta'} - ${loc.shelf}`
+                                  : loc.warehouse}
                           </span>
-                          <span className="font-semibold text-gray-900 dark:text-gray-50">
-                            {stock.quantity} {product.unitOfMeasure || 'unidades'}
-                          </span>
+                          {loc.isPrimary && (
+                            <span className="rounded-full bg-primary-100 px-2 py-0.5 text-xs font-medium text-primary-700 dark:bg-primary-900/30 dark:text-primary-300">
+                              {t('form.primary') || 'Principal'}
+                            </span>
+                          )}
                         </div>
-                      ))}
-                    {product.stocksByWarehouse.filter((s) => s.quantity > 0).length ===
-                      0 && (
-                      <p className="text-sm text-gray-500 dark:text-gray-400">
-                        No hay stock en ningún almacén
-                      </p>
-                    )}
+                        <span className="font-semibold text-gray-900 dark:text-gray-50">
+                          {loc.quantity ?? 0} {product.unitOfMeasure || 'unidades'}
+                        </span>
+                      </div>
+                    ))}
                   </dd>
                 </div>
               )}
@@ -336,46 +347,23 @@ export function ProductDetailPage() {
                 </div>
               </div>
             )}
-            <div className="mt-4 border-t border-gray-200 pt-3 dark:border-gray-700">
-              <div className="mb-2 flex items-center gap-2">
-                <MapPin className="h-4 w-4 text-gray-400" />
-                <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                  Ubicaciones
-                </dt>
+            {/* Si no hay ubicaciones en el array, mostrar ubicación legacy del producto */}
+            {(!product.locations ||
+              !Array.isArray(product.locations) ||
+              product.locations.length === 0) && (
+              <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/30">
+                <div className="mb-2 flex items-center gap-2">
+                  <MapPin className="h-4 w-4 text-gray-500 dark:text-gray-400" />
+                  <dt className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Ubicación
+                  </dt>
+                </div>
+                <dd className="text-sm text-gray-900 dark:text-gray-50">
+                  Pasillo: {product.aisle} | Estante: {product.shelf}
+                  {product.locationExtra && ` | ${product.locationExtra}`}
+                </dd>
               </div>
-              <dd className="space-y-2 text-sm text-gray-900 dark:text-gray-50">
-                {product.locations &&
-                Array.isArray(product.locations) &&
-                product.locations.length > 0 ? (
-                  product.locations.map((loc, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <span className="inline-flex items-center rounded-md bg-primary-50 px-2 py-1 text-xs font-medium text-primary-700 ring-1 ring-inset ring-primary-700/10 dark:bg-primary-900/30 dark:text-primary-300 dark:ring-primary-300/20">
-                        {loc.warehouse === 'MEYPAR'
-                          ? 'MY'
-                          : loc.warehouse === 'OLIVA_TORRAS'
-                            ? 'OT'
-                            : 'FR'}
-                      </span>
-                      <span>
-                        {loc.warehouse === 'MEYPAR'
-                          ? `Pasillo: ${loc.aisle} | Estante: ${loc.shelf}`
-                          : loc.warehouse === 'FURGONETA'
-                            ? `Técnico: ${loc.shelf}`
-                            : 'Oliva Torras'}
-                      </span>
-                      {loc.isPrimary && (
-                        <span className="text-xs text-gray-500">(Principal)</span>
-                      )}
-                    </div>
-                  ))
-                ) : (
-                  <span>
-                    Pasillo: {product.aisle} | Estante: {product.shelf}
-                    {product.locationExtra && ` | ${product.locationExtra}`}
-                  </span>
-                )}
-              </dd>
-            </div>
+            )}
           </dl>
         </motion.div>
 

@@ -63,7 +63,7 @@ export class SupabaseInventoryMovementRepository
       `
         *,
         profiles!inventory_movements_user_id_fkey(first_name, last_name),
-        products!inventory_movements_product_id_fkey(code, name)
+        products!inventory_movements_product_id_fkey(code, name, stock_current)
       `,
       { count: 'exact' },
     );
@@ -107,6 +107,10 @@ export class SupabaseInventoryMovementRepository
 
     if (filters?.dateTo) {
       query = query.lte('movement_date', filters.dateTo);
+    }
+
+    if (filters?.warehouse) {
+      query = query.eq('warehouse', filters.warehouse);
     }
 
     // Búsqueda por texto (en comments, request_reason, código producto, nombre producto)
@@ -169,6 +173,7 @@ export class SupabaseInventoryMovementRepository
           userLastName: profile?.last_name || null,
           productCode: product?.code || null,
           productName: product?.name || null,
+          productStockCurrent: product?.stock_current ?? null,
         };
       },
     );

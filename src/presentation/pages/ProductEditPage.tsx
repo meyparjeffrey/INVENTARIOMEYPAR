@@ -66,8 +66,8 @@ export function ProductEditPage() {
 
       await update(id, updateData);
       // Esperar a que la actualización se complete en la BD
-      // Timeout aumentado para asegurar que Supabase termine de guardar
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Timeout aumentado para asegurar que Supabase termine de guardar producto + ubicaciones
+      await new Promise((resolve) => setTimeout(resolve, 800));
       // Navegar con state para forzar recarga en ProductDetailPage
       navigate(`/products/${id}`, {
         state: { refresh: true, timestamp: Date.now() },

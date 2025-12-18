@@ -108,6 +108,7 @@ type ProductLocationRow = {
   warehouse: string;
   aisle: string;
   shelf: string;
+  quantity: number;
   is_primary: boolean;
   created_at: string;
   updated_at: string;
@@ -143,6 +144,7 @@ const mapLocation = (row: ProductLocationRow): ProductLocation => ({
   warehouse: row.warehouse as 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
   aisle: row.aisle,
   shelf: row.shelf,
+  quantity: row.quantity ?? 0,
   isPrimary: row.is_primary,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
@@ -904,6 +906,7 @@ export class SupabaseProductRepository
     warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
     aisle: string,
     shelf: string,
+    quantity: number = 0,
     isPrimary: boolean = false,
     userId?: string,
   ): Promise<ProductLocation> {
@@ -923,6 +926,7 @@ export class SupabaseProductRepository
         warehouse,
         aisle,
         shelf,
+        quantity: Math.max(0, quantity),
         is_primary: isPrimary,
         created_by: userId,
       })
@@ -930,6 +934,28 @@ export class SupabaseProductRepository
       .single();
 
     this.handleError('añadir ubicación al producto', error);
+    return mapLocation(data as ProductLocationRow);
+  }
+
+  /**
+   * Actualiza la cantidad de stock de una ubicación específica.
+   */
+  async updateLocationQuantity(
+    locationId: string,
+    quantity: number,
+    userId?: string,
+  ): Promise<ProductLocation> {
+    const { data, error } = await this.client
+      .from('product_locations')
+      .update({
+        quantity: Math.max(0, quantity),
+        updated_by: userId,
+      })
+      .eq('id', locationId)
+      .select('*')
+      .single();
+
+    this.handleError('actualizar cantidad de ubicación', error);
     return mapLocation(data as ProductLocationRow);
   }
 

@@ -59,12 +59,22 @@ export class MovementService {
     // Si no se especifica almacén, usar el almacén primario del producto o MEYPAR por defecto
     const targetWarehouse = input.warehouse || product.warehouse || 'MEYPAR';
 
-    // Obtener stock actual del almacén específico
-    const stocksByWarehouse = await this.productRepository.getProductStocksByWarehouse(
-      input.productId,
-    );
-    const currentStockInWarehouse =
-      stocksByWarehouse.find((s) => s.warehouse === targetWarehouse)?.quantity ?? 0;
+    // Obtener ubicaciones del producto para calcular stock actual del almacén específico
+    const locations = await this.productRepository.getProductLocations(input.productId);
+
+    // Calcular stock actual del almacén específico
+    // Para MEYPAR: sumar todas las ubicaciones de MEYPAR
+    // Para OLIVA_TORRAS/FURGONETA: sumar solo las ubicaciones de ese almacén
+    let currentStockInWarehouse = 0;
+    if (targetWarehouse === 'MEYPAR') {
+      currentStockInWarehouse = locations
+        .filter((loc) => loc.warehouse === 'MEYPAR')
+        .reduce((sum, loc) => sum + (loc.quantity ?? 0), 0);
+    } else {
+      currentStockInWarehouse = locations
+        .filter((loc) => loc.warehouse === targetWarehouse)
+        .reduce((sum, loc) => sum + (loc.quantity ?? 0), 0);
+    }
 
     // Calcular nuevo stock del almacén específico
     const quantityBefore = currentStockInWarehouse;
@@ -127,14 +137,12 @@ export class MovementService {
     // Registrar movimiento
     const movement = await this.movementRepository.recordMovement(movementPayload);
 
-    // Actualizar stock del producto en el almacén específico
-    // Esto actualizará automáticamente stock_current en products mediante el trigger SQL
-    await this.productRepository.setProductStockByWarehouse(
+    // Actualizar stock del producto en el almacén específico usando product_locations
+    await this.updateProductStockByWarehouse(
       input.productId,
       targetWarehouse,
       quantityAfter,
-      undefined, // locationAisle - se puede mejorar más adelante
-      undefined, // locationShelf - se puede mejorar más adelante
+      quantityBefore,
       input.userId,
     );
 
@@ -176,6 +184,95 @@ export class MovementService {
 
     // Solo registrar movimiento, sin actualizar stock
     return await this.movementRepository.recordMovement(movementPayload);
+  }
+
+  /**
+   * Actualiza el stock del producto en un almacén específico usando product_locations.
+   * Para MEYPAR: actualiza todas las ubicaciones de MEYPAR proporcionalmente o la primera.
+   * Para OLIVA_TORRAS/FURGONETA: actualiza la ubicación específica o crea una si no existe.
+   */
+  private async updateProductStockByWarehouse(
+    productId: UUID,
+    warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
+    newTotalQuantity: number,
+    oldTotalQuantity: number,
+    userId?: UUID,
+  ): Promise<void> {
+    const locations = await this.productRepository.getProductLocations(productId);
+    const warehouseLocations = locations.filter((loc) => loc.warehouse === warehouse);
+    const diff = newTotalQuantity - oldTotalQuantity;
+
+    if (warehouse === 'MEYPAR') {
+      // Para MEYPAR: todas las ubicaciones suman su stock (no se diferencia entre ubicaciones en el desglose)
+      // Pero mantenemos las ubicaciones individuales y actualizamos proporcionalmente
+      if (warehouseLocations.length === 0) {
+        // Si no hay ubicaciones de MEYPAR, crear una por defecto
+        await this.productRepository.addProductLocation(
+          productId,
+          'MEYPAR',
+          '1',
+          'A',
+          newTotalQuantity,
+          true, // Primaria
+          userId,
+        );
+      } else {
+        // Actualizar proporcionalmente todas las ubicaciones de MEYPAR
+        const currentTotal = warehouseLocations.reduce(
+          (sum, loc) => sum + (loc.quantity ?? 0),
+          0,
+        );
+
+        if (currentTotal === 0 && newTotalQuantity > 0) {
+          // Si no hay stock, añadir todo a la primera ubicación (o primaria)
+          const targetLocation =
+            warehouseLocations.find((loc) => loc.isPrimary) || warehouseLocations[0];
+          if (targetLocation?.id) {
+            await this.productRepository.updateLocationQuantity(
+              targetLocation.id,
+              newTotalQuantity,
+              userId,
+            );
+          }
+        } else if (currentTotal > 0 && diff !== 0) {
+          // Distribuir el cambio proporcionalmente entre todas las ubicaciones
+          // Mantener la proporción relativa entre ubicaciones
+          for (const loc of warehouseLocations) {
+            if (loc.id) {
+              const currentQty = loc.quantity ?? 0;
+              const proportion = currentQty / currentTotal;
+              const newQty = Math.max(0, Math.round(newTotalQuantity * proportion));
+              await this.productRepository.updateLocationQuantity(loc.id, newQty, userId);
+            }
+          }
+        }
+      }
+    } else {
+      // Para OLIVA_TORRAS o FURGONETA: actualizar la ubicación específica o crear una
+      if (warehouseLocations.length === 0) {
+        // Crear ubicación si no existe
+        const aisle = warehouse === 'OLIVA_TORRAS' ? '' : 'FURGONETA';
+        const shelf = warehouse === 'OLIVA_TORRAS' ? '' : 'Técnico';
+        await this.productRepository.addProductLocation(
+          productId,
+          warehouse,
+          aisle,
+          shelf,
+          newTotalQuantity,
+          false,
+          userId,
+        );
+      } else {
+        // Actualizar la primera ubicación del almacén (normalmente solo hay una)
+        if (warehouseLocations[0]?.id) {
+          await this.productRepository.updateLocationQuantity(
+            warehouseLocations[0].id,
+            newTotalQuantity,
+            userId,
+          );
+        }
+      }
+    }
   }
 
   /**

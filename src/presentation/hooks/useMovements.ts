@@ -22,6 +22,7 @@ interface MovementWithProduct extends InventoryMovement {
   userLastName?: string | null;
   productCode?: string | null;
   productName?: string | null;
+  productStockCurrent?: number | null;
 }
 
 interface UseMovementsReturn {
@@ -99,6 +100,11 @@ export function useMovements(): UseMovementsReturn {
         userLastName: m.userLastName,
         productCode: m.productCode,
         productName: m.productName,
+        productStockCurrent:
+          productsMap[m.productId]?.stockCurrent ??
+          (m as InventoryMovement & { productStockCurrent?: number | null })
+            .productStockCurrent ??
+          null,
       }));
 
       setMovements(enrichedMovements);

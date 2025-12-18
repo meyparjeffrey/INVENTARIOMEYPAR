@@ -51,7 +51,11 @@ export function MovementFilters({ filters, onFiltersChange }: MovementFiltersPro
   };
 
   const hasActiveFilters =
-    filters.movementType || filters.dateFrom || filters.dateTo || filters.adjustmentType;
+    filters.movementType ||
+    filters.dateFrom ||
+    filters.dateTo ||
+    filters.adjustmentType ||
+    filters.warehouse;
 
   const movementTypes: {
     value: MovementTypeOption;
@@ -149,6 +153,7 @@ export function MovementFilters({ filters, onFiltersChange }: MovementFiltersPro
                 filters.dateFrom,
                 filters.dateTo,
                 filters.adjustmentType,
+                filters.warehouse,
               ].filter(Boolean).length
             }
           </span>
@@ -235,6 +240,34 @@ export function MovementFilters({ filters, onFiltersChange }: MovementFiltersPro
                     })
                   }
                 />
+              </div>
+
+              {/* Almacén */}
+              <div>
+                <label className="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {t('movements.warehouse')}
+                </label>
+                <select
+                  value={localFilters.warehouse || ''}
+                  onChange={(e) =>
+                    setLocalFilters({
+                      ...localFilters,
+                      warehouse:
+                        (e.target.value as 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA') ||
+                        undefined,
+                    })
+                  }
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-50"
+                >
+                  <option value="">{t('filters.all')}</option>
+                  <option value="MEYPAR">{t('form.warehouse.meypar') || 'MEYPAR'}</option>
+                  <option value="OLIVA_TORRAS">
+                    {t('form.warehouse.olivaTorras') || 'Oliva Torras'}
+                  </option>
+                  <option value="FURGONETA">
+                    {t('form.warehouse.furgoneta') || 'Furgoneta'}
+                  </option>
+                </select>
               </div>
             </div>
 

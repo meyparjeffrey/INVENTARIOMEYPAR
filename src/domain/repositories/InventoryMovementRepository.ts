@@ -15,6 +15,7 @@ export interface MovementFilters {
   dateTo?: string;
   search?: string; // Búsqueda por texto (código antiguo, nombre producto, comentarios, etc.)
   adjustmentType?: 'CODE' | 'NAME' | 'DESCRIPTION'; // Tipo de ajuste específico
+  warehouse?: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA'; // Filtro por almacén
   orderBy?: 'date' | 'product'; // Ordenar por fecha o producto
   orderDirection?: 'asc' | 'desc'; // Dirección de ordenación
 }

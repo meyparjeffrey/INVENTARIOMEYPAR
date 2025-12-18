@@ -13,6 +13,10 @@ export interface ProductDimensions {
  *
  * Permite que un producto tenga múltiples ubicaciones (ej: A1, A2, B3).
  * Una ubicación está compuesta por aisle (pasillo/estantería) y shelf (estante).
+ * Incluye la cantidad de stock en esa ubicación específica.
+ *
+ * Nota: Para MEYPAR, todas las ubicaciones suman su stock al total (no se diferencia).
+ * Para OLIVA_TORRAS y FURGONETA, cada ubicación tiene su stock individual.
  */
 export interface ProductLocation {
   id: UUID;
@@ -20,6 +24,7 @@ export interface ProductLocation {
   warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA';
   aisle: string;
   shelf: string;
+  quantity: number;
   isPrimary: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;

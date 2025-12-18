@@ -36,6 +36,7 @@ interface MovementWithProduct extends InventoryMovement {
   userLastName?: string | null;
   productCode?: string | null;
   productName?: string | null;
+  productStockCurrent?: number | null;
 }
 
 /**
@@ -290,6 +291,15 @@ export function MovementsPage() {
           ? `${movement.userFirstName || ''} ${movement.userLastName || ''}`.trim()
           : '';
 
+      const warehouseLabel =
+        movement.warehouse === 'MEYPAR'
+          ? t('form.warehouse.meypar') || 'MEYPAR'
+          : movement.warehouse === 'OLIVA_TORRAS'
+            ? t('form.warehouse.olivaTorras') || 'Oliva Torras'
+            : movement.warehouse === 'FURGONETA'
+              ? t('form.warehouse.furgoneta') || 'Furgoneta'
+              : movement.warehouse || '';
+
       return {
         Fecha: date.toLocaleDateString('es-ES'),
         Hora: date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
@@ -312,9 +322,16 @@ export function MovementsPage() {
                       : t(`movements.type.${movement.movementType}`),
         Producto: movement.product?.name || movement.productName || '',
         'Código Producto': movement.product?.code || movement.productCode || '',
+        Almacén: warehouseLabel,
         Cantidad: movement.quantity,
         'Stock Antes': movement.quantityBefore,
         'Stock Después': movement.quantityAfter,
+        'Stock Total':
+          movement.product?.stockCurrent !== undefined
+            ? movement.product.stockCurrent
+            : movement.productStockCurrent !== undefined
+              ? movement.productStockCurrent
+              : '',
         Personal: movement.requestReason,
         Comentarios: movement.comments || '',
         Usuario: userName,
@@ -335,9 +352,11 @@ export function MovementsPage() {
       { wch: 12 }, // Tipo
       { wch: 30 }, // Producto
       { wch: 18 }, // Código
+      { wch: 12 }, // Almacén
       { wch: 10 }, // Cantidad
       { wch: 12 }, // Stock Antes
       { wch: 12 }, // Stock Después
+      { wch: 12 }, // Stock Total
       { wch: 45 }, // Personal
       { wch: 60 }, // Comentarios
       { wch: 25 }, // Usuario

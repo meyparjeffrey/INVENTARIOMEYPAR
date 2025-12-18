@@ -239,8 +239,18 @@ export interface ProductRepository {
     warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
     aisle: string,
     shelf: string,
-    isPrimary: boolean,
-    userId: UUID,
+    quantity?: number,
+    isPrimary?: boolean,
+    userId?: UUID,
+  ): Promise<ProductLocation>;
+
+  /**
+   * Actualiza la cantidad de stock de una ubicación específica.
+   */
+  updateLocationQuantity(
+    locationId: UUID,
+    quantity: number,
+    userId?: UUID,
   ): Promise<ProductLocation>;
 
   /**
