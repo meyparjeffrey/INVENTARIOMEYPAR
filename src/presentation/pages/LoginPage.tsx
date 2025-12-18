@@ -24,9 +24,9 @@ import { cn } from '../lib/cn';
 /**
  * Versión de la aplicación mostrada al usuario.
  *
- * Nota: Se mantiene en sincronía con `package.json` (versión usada en el build Windows).
+ * Nota: Se mantiene en sincronía con `package.json` a través de la configuración de Vite.
  */
-const APP_VERSION = '0.6.0';
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || '0.7.0';
 
 /**
  * Pantalla de inicio de sesión moderna y profesional con diseño de dos columnas.
