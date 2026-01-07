@@ -92,6 +92,42 @@ function tt(t: (k: string) => string, key: string, fallback: string) {
   return v === key ? fallback : v;
 }
 
+/**
+ * Helper para manejar inputs numéricos correctamente.
+ * Permite edición natural (incluyendo valores negativos y campos vacíos temporalmente).
+ * Maneja correctamente valores parciales como "-" o campos vacíos durante la edición.
+ */
+function handleNumericInput(
+  value: string,
+  currentValue: number,
+  min?: number,
+  max?: number,
+): number {
+  // Permitir campo vacío o solo "-" (usuario está escribiendo un negativo)
+  // En estos casos, mantener el valor actual para que el input no se resetee
+  if (value === '' || value === '-') {
+    return currentValue;
+  }
+
+  // Convertir a número
+  const numValue = Number(value);
+
+  // Si no es un número válido, mantener el valor actual
+  if (isNaN(numValue)) {
+    return currentValue;
+  }
+
+  // Aplicar límites si están definidos
+  if (min !== undefined && numValue < min) {
+    return min;
+  }
+  if (max !== undefined && numValue > max) {
+    return max;
+  }
+
+  return numValue;
+}
+
 function stableStringify(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
   if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
@@ -370,7 +406,12 @@ export function LabelsQrPage() {
         return;
       }
       const cfg = labelDialogConfig ?? labelConfig;
-      if (!selectedProduct || !cfg.showQr) {
+      if (!selectedProduct) {
+        setLabelDialogQrDataUrl(null);
+        return;
+      }
+      // Solo generar QR si está habilitado en la configuración
+      if (!cfg.showQr) {
         setLabelDialogQrDataUrl(null);
         return;
       }
@@ -385,14 +426,21 @@ export function LabelsQrPage() {
           color: { dark: '#000000', light: '#FFFFFF' },
         });
         if (!cancelled) setLabelDialogQrDataUrl(url);
-      } catch {
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.error('[LabelsQrPage] Error generando QR para diálogo:', err);
         if (!cancelled) setLabelDialogQrDataUrl(null);
       }
     };
 
-    run();
+    // Pequeño delay para asegurar que el diálogo esté completamente renderizado
+    const timeoutId = setTimeout(() => {
+      run();
+    }, 100);
+
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [
     labelDialogOpen,
@@ -2558,12 +2606,18 @@ export function LabelsQrPage() {
                       min={6}
                       step={1}
                       value={(labelDialogConfig ?? labelConfig).qrSizeMm}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const cfg = labelDialogConfig ?? labelConfig;
+                        const newValue = handleNumericInput(
+                          e.target.value,
+                          cfg.qrSizeMm,
+                          6,
+                        );
                         setLabelDialogConfig((p) => ({
                           ...(p ?? labelConfig),
-                          qrSizeMm: Number(e.target.value),
-                        }))
-                      }
+                          qrSizeMm: newValue,
+                        }));
+                      }}
                     />
                   </div>
                 </div>
@@ -2696,12 +2750,17 @@ export function LabelsQrPage() {
                                     min={8}
                                     step={1}
                                     value={cfg.barcodeFontPx}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
+                                      const newValue = handleNumericInput(
+                                        e.target.value,
+                                        cfg.barcodeFontPx,
+                                        8,
+                                      );
                                       setLabelDialogConfig((p) => ({
                                         ...(p ?? labelConfig),
-                                        barcodeFontPx: Number(e.target.value),
-                                      }))
-                                    }
+                                        barcodeFontPx: newValue,
+                                      }));
+                                    }}
                                   />
                                 </div>
                                 <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
@@ -2772,12 +2831,17 @@ export function LabelsQrPage() {
                                     min={8}
                                     step={1}
                                     value={cfg.warehouseFontPx}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
+                                      const newValue = handleNumericInput(
+                                        e.target.value,
+                                        cfg.warehouseFontPx,
+                                        8,
+                                      );
                                       setLabelDialogConfig((p) => ({
                                         ...(p ?? labelConfig),
-                                        warehouseFontPx: Number(e.target.value),
-                                      }))
-                                    }
+                                        warehouseFontPx: newValue,
+                                      }));
+                                    }}
                                   />
                                 </div>
                                 <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
@@ -2810,12 +2874,17 @@ export function LabelsQrPage() {
                                     min={8}
                                     step={1}
                                     value={cfg.nameFontPx}
-                                    onChange={(e) =>
+                                    onChange={(e) => {
+                                      const newValue = handleNumericInput(
+                                        e.target.value,
+                                        cfg.nameFontPx,
+                                        8,
+                                      );
                                       setLabelDialogConfig((p) => ({
                                         ...(p ?? labelConfig),
-                                        nameFontPx: Number(e.target.value),
-                                      }))
-                                    }
+                                        nameFontPx: newValue,
+                                      }));
+                                    }}
                                   />
                                 </div>
                                 <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
@@ -2846,12 +2915,18 @@ export function LabelsQrPage() {
                                   max={5}
                                   step={1}
                                   value={cfg.nameMaxLines}
-                                  onChange={(e) =>
+                                  onChange={(e) => {
+                                    const newValue = handleNumericInput(
+                                      e.target.value,
+                                      cfg.nameMaxLines,
+                                      1,
+                                      5,
+                                    );
                                     setLabelDialogConfig((p) => ({
                                       ...(p ?? labelConfig),
-                                      nameMaxLines: Number(e.target.value),
-                                    }))
-                                  }
+                                      nameMaxLines: newValue,
+                                    }));
+                                  }}
                                 />
                               </div>
                             )}
@@ -2915,18 +2990,26 @@ export function LabelsQrPage() {
                                 type="number"
                                 step={0.5}
                                 value={cfg.offsetsMm[key].x}
-                                onChange={(e) =>
-                                  setLabelDialogConfig((p) => ({
-                                    ...(p ?? labelConfig),
-                                    offsetsMm: {
-                                      ...(p ?? labelConfig).offsetsMm,
-                                      [key]: {
-                                        ...(p ?? labelConfig).offsetsMm[key],
-                                        x: Number(e.target.value),
+                                onChange={(e) => {
+                                  const currentX = cfg.offsetsMm[key].x;
+                                  const newX = handleNumericInput(
+                                    e.target.value,
+                                    currentX,
+                                  );
+                                  setLabelDialogConfig((p) => {
+                                    const current = p ?? labelConfig;
+                                    return {
+                                      ...current,
+                                      offsetsMm: {
+                                        ...current.offsetsMm,
+                                        [key]: {
+                                          ...current.offsetsMm[key],
+                                          x: newX,
+                                        },
                                       },
-                                    },
-                                  }))
-                                }
+                                    };
+                                  });
+                                }}
                               />
                             </div>
                             <div>
@@ -2937,18 +3020,26 @@ export function LabelsQrPage() {
                                 type="number"
                                 step={0.5}
                                 value={cfg.offsetsMm[key].y}
-                                onChange={(e) =>
-                                  setLabelDialogConfig((p) => ({
-                                    ...(p ?? labelConfig),
-                                    offsetsMm: {
-                                      ...(p ?? labelConfig).offsetsMm,
-                                      [key]: {
-                                        ...(p ?? labelConfig).offsetsMm[key],
-                                        y: Number(e.target.value),
+                                onChange={(e) => {
+                                  const currentY = cfg.offsetsMm[key].y;
+                                  const newY = handleNumericInput(
+                                    e.target.value,
+                                    currentY,
+                                  );
+                                  setLabelDialogConfig((p) => {
+                                    const current = p ?? labelConfig;
+                                    return {
+                                      ...current,
+                                      offsetsMm: {
+                                        ...current.offsetsMm,
+                                        [key]: {
+                                          ...current.offsetsMm[key],
+                                          y: newY,
+                                        },
                                       },
-                                    },
-                                  }))
-                                }
+                                    };
+                                  });
+                                }}
                               />
                             </div>
                           </div>
