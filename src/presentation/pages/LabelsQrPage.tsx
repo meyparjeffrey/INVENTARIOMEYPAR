@@ -22,10 +22,15 @@ import {
   mmToPx,
   type LabelConfig,
 } from '@application/services/LabelPngService';
+import {
+  generateLabelsPdf,
+  downloadLabelsPdf,
+} from '@application/services/LabelPdfService';
 import { useLanguage } from '../context/LanguageContext';
 import { useProducts } from '../hooks/useProducts';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { NumericInput } from '../components/ui/NumericInput';
 import { SearchInput } from '../components/ui/SearchInput';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { Dialog, DialogFooter } from '../components/ui/Dialog';
@@ -43,6 +48,7 @@ import {
   uploadProductLabel,
 } from '@infrastructure/storage/labelStorage';
 import { cn } from '../lib/cn';
+import { InteractiveLabelPreview } from '../components/labels/InteractiveLabelPreview';
 
 type BulkZipMode = 'qr' | 'labels' | 'both';
 
@@ -90,42 +96,6 @@ function buildQrPayload(product: Product): string {
 function tt(t: (k: string) => string, key: string, fallback: string) {
   const v = t(key);
   return v === key ? fallback : v;
-}
-
-/**
- * Helper para manejar inputs numéricos correctamente.
- * Permite edición natural (incluyendo valores negativos y campos vacíos temporalmente).
- * Maneja correctamente valores parciales como "-" o campos vacíos durante la edición.
- */
-function handleNumericInput(
-  value: string,
-  currentValue: number,
-  min?: number,
-  max?: number,
-): number {
-  // Permitir campo vacío o solo "-" (usuario está escribiendo un negativo)
-  // En estos casos, mantener el valor actual para que el input no se resetee
-  if (value === '' || value === '-') {
-    return currentValue;
-  }
-
-  // Convertir a número
-  const numValue = Number(value);
-
-  // Si no es un número válido, mantener el valor actual
-  if (isNaN(numValue)) {
-    return currentValue;
-  }
-
-  // Aplicar límites si están definidos
-  if (min !== undefined && numValue < min) {
-    return min;
-  }
-  if (max !== undefined && numValue > max) {
-    return max;
-  }
-
-  return numValue;
 }
 
 function stableStringify(value: unknown): string {
@@ -281,6 +251,15 @@ export function LabelsQrPage() {
     null,
   );
 
+  // Estados para diálogo de PDF A4
+  const [bulkPdfDialogOpen, setBulkPdfDialogOpen] = React.useState(false);
+  const [bulkPdfLabelConfig, setBulkPdfLabelConfig] = React.useState<LabelConfig | null>(
+    null,
+  );
+  const [bulkPdfPreviewQrDataUrl, setBulkPdfPreviewQrDataUrl] = React.useState<
+    string | null
+  >(null);
+
   const [qrPreviewUrl, setQrPreviewUrl] = React.useState<string | null>(null);
   const [qrPreviewOpen, setQrPreviewOpen] = React.useState(true);
   const [qrPreviewLoading, setQrPreviewLoading] = React.useState(false);
@@ -295,34 +274,34 @@ export function LabelsQrPage() {
   const [selectedLocationId, setSelectedLocationId] = React.useState<string>('legacy');
 
   const [labelConfig, setLabelConfig] = React.useState<LabelConfig>({
-    widthMm: 35,
-    heightMm: 15,
-    dpi: 203,
+    widthMm: 70, // Tamaño MULTI3
+    heightMm: 25.4, // Tamaño MULTI3
+    dpi: 300, // Mejor calidad para impresión
     showQr: true,
     showCode: true,
     showBarcode: false,
     showName: true,
     showWarehouse: false,
     showLocation: false,
-    qrSizeMm: 13,
-    paddingMm: 0.7,
-    codeFontPx: 13,
+    qrSizeMm: 19,
+    paddingMm: 1,
+    codeFontPx: 44.4,
     barcodeFontPx: 11,
     locationFontPx: 10,
     warehouseFontPx: 10,
-    nameFontPx: 10,
+    nameFontPx: 31.3,
     nameMaxLines: 2,
     barcodeBold: false,
     locationBold: false,
     warehouseBold: false,
     nameBold: false,
     offsetsMm: {
-      qr: { x: 0, y: 0 },
-      code: { x: -0.5, y: 2 },
-      barcode: { x: 0, y: 0 },
-      location: { x: 0, y: 0 },
-      warehouse: { x: 0, y: 0 },
-      name: { x: -0.5, y: -4 },
+      qr: { x: 2, y: 2 },
+      code: { x: 29.23, y: 2.1 },
+      barcode: { x: 1, y: 2.5 },
+      location: { x: 1, y: 5 },
+      warehouse: { x: 1, y: 7 },
+      name: { x: 20.35, y: 11.68 },
     },
   });
 
@@ -371,7 +350,7 @@ export function LabelsQrPage() {
         const url = await QRCode.toDataURL(buildQrPayload(bulkPreviewProduct), {
           type: 'image/png',
           width: 512 * scale,
-          margin: 4,
+          margin: 0, // Sin margen para que no haya marco
           errorCorrectionLevel: 'M',
           color: { dark: '#000000', light: '#FFFFFF' },
         });
@@ -394,6 +373,58 @@ export function LabelsQrPage() {
     bulkPreviewProduct?.name,
     bulkLabelQuality,
     bulkLabelConfig?.dpi,
+  ]);
+
+  // Preview QR para diálogo PDF
+  React.useEffect(() => {
+    let cancelled = false;
+
+    const run = async () => {
+      if (!bulkPdfDialogOpen) {
+        setBulkPdfPreviewQrDataUrl(null);
+        return;
+      }
+      if (!bulkPreviewProduct) {
+        setBulkPdfPreviewQrDataUrl(null);
+        return;
+      }
+      const cfg = bulkPdfLabelConfig ?? labelConfig;
+      if (!cfg.showQr) {
+        setBulkPdfPreviewQrDataUrl(null);
+        return;
+      }
+      try {
+        const scale = qualityScale('auto', cfg.dpi);
+        const url = await QRCode.toDataURL(buildQrPayload(bulkPreviewProduct), {
+          type: 'image/png',
+          width: 512 * scale,
+          margin: 0, // Sin margen para que no haya marco
+          errorCorrectionLevel: 'M',
+          color: { dark: '#000000', light: '#FFFFFF' },
+        });
+        if (!cancelled) setBulkPdfPreviewQrDataUrl(url);
+      } catch {
+        if (!cancelled) setBulkPdfPreviewQrDataUrl(null);
+      }
+    };
+
+    const timeoutId = setTimeout(() => {
+      run();
+    }, 100);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [
+    bulkPdfDialogOpen,
+    bulkPreviewProduct,
+    bulkPreviewProduct?.id,
+    bulkPreviewProduct?.code,
+    bulkPreviewProduct?.name,
+    bulkPdfLabelConfig,
+    bulkPdfLabelConfig?.dpi,
+    bulkPdfLabelConfig?.showQr,
   ]);
 
   // QR dataURL para el preview dentro del diálogo de etiqueta (individual)
@@ -714,7 +745,7 @@ export function LabelsQrPage() {
         const dataUrl = await QRCode.toDataURL(buildQrPayload(selectedProduct), {
           type: 'image/png',
           width: 512 * scale,
-          margin: 4,
+          margin: 0, // Sin margen para que no haya marco
           errorCorrectionLevel: 'M',
           color: { dark: '#000000', light: '#FFFFFF' },
         });
@@ -911,6 +942,135 @@ export function LabelsQrPage() {
     }
   };
 
+  /**
+   * Asegura que todos los productos seleccionados tengan QR generado.
+   * Genera QRs para los productos que no lo tengan.
+   */
+  const ensureAllProductsHaveQr = async (productList: Product[]): Promise<void> => {
+    const productsWithoutQr = productList.filter((p) => !assetsByProductId.has(p.id));
+
+    if (productsWithoutQr.length === 0) {
+      return; // Todos ya tienen QR
+    }
+
+    setBulkDownloading(true);
+    setBulkProgress({ done: 0, total: productsWithoutQr.length });
+
+    try {
+      await asyncPool(6, productsWithoutQr, async (p) => {
+        const qrContent = buildQrPayload(p);
+        const pngBlob = await QrCodeService.generateQrPngBlob(qrContent, {
+          sizePx: 1024,
+        });
+        const qrPath = await uploadProductQr({
+          productId: p.id,
+          barcode: qrContent,
+          pngBlob,
+        });
+        const asset = await qrRepo.upsert({
+          productId: p.id,
+          barcode: qrContent,
+          qrPath,
+        });
+
+        setAssetsByProductId((prev) => {
+          const next = new Map(prev);
+          next.set(p.id, asset);
+          return next;
+        });
+
+        setBulkProgress((prev) => (prev ? { ...prev, done: prev.done + 1 } : null));
+      });
+
+      toast.success(
+        tt(t, 'labelsQr.toast.qr.title', 'QR'),
+        tt(
+          t,
+          'labelsQr.toast.qr.bulkGenerated',
+          `${productsWithoutQr.length} QRs generados correctamente`,
+        ),
+      );
+    } catch (err) {
+      toast.error(
+        tt(t, 'labelsQr.toast.qr.title', 'QR'),
+        err instanceof Error
+          ? err.message
+          : tt(t, 'labelsQr.toast.qr.generateError', 'Error generando QRs'),
+      );
+    } finally {
+      setBulkDownloading(false);
+      setBulkProgress(null);
+    }
+  };
+
+  /**
+   * Abre el diálogo de configuración para generar PDF A4.
+   */
+  const handleOpenPdfDialog = () => {
+    if (selectedIds.size === 0) {
+      toast.warning(
+        tt(t, 'labelsQr.toast.selection.title', 'Selección'),
+        tt(t, 'labelsQr.toast.selection.empty', 'Selecciona al menos un producto'),
+      );
+      return;
+    }
+    // Inicializar configuración con la actual
+    setBulkPdfLabelConfig(labelConfig);
+    setBulkPdfDialogOpen(true);
+  };
+
+  /**
+   * Genera un PDF A4 con las etiquetas de los productos seleccionados.
+   * Asegura que todos los productos tengan QR antes de generar.
+   * Usa la configuración personalizada del diálogo.
+   */
+  const handleGeneratePdfA4 = async () => {
+    if (selectedIds.size === 0) {
+      return;
+    }
+
+    const selectedProducts = products.filter((p) => selectedIds.has(p.id));
+    const pdfConfig = bulkPdfLabelConfig ?? labelConfig;
+
+    try {
+      setBulkDownloading(true);
+      setBulkPdfDialogOpen(false);
+
+      // Asegurar que todos los productos tengan QR
+      await ensureAllProductsHaveQr(selectedProducts);
+
+      // Generar PDF con la configuración personalizada
+      const pdfBlob = await generateLabelsPdf(
+        selectedProducts,
+        pdfConfig,
+        buildQrPayload,
+      );
+
+      const today = new Date().toISOString().split('T')[0];
+      const filename = `etiquetas-a4-${today}.pdf`;
+      downloadLabelsPdf(pdfBlob, filename);
+
+      toast.success(
+        tt(t, 'labelsQr.toast.pdf.title', 'PDF generado'),
+        tt(
+          t,
+          'labelsQr.toast.pdf.success',
+          `PDF con ${selectedProducts.length} etiquetas generado correctamente`,
+        ),
+      );
+    } catch (err) {
+      toast.error(
+        tt(t, 'labelsQr.toast.pdf.title', 'PDF generado'),
+        err instanceof Error
+          ? err.message
+          : tt(t, 'labelsQr.toast.pdf.error', 'Error generando PDF'),
+      );
+    } finally {
+      setBulkDownloading(false);
+      setBulkProgress(null);
+    }
+  };
+
   const handleDownloadLabelPng = async () => {
     if (!selectedProduct) return;
     if (!labelRef.current) return;
@@ -1040,35 +1200,45 @@ export function LabelsQrPage() {
             </select>
           </div>
 
-          <Button
-            variant="secondary"
-            onClick={async () => {
-              if (bulkDownloading) return;
-              if (selectedIds.size === 0) return;
-              // Antes de descargar, abrir diálogo para elegir campos + dimensiones (si incluye etiquetas)
-              setBulkLabelConfig(labelConfig);
-              setBulkLabelQuality(labelQuality);
-              setBulkZipDialogOpen(true);
-            }}
-            disabled={selectedIds.size === 0 || bulkDownloading}
-          >
-            {bulkDownloading ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                {tt(t, 'labelsQr.zip.generating', 'Generando ZIP…')}
-                {bulkProgress ? (
-                  <span className="ml-2 text-xs text-gray-600 dark:text-gray-300">
-                    {bulkProgress.done}/{bulkProgress.total}
-                  </span>
-                ) : null}
-              </>
-            ) : (
-              <>
-                <FileArchive className="mr-2 h-4 w-4" />
-                {tt(t, 'labelsQr.zip.download', 'Descargar ZIP')} ({selectedIds.size})
-              </>
-            )}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="secondary"
+              onClick={async () => {
+                if (bulkDownloading) return;
+                if (selectedIds.size === 0) return;
+                // Antes de descargar, abrir diálogo para elegir campos + dimensiones (si incluye etiquetas)
+                setBulkLabelConfig(labelConfig);
+                setBulkLabelQuality(labelQuality);
+                setBulkZipDialogOpen(true);
+              }}
+              disabled={selectedIds.size === 0 || bulkDownloading}
+            >
+              {bulkDownloading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {tt(t, 'labelsQr.zip.generating', 'Generando ZIP…')}
+                  {bulkProgress ? (
+                    <span className="ml-2 text-xs text-gray-600 dark:text-gray-300">
+                      {bulkProgress.done}/{bulkProgress.total}
+                    </span>
+                  ) : null}
+                </>
+              ) : (
+                <>
+                  <FileArchive className="mr-2 h-4 w-4" />
+                  {tt(t, 'labelsQr.zip.download', 'Descargar ZIP')} ({selectedIds.size})
+                </>
+              )}
+            </Button>
+            <Button
+              variant="primary"
+              onClick={handleOpenPdfDialog}
+              disabled={selectedIds.size === 0 || bulkDownloading}
+            >
+              <FileArchive className="mr-2 h-4 w-4" />
+              {tt(t, 'labelsQr.pdf.generateA4', 'Generar PDF A4')} ({selectedIds.size})
+            </Button>
+          </div>
         </div>
       </div>
 
@@ -1870,7 +2040,7 @@ export function LabelsQrPage() {
                           qrDataUrl = await QRCode.toDataURL(payload, {
                             type: 'image/png',
                             width: 512 * labelScale,
-                            margin: 4,
+                            margin: 0, // Sin margen para que no haya marco
                             errorCorrectionLevel: 'M',
                             color: { dark: '#000000', light: '#FFFFFF' },
                           });
@@ -1964,6 +2134,443 @@ export function LabelsQrPage() {
             </Button>
           </DialogFooter>
         </div>
+      </Dialog>
+
+      {/* Diálogo de configuración PDF A4 */}
+      <Dialog
+        isOpen={bulkPdfDialogOpen}
+        onClose={() => setBulkPdfDialogOpen(false)}
+        title={tt(t, 'labelsQr.pdfDialog.title', 'Generar PDF A4 - Configuración')}
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800 dark:bg-blue-900/20">
+            <p className="text-sm text-blue-900 dark:text-blue-200">
+              {tt(
+                t,
+                'labelsQr.pdfDialog.info',
+                'Configura el tamaño del QR, código y nombre, y sus posiciones antes de generar el PDF. El PDF contendrá 33 etiquetas por página (formato MULTI3).',
+              )}
+            </p>
+          </div>
+
+          {bulkPdfLabelConfig && (
+            <>
+              <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                <div className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                  {tt(
+                    t,
+                    'labelsQr.pdfDialog.section.config',
+                    'Configuración de etiquetas',
+                  )}
+                </div>
+
+                <div className="mb-3 rounded bg-gray-100 p-2 text-xs text-gray-600 dark:bg-gray-800 dark:text-gray-400">
+                  {tt(
+                    t,
+                    'labelsQr.pdfDialog.sizeInfo',
+                    'Tamaño fijo para MULTI3: 70mm × 25.4mm',
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-gray-400">
+                      {tt(t, 'labelsQr.label.qrMm', 'QR (mm)')}
+                    </label>
+                    <NumericInput
+                      value={bulkPdfLabelConfig.qrSizeMm}
+                      onChange={(newValue) =>
+                        setBulkPdfLabelConfig((p) =>
+                          p ? { ...p, qrSizeMm: newValue } : p,
+                        )
+                      }
+                      min={6}
+                      max={25}
+                      step={1}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 dark:text-gray-400">
+                      {tt(t, 'labelsQr.label.dpi', 'DPI')}
+                    </label>
+                    <select
+                      className="h-10 w-full rounded-lg border border-gray-300 bg-white px-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-100"
+                      value={bulkPdfLabelConfig.dpi}
+                      onChange={(e) =>
+                        setBulkPdfLabelConfig((p) =>
+                          p
+                            ? { ...p, dpi: Number(e.target.value) as 203 | 300 | 600 }
+                            : p,
+                        )
+                      }
+                    >
+                      <option value={203}>203</option>
+                      <option value={300}>300</option>
+                      <option value={600}>600</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  {(
+                    [
+                      ['showQr', tt(t, 'labelsQr.toggles.qr', 'QR')],
+                      ['showCode', tt(t, 'labelsQr.toggles.code', 'Código')],
+                      ['showName', tt(t, 'labelsQr.toggles.name', 'Nombre')],
+                    ] as const
+                  ).map(([key, label]) => (
+                    <label
+                      key={key}
+                      className="flex items-center gap-2 text-gray-700 dark:text-gray-200"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={bulkPdfLabelConfig[key]}
+                        onChange={(e) =>
+                          setBulkPdfLabelConfig((p) =>
+                            p ? { ...p, [key]: e.target.checked } : p,
+                          )
+                        }
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Tipografía */}
+              {(bulkPdfLabelConfig.showCode || bulkPdfLabelConfig.showName) && (
+                <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                  <div className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    {tt(t, 'labelsQr.typography.title', 'Tipografía')}
+                  </div>
+                  <div className="grid grid-cols-1 gap-3 text-sm">
+                    {bulkPdfLabelConfig.showCode && (
+                      <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                        <div className="text-gray-700 dark:text-gray-200">
+                          {tt(t, 'labelsQr.typography.code', 'Código')}
+                        </div>
+                        <div>
+                          <label className="text-xs text-gray-500 dark:text-gray-400">
+                            {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
+                          </label>
+                          <NumericInput
+                            value={bulkPdfLabelConfig.codeFontPx}
+                            onChange={(newValue) =>
+                              setBulkPdfLabelConfig((p) =>
+                                p ? { ...p, codeFontPx: newValue } : p,
+                              )
+                            }
+                            min={8}
+                            max={60}
+                            step={1}
+                          />
+                        </div>
+                        <div className="text-xs text-gray-500 dark:text-gray-400">
+                          {tt(t, 'labelsQr.typography.bold', 'Negrita')}: ✓
+                        </div>
+                      </div>
+                    )}
+
+                    {bulkPdfLabelConfig.showName && (
+                      <>
+                        <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                          <div className="text-gray-700 dark:text-gray-200">
+                            {tt(t, 'labelsQr.typography.name', 'Nombre')}
+                          </div>
+                          <div>
+                            <label className="text-xs text-gray-500 dark:text-gray-400">
+                              {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
+                            </label>
+                            <NumericInput
+                              value={bulkPdfLabelConfig.nameFontPx}
+                              onChange={(newValue) =>
+                                setBulkPdfLabelConfig((p) =>
+                                  p ? { ...p, nameFontPx: newValue } : p,
+                                )
+                              }
+                              min={8}
+                              max={40}
+                              step={1}
+                            />
+                          </div>
+                          <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
+                            <input
+                              type="checkbox"
+                              checked={bulkPdfLabelConfig.nameBold}
+                              onChange={(e) =>
+                                setBulkPdfLabelConfig((p) =>
+                                  p ? { ...p, nameBold: e.target.checked } : p,
+                                )
+                              }
+                            />
+                            {tt(t, 'labelsQr.typography.bold', 'Negrita')}
+                          </label>
+                        </div>
+                        <div className="grid grid-cols-[1fr,1fr] items-end gap-2">
+                          <div className="text-gray-700 dark:text-gray-200">
+                            {tt(t, 'labelsQr.typography.lines', 'Líneas')} (
+                            {tt(t, 'labelsQr.typography.name', 'Nombre')})
+                          </div>
+                          <NumericInput
+                            value={bulkPdfLabelConfig.nameMaxLines}
+                            onChange={(newValue) =>
+                              setBulkPdfLabelConfig((p) =>
+                                p ? { ...p, nameMaxLines: newValue } : p,
+                              )
+                            }
+                            min={1}
+                            max={5}
+                            step={1}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Posicionamiento */}
+              <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                <div className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                  {tt(t, 'labelsQr.position.title', 'Posición (mm)')}
+                </div>
+                <div className="grid grid-cols-1 gap-3 text-sm">
+                  {bulkPdfLabelConfig.showQr && (
+                    <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                      <div className="text-gray-700 dark:text-gray-200">
+                        {tt(t, 'labelsQr.toggles.qr', 'QR')}
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">
+                          {tt(t, 'labelsQr.position.x', 'X')}
+                        </label>
+                        <NumericInput
+                          value={bulkPdfLabelConfig.offsetsMm.qr.x}
+                          onChange={(newX) =>
+                            setBulkPdfLabelConfig((p) => {
+                              if (!p) return p;
+                              return {
+                                ...p,
+                                offsetsMm: {
+                                  ...p.offsetsMm,
+                                  qr: { ...p.offsetsMm.qr, x: newX },
+                                },
+                              };
+                            })
+                          }
+                          step={0.5}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">
+                          {tt(t, 'labelsQr.position.y', 'Y')}
+                        </label>
+                        <NumericInput
+                          value={bulkPdfLabelConfig.offsetsMm.qr.y}
+                          onChange={(newY) =>
+                            setBulkPdfLabelConfig((p) => {
+                              if (!p) return p;
+                              return {
+                                ...p,
+                                offsetsMm: {
+                                  ...p.offsetsMm,
+                                  qr: { ...p.offsetsMm.qr, y: newY },
+                                },
+                              };
+                            })
+                          }
+                          step={0.5}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {bulkPdfLabelConfig.showCode && (
+                    <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                      <div className="text-gray-700 dark:text-gray-200">
+                        {tt(t, 'labelsQr.typography.code', 'Código')}
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">
+                          {tt(t, 'labelsQr.position.x', 'X')}
+                        </label>
+                        <NumericInput
+                          value={bulkPdfLabelConfig.offsetsMm.code.x}
+                          onChange={(newX) =>
+                            setBulkPdfLabelConfig((p) => {
+                              if (!p) return p;
+                              return {
+                                ...p,
+                                offsetsMm: {
+                                  ...p.offsetsMm,
+                                  code: { ...p.offsetsMm.code, x: newX },
+                                },
+                              };
+                            })
+                          }
+                          step={0.5}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">
+                          {tt(t, 'labelsQr.position.y', 'Y')}
+                        </label>
+                        <NumericInput
+                          value={bulkPdfLabelConfig.offsetsMm.code.y}
+                          onChange={(newY) =>
+                            setBulkPdfLabelConfig((p) => {
+                              if (!p) return p;
+                              return {
+                                ...p,
+                                offsetsMm: {
+                                  ...p.offsetsMm,
+                                  code: { ...p.offsetsMm.code, y: newY },
+                                },
+                              };
+                            })
+                          }
+                          step={0.5}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {bulkPdfLabelConfig.showName && (
+                    <div className="grid grid-cols-[1fr,1fr,1fr] items-end gap-2">
+                      <div className="text-gray-700 dark:text-gray-200">
+                        {tt(t, 'labelsQr.typography.name', 'Nombre')}
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">
+                          {tt(t, 'labelsQr.position.x', 'X')}
+                        </label>
+                        <NumericInput
+                          value={bulkPdfLabelConfig.offsetsMm.name.x}
+                          onChange={(newX) =>
+                            setBulkPdfLabelConfig((p) => {
+                              if (!p) return p;
+                              return {
+                                ...p,
+                                offsetsMm: {
+                                  ...p.offsetsMm,
+                                  name: { ...p.offsetsMm.name, x: newX },
+                                },
+                              };
+                            })
+                          }
+                          step={0.5}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 dark:text-gray-400">
+                          {tt(t, 'labelsQr.position.y', 'Y')}
+                        </label>
+                        <NumericInput
+                          value={bulkPdfLabelConfig.offsetsMm.name.y}
+                          onChange={(newY) =>
+                            setBulkPdfLabelConfig((p) => {
+                              if (!p) return p;
+                              return {
+                                ...p,
+                                offsetsMm: {
+                                  ...p.offsetsMm,
+                                  name: { ...p.offsetsMm.name, y: newY },
+                                },
+                              };
+                            })
+                          }
+                          step={0.5}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Preview Interactivo */}
+              {bulkPreviewProduct && bulkPdfLabelConfig && (
+                <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                  <div className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    {tt(t, 'labelsQr.label.preview', 'Preview')}
+                  </div>
+                  <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                    {tt(
+                      t,
+                      'labelsQr.pdfDialog.previewHint',
+                      'Haz clic y arrastra el QR, código o nombre para moverlos. Haz clic en el QR y arrastra las esquinas para cambiar su tamaño.',
+                    )}
+                  </p>
+                  {(() => {
+                    const loc = productLocations.find(
+                      (l) => l.productId === bulkPreviewProduct.id,
+                    );
+                    const previewProduct: Product = {
+                      ...bulkPreviewProduct,
+                      aisle: loc?.aisle ?? bulkPreviewProduct.aisle,
+                      shelf: loc?.shelf ?? bulkPreviewProduct.shelf,
+                      warehouse: loc?.warehouse ?? bulkPreviewProduct.warehouse,
+                    };
+                    return (
+                      <InteractiveLabelPreview
+                        product={previewProduct}
+                        config={bulkPdfLabelConfig}
+                        qrDataUrl={bulkPdfPreviewQrDataUrl}
+                        locationText={
+                          loc
+                            ? `${loc.aisle}-${loc.shelf}`
+                            : `${previewProduct.aisle}-${previewProduct.shelf}`
+                        }
+                        warehouseText={loc?.warehouse ?? previewProduct.warehouse ?? ''}
+                        onConfigChange={(updates) => {
+                          setBulkPdfLabelConfig((p) => {
+                            if (!p) return p;
+                            return {
+                              ...p,
+                              ...updates,
+                              offsetsMm: updates.offsetsMm ?? p.offsetsMm,
+                            };
+                          });
+                        }}
+                        maxWidth={600}
+                        maxHeight={400}
+                      />
+                    );
+                  })()}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={() => setBulkPdfDialogOpen(false)}>
+            {tt(t, 'common.cancel', 'Cancelar')}
+          </Button>
+          <Button
+            onClick={handleGeneratePdfA4}
+            disabled={bulkDownloading || selectedIds.size === 0}
+            variant="primary"
+          >
+            {bulkDownloading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {tt(t, 'labelsQr.pdf.generating', 'Generando PDF…')}
+                {bulkProgress ? (
+                  <span className="ml-2 text-xs text-gray-600 dark:text-gray-300">
+                    {bulkProgress.done}/{bulkProgress.total}
+                  </span>
+                ) : null}
+              </>
+            ) : (
+              <>
+                <FileArchive className="mr-2 h-4 w-4" />
+                {tt(t, 'labelsQr.pdf.generate', 'Generar PDF')}
+              </>
+            )}
+          </Button>
+        </DialogFooter>
       </Dialog>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -2601,23 +3208,16 @@ export function LabelsQrPage() {
                     <label className="text-xs text-gray-500 dark:text-gray-400">
                       {tt(t, 'labelsQr.label.qrMm', 'QR (mm)')}
                     </label>
-                    <Input
-                      type="number"
-                      min={6}
-                      step={1}
+                    <NumericInput
                       value={(labelDialogConfig ?? labelConfig).qrSizeMm}
-                      onChange={(e) => {
-                        const cfg = labelDialogConfig ?? labelConfig;
-                        const newValue = handleNumericInput(
-                          e.target.value,
-                          cfg.qrSizeMm,
-                          6,
-                        );
+                      onChange={(newValue) =>
                         setLabelDialogConfig((p) => ({
                           ...(p ?? labelConfig),
                           qrSizeMm: newValue,
-                        }));
-                      }}
+                        }))
+                      }
+                      min={6}
+                      step={1}
                     />
                   </div>
                 </div>
@@ -2745,22 +3345,16 @@ export function LabelsQrPage() {
                                   <label className="text-xs text-gray-500 dark:text-gray-400">
                                     {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
                                   </label>
-                                  <Input
-                                    type="number"
-                                    min={8}
-                                    step={1}
+                                  <NumericInput
                                     value={cfg.barcodeFontPx}
-                                    onChange={(e) => {
-                                      const newValue = handleNumericInput(
-                                        e.target.value,
-                                        cfg.barcodeFontPx,
-                                        8,
-                                      );
+                                    onChange={(newValue) =>
                                       setLabelDialogConfig((p) => ({
                                         ...(p ?? labelConfig),
                                         barcodeFontPx: newValue,
-                                      }));
-                                    }}
+                                      }))
+                                    }
+                                    min={8}
+                                    step={1}
                                   />
                                 </div>
                                 <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
@@ -2826,22 +3420,16 @@ export function LabelsQrPage() {
                                   <label className="text-xs text-gray-500 dark:text-gray-400">
                                     {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
                                   </label>
-                                  <Input
-                                    type="number"
-                                    min={8}
-                                    step={1}
+                                  <NumericInput
                                     value={cfg.warehouseFontPx}
-                                    onChange={(e) => {
-                                      const newValue = handleNumericInput(
-                                        e.target.value,
-                                        cfg.warehouseFontPx,
-                                        8,
-                                      );
+                                    onChange={(newValue) =>
                                       setLabelDialogConfig((p) => ({
                                         ...(p ?? labelConfig),
                                         warehouseFontPx: newValue,
-                                      }));
-                                    }}
+                                      }))
+                                    }
+                                    min={8}
+                                    step={1}
                                   />
                                 </div>
                                 <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
@@ -2869,22 +3457,16 @@ export function LabelsQrPage() {
                                   <label className="text-xs text-gray-500 dark:text-gray-400">
                                     {tt(t, 'labelsQr.typography.fontSize', 'Tamaño (px)')}
                                   </label>
-                                  <Input
-                                    type="number"
-                                    min={8}
-                                    step={1}
+                                  <NumericInput
                                     value={cfg.nameFontPx}
-                                    onChange={(e) => {
-                                      const newValue = handleNumericInput(
-                                        e.target.value,
-                                        cfg.nameFontPx,
-                                        8,
-                                      );
+                                    onChange={(newValue) =>
                                       setLabelDialogConfig((p) => ({
                                         ...(p ?? labelConfig),
                                         nameFontPx: newValue,
-                                      }));
-                                    }}
+                                      }))
+                                    }
+                                    min={8}
+                                    step={1}
                                   />
                                 </div>
                                 <label className="flex items-center gap-2 text-gray-700 dark:text-gray-200">
@@ -2909,24 +3491,17 @@ export function LabelsQrPage() {
                                   {tt(t, 'labelsQr.typography.lines', 'Líneas')} (
                                   {tt(t, 'labelsQr.typography.name', 'Nombre')})
                                 </div>
-                                <Input
-                                  type="number"
-                                  min={1}
-                                  max={5}
-                                  step={1}
+                                <NumericInput
                                   value={cfg.nameMaxLines}
-                                  onChange={(e) => {
-                                    const newValue = handleNumericInput(
-                                      e.target.value,
-                                      cfg.nameMaxLines,
-                                      1,
-                                      5,
-                                    );
+                                  onChange={(newValue) =>
                                     setLabelDialogConfig((p) => ({
                                       ...(p ?? labelConfig),
                                       nameMaxLines: newValue,
-                                    }));
-                                  }}
+                                    }))
+                                  }
+                                  min={1}
+                                  max={5}
+                                  step={1}
                                 />
                               </div>
                             )}
@@ -2986,16 +3561,9 @@ export function LabelsQrPage() {
                               <label className="text-xs text-gray-500 dark:text-gray-400">
                                 {tt(t, 'labelsQr.position.x', 'X')}
                               </label>
-                              <Input
-                                type="number"
-                                step={0.5}
+                              <NumericInput
                                 value={cfg.offsetsMm[key].x}
-                                onChange={(e) => {
-                                  const currentX = cfg.offsetsMm[key].x;
-                                  const newX = handleNumericInput(
-                                    e.target.value,
-                                    currentX,
-                                  );
+                                onChange={(newX) =>
                                   setLabelDialogConfig((p) => {
                                     const current = p ?? labelConfig;
                                     return {
@@ -3008,24 +3576,18 @@ export function LabelsQrPage() {
                                         },
                                       },
                                     };
-                                  });
-                                }}
+                                  })
+                                }
+                                step={0.5}
                               />
                             </div>
                             <div>
                               <label className="text-xs text-gray-500 dark:text-gray-400">
                                 {tt(t, 'labelsQr.position.y', 'Y')}
                               </label>
-                              <Input
-                                type="number"
-                                step={0.5}
+                              <NumericInput
                                 value={cfg.offsetsMm[key].y}
-                                onChange={(e) => {
-                                  const currentY = cfg.offsetsMm[key].y;
-                                  const newY = handleNumericInput(
-                                    e.target.value,
-                                    currentY,
-                                  );
+                                onChange={(newY) =>
                                   setLabelDialogConfig((p) => {
                                     const current = p ?? labelConfig;
                                     return {
@@ -3038,8 +3600,9 @@ export function LabelsQrPage() {
                                         },
                                       },
                                     };
-                                  });
-                                }}
+                                  })
+                                }
+                                step={0.5}
                               />
                             </div>
                           </div>
@@ -3049,196 +3612,43 @@ export function LabelsQrPage() {
                   );
                 })()}
 
-                {/* Preview dentro del diálogo */}
-                {(() => {
-                  const cfg = labelDialogConfig ?? labelConfig;
-                  const widthPx = mmToPx(cfg.widthMm, cfg.dpi);
-                  const heightPx = mmToPx(cfg.heightMm, cfg.dpi);
-                  const qrSizePx = mmToPx(cfg.qrSizeMm, cfg.dpi);
-                  const paddingPx = mmToPx(cfg.paddingMm, cfg.dpi);
-                  const pxOff = (mm: number) => mmToPx(mm, cfg.dpi);
-
-                  return (
-                    <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
-                      <div className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                        {tt(t, 'labelsQr.label.preview', 'Preview')} ({cfg.widthMm}×
-                        {cfg.heightMm}mm @ {cfg.dpi}dpi)
-                      </div>
-                      <div className="overflow-auto">
-                        <div
-                          style={{
-                            width: `${widthPx}px`,
-                            height: `${heightPx}px`,
-                            background: '#ffffff',
-                            color: '#000000',
-                            position: 'relative',
-                            boxSizing: 'border-box',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {cfg.showQr && (
-                            <div
-                              style={{
-                                position: 'absolute',
-                                left: `${paddingPx + pxOff(cfg.offsetsMm.qr.x)}px`,
-                                top: `${paddingPx + pxOff(cfg.offsetsMm.qr.y)}px`,
-                                width: `${qrSizePx}px`,
-                                height: `${qrSizePx}px`,
-                                background: '#ffffff',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              {labelDialogQrDataUrl ? (
-                                <img
-                                  src={labelDialogQrDataUrl}
-                                  alt="QR"
-                                  style={{ width: '100%', height: '100%' }}
-                                />
-                              ) : (
-                                <div
-                                  style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    border: '1px solid #eee',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: 10,
-                                  }}
-                                >
-                                  QR
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {(() => {
-                            const rightX =
-                              paddingPx + (cfg.showQr ? qrSizePx + paddingPx : 0);
-                            const lineH = Math.max(10, cfg.nameFontPx);
-
-                            const xCode = rightX + pxOff(cfg.offsetsMm.code.x);
-                            const yCode = paddingPx + pxOff(cfg.offsetsMm.code.y);
-
-                            const xBarcode = rightX + pxOff(cfg.offsetsMm.barcode.x);
-                            const yBarcode =
-                              paddingPx +
-                              cfg.codeFontPx +
-                              2 +
-                              pxOff(cfg.offsetsMm.barcode.y);
-
-                            const xLocation = rightX + pxOff(cfg.offsetsMm.location.x);
-                            const yLocation =
-                              paddingPx +
-                              cfg.codeFontPx +
-                              2 +
-                              lineH +
-                              pxOff(cfg.offsetsMm.location.y);
-
-                            const xWarehouse = rightX + pxOff(cfg.offsetsMm.warehouse.x);
-                            const yWarehouse =
-                              paddingPx +
-                              cfg.codeFontPx +
-                              2 +
-                              lineH +
-                              lineH +
-                              pxOff(cfg.offsetsMm.warehouse.y);
-
-                            const xName = rightX + pxOff(cfg.offsetsMm.name.x);
-                            const yName =
-                              heightPx -
-                              paddingPx -
-                              cfg.nameFontPx +
-                              pxOff(cfg.offsetsMm.name.y);
-
-                            return (
-                              <>
-                                {cfg.showCode && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: `${xCode}px`,
-                                      top: `${yCode}px`,
-                                      right: `${paddingPx}px`,
-                                      fontSize: cfg.codeFontPx,
-                                      fontWeight: 700,
-                                    }}
-                                  >
-                                    {selectedProduct.code}
-                                  </div>
-                                )}
-                                {cfg.showBarcode && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: `${xBarcode}px`,
-                                      top: `${yBarcode}px`,
-                                      right: `${paddingPx}px`,
-                                      fontSize: cfg.barcodeFontPx,
-                                      fontWeight: cfg.barcodeBold ? 700 : 400,
-                                    }}
-                                  >
-                                    {selectedProduct.barcode ?? ''}
-                                  </div>
-                                )}
-                                {cfg.showLocation && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: `${xLocation}px`,
-                                      top: `${yLocation}px`,
-                                      right: `${paddingPx}px`,
-                                      fontSize: cfg.locationFontPx,
-                                      fontWeight: cfg.locationBold ? 700 : 400,
-                                    }}
-                                  >
-                                    {locationText}
-                                  </div>
-                                )}
-                                {cfg.showWarehouse && warehouseText && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: `${xWarehouse}px`,
-                                      top: `${yWarehouse}px`,
-                                      right: `${paddingPx}px`,
-                                      fontSize: cfg.warehouseFontPx,
-                                      fontWeight: cfg.warehouseBold ? 700 : 400,
-                                    }}
-                                  >
-                                    {warehouseText}
-                                  </div>
-                                )}
-                                {cfg.showName && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: `${xName}px`,
-                                      top: `${yName}px`,
-                                      right: `${paddingPx}px`,
-                                      fontSize: cfg.nameFontPx,
-                                      fontWeight: cfg.nameBold ? 700 : 600,
-                                      lineHeight: `${cfg.nameFontPx + 2}px`,
-                                      overflow: 'hidden',
-                                      display: '-webkit-box',
-                                      WebkitBoxOrient: 'vertical',
-                                      WebkitLineClamp: cfg.nameMaxLines,
-                                      wordBreak: 'break-word',
-                                    }}
-                                  >
-                                    {selectedProduct.name}
-                                  </div>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      </div>
+                {/* Preview Interactivo dentro del diálogo */}
+                {selectedProduct && (
+                  <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
+                    <div className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                      {tt(t, 'labelsQr.label.preview', 'Preview')} (
+                      {(labelDialogConfig ?? labelConfig).widthMm}×
+                      {(labelDialogConfig ?? labelConfig).heightMm}mm @{' '}
+                      {(labelDialogConfig ?? labelConfig).dpi}dpi)
                     </div>
-                  );
-                })()}
+                    <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                      {tt(
+                        t,
+                        'labelsQr.label.previewHint',
+                        'Haz clic y arrastra el QR, código o nombre para moverlos. Haz clic en el QR y arrastra las esquinas para cambiar su tamaño.',
+                      )}
+                    </p>
+                    <InteractiveLabelPreview
+                      product={selectedProduct}
+                      config={labelDialogConfig ?? labelConfig}
+                      qrDataUrl={labelDialogQrDataUrl}
+                      locationText={locationText}
+                      warehouseText={warehouseText}
+                      onConfigChange={(updates) => {
+                        setLabelDialogConfig((p) => {
+                          const current = p ?? labelConfig;
+                          return {
+                            ...current,
+                            ...updates,
+                            offsetsMm: updates.offsetsMm ?? current.offsetsMm,
+                          };
+                        });
+                      }}
+                      maxWidth={600}
+                      maxHeight={400}
+                    />
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -3281,7 +3691,7 @@ export function LabelsQrPage() {
                   qrDataUrl = await QRCode.toDataURL(buildQrPayload(selectedProduct), {
                     type: 'image/png',
                     width: 512 * s,
-                    margin: 4,
+                    margin: 0, // Sin margen para que no haya marco
                     errorCorrectionLevel: 'M',
                     color: { dark: '#000000', light: '#FFFFFF' },
                   });

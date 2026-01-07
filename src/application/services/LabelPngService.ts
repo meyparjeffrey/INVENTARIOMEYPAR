@@ -49,13 +49,16 @@ function truncate(s: string, max: number) {
   return s.length > max ? `${s.slice(0, Math.max(0, max - 1))}…` : s;
 }
 
-function estimateTextPxWidth(text: string, fontPx: number, isBold: boolean) {
-  // Aproximación: ancho medio por carácter
-  const perChar = fontPx * (isBold ? 0.6 : 0.56);
+export function estimateTextPxWidth(text: string, fontPx: number, isBold: boolean) {
+  // Aproximación mejorada: ancho medio por carácter
+  // Arial bold: aproximadamente 0.6-0.65 veces el tamaño de fuente
+  // Usar un factor ligeramente más alto para ser conservador y evitar desbordes
+  // El factor más alto hace que el algoritmo sea más agresivo al dividir líneas
+  const perChar = fontPx * (isBold ? 0.65 : 0.55);
   return text.length * perChar;
 }
 
-function wrapTextToLines(opts: {
+export function wrapTextToLines(opts: {
   text: string;
   maxWidthPx: number;
   fontPx: number;
@@ -150,7 +153,7 @@ export function buildLabelSvg(
 
   const pxOff = (mm: number) => mmToPx(mm, cfg.dpi);
 
-  const rightX = paddingPx + (cfg.showQr ? qrSizePx + paddingPx : 0);
+  // Posiciones usando el mismo sistema que la vista previa interactiva
   const xQr = paddingPx + pxOff(cfg.offsetsMm.qr.x);
   const yQr = paddingPx + pxOff(cfg.offsetsMm.qr.y);
 
@@ -159,57 +162,96 @@ export function buildLabelSvg(
   const location = escapeXml(`${product.aisle}-${product.shelf}`);
   const warehouse = escapeXml(product.warehouse ?? '');
 
-  const xName = rightX + pxOff(cfg.offsetsMm.name.x);
-  const yName = heightPx - paddingPx + pxOff(cfg.offsetsMm.name.y);
+  // Código: posición absoluta desde paddingPx (igual que en vista previa)
+  const xCode = paddingPx + pxOff(cfg.offsetsMm.code.x);
+  const yCode = paddingPx + pxOff(cfg.offsetsMm.code.y);
+
+  // Nombre: posición absoluta desde paddingPx (igual que en vista previa)
+  const xName = paddingPx + pxOff(cfg.offsetsMm.name.x);
+  const yName = paddingPx + pxOff(cfg.offsetsMm.name.y);
 
   const texts: string[] = [];
 
-  // Bloque superior apilado (code/barcode/location/warehouse)
-  let yCursor = paddingPx;
-  if (cfg.showCode) {
-    yCursor += cfg.codeFontPx;
-    const x = rightX + pxOff(cfg.offsetsMm.code.x);
-    const y = yCursor + pxOff(cfg.offsetsMm.code.y);
-    texts.push(
-      `<text x="${x}" y="${y}" font-family="Arial, sans-serif" font-size="${cfg.codeFontPx}" font-weight="700">${code}</text>`,
-    );
-    yCursor += 2;
-  }
-  if (cfg.showBarcode && product.barcode) {
-    yCursor += cfg.barcodeFontPx;
-    const x = rightX + pxOff(cfg.offsetsMm.barcode.x);
-    const y = yCursor + pxOff(cfg.offsetsMm.barcode.y);
-    texts.push(
-      `<text x="${x}" y="${y}" font-family="Arial, sans-serif" font-size="${cfg.barcodeFontPx}" font-weight="${cfg.barcodeBold ? 700 : 400}">${barcode}</text>`,
-    );
-    yCursor += 2;
-  }
-  if (cfg.showLocation) {
-    yCursor += cfg.locationFontPx;
-    const x = rightX + pxOff(cfg.offsetsMm.location.x);
-    const y = yCursor + pxOff(cfg.offsetsMm.location.y);
-    texts.push(
-      `<text x="${x}" y="${y}" font-family="Arial, sans-serif" font-size="${cfg.locationFontPx}" font-weight="${cfg.locationBold ? 700 : 400}">${location}</text>`,
-    );
-    yCursor += 2;
-  }
-  if (cfg.showWarehouse && product.warehouse) {
-    yCursor += cfg.warehouseFontPx;
-    const x = rightX + pxOff(cfg.offsetsMm.warehouse.x);
-    const y = yCursor + pxOff(cfg.offsetsMm.warehouse.y);
-    texts.push(
-      `<text x="${x}" y="${y}" font-family="Arial, sans-serif" font-size="${cfg.warehouseFontPx}" font-weight="${cfg.warehouseBold ? 700 : 400}">${warehouse}</text>`,
-    );
-    yCursor += 2;
+  // Código: centrado con el nombre (mismo centro que el contenedor del nombre)
+  // Calcular el centro del contenedor del nombre para alinear el código
+  let codeCenterX = xCode; // Por defecto usar la posición X del código
+  if (cfg.showName) {
+    // Calcular los mismos límites que usa el nombre
+    const qrSizePx = mmToPx(cfg.qrSizeMm, cfg.dpi);
+    const qrRightEdge = cfg.showQr ? xQr + qrSizePx : 0;
+    const marginBetweenQrAndText = mmToPx(1, cfg.dpi);
+    const containerLeft = Math.max(xName, qrRightEdge + marginBetweenQrAndText);
+    const rightMargin = mmToPx(1, cfg.dpi);
+    const containerRight = widthPx - paddingPx - rightMargin;
+    // Usar el mismo centro que el nombre
+    codeCenterX = containerLeft + (containerRight - containerLeft) / 2;
   }
 
-  // Nombre: wrap a líneas según ancho disponible, anclado al fondo
+  if (cfg.showCode) {
+    // Centrar el código en el mismo punto que el nombre
+    texts.push(
+      `<text x="${codeCenterX}" y="${yCode}" font-family="Arial, sans-serif" font-size="${cfg.codeFontPx}" font-weight="700" dominant-baseline="hanging" text-anchor="middle">${code}</text>`,
+    );
+  }
+
+  // Barcode: posición relativa al código (mantener compatibilidad)
+  if (cfg.showBarcode && product.barcode) {
+    const xBarcode = paddingPx + pxOff(cfg.offsetsMm.barcode.x);
+    const yBarcode = paddingPx + pxOff(cfg.offsetsMm.barcode.y);
+    texts.push(
+      `<text x="${xBarcode}" y="${yBarcode}" font-family="Arial, sans-serif" font-size="${cfg.barcodeFontPx}" font-weight="${cfg.barcodeBold ? 700 : 400}" dominant-baseline="text-before-edge" text-anchor="start">${barcode}</text>`,
+    );
+  }
+
+  // Ubicación: posición absoluta
+  if (cfg.showLocation) {
+    const xLocation = paddingPx + pxOff(cfg.offsetsMm.location.x);
+    const yLocation = paddingPx + pxOff(cfg.offsetsMm.location.y);
+    texts.push(
+      `<text x="${xLocation}" y="${yLocation}" font-family="Arial, sans-serif" font-size="${cfg.locationFontPx}" font-weight="${cfg.locationBold ? 700 : 400}" dominant-baseline="text-before-edge" text-anchor="start">${location}</text>`,
+    );
+  }
+
+  // Almacén: posición absoluta
+  if (cfg.showWarehouse && product.warehouse) {
+    const xWarehouse = paddingPx + pxOff(cfg.offsetsMm.warehouse.x);
+    const yWarehouse = paddingPx + pxOff(cfg.offsetsMm.warehouse.y);
+    texts.push(
+      `<text x="${xWarehouse}" y="${yWarehouse}" font-family="Arial, sans-serif" font-size="${cfg.warehouseFontPx}" font-weight="${cfg.warehouseBold ? 700 : 400}" dominant-baseline="text-before-edge" text-anchor="start">${warehouse}</text>`,
+    );
+  }
+
+  // Nombre: wrap a líneas según ancho disponible, centrado (igual que en vista previa)
+  // No debe superponerse con el QR ni salirse del borde derecho
+  // Añadir márgenes adicionales para mejor legibilidad
   if (cfg.showName) {
-    const rightLimit = widthPx - paddingPx;
-    const maxWidthPx = Math.max(10, rightLimit - xName);
+    // Calcular límites: no debe superponerse con el QR ni salirse del borde derecho
+    const qrSizePx = mmToPx(cfg.qrSizeMm, cfg.dpi);
+    const qrRightEdge = cfg.showQr ? xQr + qrSizePx : 0;
+
+    // Margen adicional entre el QR y el texto del nombre (1mm)
+    const marginBetweenQrAndText = mmToPx(1, cfg.dpi);
+
+    // El límite izquierdo del contenedor del nombre es el máximo entre:
+    // - La posición X del nombre
+    // - El borde derecho del QR + margen adicional (si existe y está a la izquierda del nombre)
+    const containerLeft = Math.max(xName, qrRightEdge + marginBetweenQrAndText);
+
+    // Margen adicional a la derecha de la etiqueta (1mm)
+    const rightMargin = mmToPx(1, cfg.dpi);
+
+    // El límite derecho del contenedor es el borde de la etiqueta menos el padding y el margen derecho
+    const containerRight = widthPx - paddingPx - rightMargin;
+
+    // Ancho disponible: espacio entre el límite izquierdo y el derecho
+    // Reducir un 15% adicional para asegurar que el texto centrado no se salga de los límites
+    // Esto compensa posibles imprecisiones en la estimación del ancho del texto
+    // y asegura que haya margen suficiente cuando el texto está centrado
+    const availableWidth = Math.max(10, (containerRight - containerLeft) * 0.85);
+
     const lines = wrapTextToLines({
       text: product.name,
-      maxWidthPx,
+      maxWidthPx: availableWidth,
       fontPx: cfg.nameFontPx,
       isBold: cfg.nameBold,
       maxLines: Math.max(1, Math.min(5, cfg.nameMaxLines)),
@@ -217,17 +259,18 @@ export function buildLabelSvg(
 
     if (lines.length > 0) {
       const lineH = cfg.nameFontPx + 2;
-      const yLast = yName;
-      const yFirst = yLast - (lines.length - 1) * lineH;
-      const weight = cfg.nameBold ? 700 : 600; // nombre por defecto semibold; si no bold, 600
+      const weight = cfg.nameBold ? 700 : 600;
+      // Centrar cada línea en el espacio disponible entre containerLeft y containerRight
+      const centerX = containerLeft + (containerRight - containerLeft) / 2;
+
       const tspans = lines
         .map((ln, i) => {
-          const yy = yFirst + i * lineH;
-          return `<tspan x="${xName}" y="${yy}">${ln}</tspan>`;
+          const yy = yName + i * lineH;
+          return `<tspan x="${centerX}" y="${yy}" text-anchor="middle">${ln}</tspan>`;
         })
         .join('');
       texts.push(
-        `<text font-family="Arial, sans-serif" font-size="${cfg.nameFontPx}" font-weight="${weight}">${tspans}</text>`,
+        `<text font-family="Arial, sans-serif" font-size="${cfg.nameFontPx}" font-weight="${weight}" dominant-baseline="text-before-edge">${tspans}</text>`,
       );
     }
   }
@@ -237,10 +280,10 @@ export function buildLabelSvg(
       ? `<image href="${qrDataUrl}" x="${xQr}" y="${yQr}" width="${qrSizePx}" height="${qrSizePx}" />`
       : '';
 
+  // Generar SVG sin fondo (transparente) para que coincida exactamente con la vista previa
   return (
     `<?xml version="1.0" encoding="UTF-8"?>\n` +
     `<svg xmlns="http://www.w3.org/2000/svg" width="${widthPx}" height="${heightPx}" viewBox="0 0 ${widthPx} ${heightPx}">` +
-    `<rect x="0" y="0" width="${widthPx}" height="${heightPx}" fill="#FFFFFF" />` +
     `${qrImage}` +
     `<g fill="#000000">${texts.join('')}</g>` +
     `</svg>`
