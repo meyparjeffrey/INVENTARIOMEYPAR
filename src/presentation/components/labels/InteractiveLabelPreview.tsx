@@ -41,10 +41,14 @@ type ResizeHandle =
   | 'sw'
   | 'ne'
   | 'nw'
-  | 'code'
-  | 'name'
-  | 'location'
-  | 'warehouse'
+  | 'code-se'
+  | 'code-sw'
+  | 'name-se'
+  | 'name-sw'
+  | 'location-se'
+  | 'location-sw'
+  | 'warehouse-se'
+  | 'warehouse-sw'
   | null;
 
 /**

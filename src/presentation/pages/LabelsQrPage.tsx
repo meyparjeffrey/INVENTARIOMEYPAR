@@ -20,6 +20,7 @@ import JSZip from 'jszip';
 import {
   buildLabelSvg,
   mmToPx,
+  wrapTextToLines,
   type LabelConfig,
 } from '@application/services/LabelPngService';
 import {
@@ -345,6 +346,11 @@ export function LabelsQrPage() {
         setBulkPreviewQrDataUrl(null);
         return;
       }
+      // Solo generar QR si está habilitado en la configuración
+      if (!bulkLabelConfig?.showQr) {
+        setBulkPreviewQrDataUrl(null);
+        return;
+      }
       try {
         const scale = qualityScale(bulkLabelQuality, bulkLabelConfig?.dpi ?? 203);
         const url = await QRCode.toDataURL(buildQrPayload(bulkPreviewProduct), {
@@ -373,6 +379,7 @@ export function LabelsQrPage() {
     bulkPreviewProduct?.name,
     bulkLabelQuality,
     bulkLabelConfig?.dpi,
+    bulkLabelConfig?.showQr,
   ]);
 
   // Preview QR para diálogo PDF
@@ -1014,8 +1021,17 @@ export function LabelsQrPage() {
       );
       return;
     }
-    // Inicializar configuración con la actual
-    setBulkPdfLabelConfig(labelConfig);
+    // Inicializar configuración con la actual, pero con QR en X=3.5 por defecto
+    setBulkPdfLabelConfig({
+      ...labelConfig,
+      offsetsMm: {
+        ...labelConfig.offsetsMm,
+        qr: {
+          ...labelConfig.offsetsMm.qr,
+          x: 3.5, // Valor por defecto para PDF A4
+        },
+      },
+    });
     setBulkPdfDialogOpen(true);
   };
 
@@ -1750,44 +1766,44 @@ export function LabelsQrPage() {
                             overflow: 'hidden',
                           }}
                         >
-                          {bulkLabelConfig.showQr &&
-                            (bulkPreviewProduct.barcode ?? '').trim() && (
-                              <div
-                                style={{
-                                  position: 'absolute',
-                                  left: `${paddingPx + mmToPx(bulkLabelConfig.offsetsMm.qr.x, bulkLabelConfig.dpi)}px`,
-                                  top: `${paddingPx + mmToPx(bulkLabelConfig.offsetsMm.qr.y, bulkLabelConfig.dpi)}px`,
-                                  width: `${qrSizePx}px`,
-                                  height: `${qrSizePx}px`,
-                                  background: '#ffffff',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                }}
-                              >
-                                {bulkPreviewQrDataUrl ? (
-                                  <img
-                                    src={bulkPreviewQrDataUrl}
-                                    alt="QR"
-                                    style={{ width: '100%', height: '100%' }}
-                                  />
-                                ) : (
-                                  <div
-                                    style={{
-                                      width: '100%',
-                                      height: '100%',
-                                      border: '1px solid #eee',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      justifyContent: 'center',
-                                      fontSize: 10,
-                                    }}
-                                  >
-                                    QR
-                                  </div>
-                                )}
-                              </div>
-                            )}
+                          {bulkLabelConfig.showQr && (
+                            <div
+                              style={{
+                                position: 'absolute',
+                                left: `${paddingPx + mmToPx(bulkLabelConfig.offsetsMm.qr.x, bulkLabelConfig.dpi)}px`,
+                                top: `${paddingPx + mmToPx(bulkLabelConfig.offsetsMm.qr.y, bulkLabelConfig.dpi)}px`,
+                                width: `${qrSizePx}px`,
+                                height: `${qrSizePx}px`,
+                                background: '#ffffff',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              {bulkPreviewQrDataUrl ? (
+                                <img
+                                  src={bulkPreviewQrDataUrl}
+                                  alt="QR"
+                                  style={{ width: '100%', height: '100%' }}
+                                />
+                              ) : (
+                                <div
+                                  style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    border: '1px solid #eee',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: 10,
+                                    color: '#999',
+                                  }}
+                                >
+                                  QR...
+                                </div>
+                              )}
+                            </div>
+                          )}
 
                           {(() => {
                             const pxOff = (mm: number) => mmToPx(mm, bulkLabelConfig.dpi);
@@ -1826,13 +1842,11 @@ export function LabelsQrPage() {
                               lineH +
                               pxOff(bulkLabelConfig.offsetsMm.warehouse.y);
 
+                            // Calcular posición del nombre usando el mismo sistema que buildLabelSvg
                             const xName =
                               paddingPx + pxOff(bulkLabelConfig.offsetsMm.name.x);
                             const yName =
-                              heightPx -
-                              paddingPx -
-                              bulkLabelConfig.nameFontPx +
-                              pxOff(bulkLabelConfig.offsetsMm.name.y);
+                              paddingPx + pxOff(bulkLabelConfig.offsetsMm.name.y);
 
                             return (
                               <>
@@ -1901,26 +1915,64 @@ export function LabelsQrPage() {
                                     </div>
                                   )}
 
-                                {bulkLabelConfig.showName && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: `${xName}px`,
-                                      top: `${yName}px`,
-                                      right: `${paddingPx}px`,
-                                      fontSize: bulkLabelConfig.nameFontPx,
-                                      fontWeight: bulkLabelConfig.nameBold ? 700 : 600,
-                                      lineHeight: `${bulkLabelConfig.nameFontPx + 2}px`,
-                                      overflow: 'hidden',
-                                      display: '-webkit-box',
-                                      WebkitBoxOrient: 'vertical',
-                                      WebkitLineClamp: bulkLabelConfig.nameMaxLines,
-                                      wordBreak: 'break-word',
-                                    }}
-                                  >
-                                    {bulkPreviewProduct.name}
-                                  </div>
-                                )}
+                                {bulkLabelConfig.showName &&
+                                  (() => {
+                                    // Usar la misma lógica de wrapping que buildLabelSvg
+                                    const rightMargin = mmToPx(1, bulkLabelConfig.dpi);
+                                    const containerLeft = xName;
+                                    const containerRight =
+                                      widthPx - paddingPx - rightMargin;
+                                    const availableWidth = Math.max(
+                                      10,
+                                      (containerRight - containerLeft) * 0.95,
+                                    );
+
+                                    const lines = wrapTextToLines({
+                                      text: bulkPreviewProduct.name,
+                                      maxWidthPx: availableWidth,
+                                      fontPx: bulkLabelConfig.nameFontPx,
+                                      isBold: bulkLabelConfig.nameBold,
+                                      maxLines: Math.max(
+                                        1,
+                                        Math.min(5, bulkLabelConfig.nameMaxLines),
+                                      ),
+                                    });
+
+                                    return (
+                                      <div
+                                        style={{
+                                          position: 'absolute',
+                                          left: `${containerLeft}px`,
+                                          top: `${yName}px`,
+                                          width: `${containerRight - containerLeft}px`,
+                                          fontSize: `${bulkLabelConfig.nameFontPx}px`,
+                                          fontWeight: bulkLabelConfig.nameBold
+                                            ? 700
+                                            : 600,
+                                          lineHeight: `${bulkLabelConfig.nameFontPx + 2}px`,
+                                          overflow: 'hidden',
+                                          display: 'flex',
+                                          flexDirection: 'column',
+                                          alignItems: 'center',
+                                          textAlign: 'center',
+                                          wordBreak: 'break-word',
+                                          maxHeight: `${(bulkLabelConfig.nameFontPx + 2) * bulkLabelConfig.nameMaxLines}px`,
+                                        }}
+                                      >
+                                        {lines.map((line, index) => (
+                                          <div
+                                            key={index}
+                                            style={{
+                                              width: '100%',
+                                              textAlign: 'center',
+                                            }}
+                                          >
+                                            {line}
+                                          </div>
+                                        ))}
+                                      </div>
+                                    );
+                                  })()}
                               </>
                             );
                           })()}

@@ -77,29 +77,53 @@ export function wrapTextToLines(opts: {
     if (line) lines.push(line);
   };
 
-  for (const w of words) {
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
     const next = current ? `${current} ${w}` : w;
-    if (estimateTextPxWidth(next, fontPx, isBold) <= maxWidthPx) {
+    const nextWidth = estimateTextPxWidth(next, fontPx, isBold);
+
+    // Si la palabra completa cabe, añadirla
+    if (nextWidth <= maxWidthPx) {
       current = next;
       continue;
     }
 
+    // Si no cabe, solo dividir por palabras completas
     if (!current) {
-      // Palabra demasiado larga: cortar por caracteres
-      let chunk = '';
-      for (const ch of w) {
-        const cand = `${chunk}${ch}`;
-        if (estimateTextPxWidth(cand, fontPx, isBold) <= maxWidthPx) {
-          chunk = cand;
-        } else {
-          pushLine(chunk);
-          chunk = ch;
-          if (lines.length >= maxLines) break;
+      // Palabra sola que no cabe: solo dividir por caracteres si es extremadamente larga
+      // (más larga que el ancho disponible incluso sola)
+      const wordAloneWidth = estimateTextPxWidth(w, fontPx, isBold);
+      if (wordAloneWidth > maxWidthPx) {
+        // Palabra extremadamente larga: dividir por caracteres (caso excepcional)
+        let chunk = '';
+        for (const ch of w) {
+          const cand = `${chunk}${ch}`;
+          if (estimateTextPxWidth(cand, fontPx, isBold) <= maxWidthPx) {
+            chunk = cand;
+          } else {
+            if (chunk && lines.length < maxLines) {
+              pushLine(chunk);
+            }
+            chunk = ch;
+            if (lines.length >= maxLines) break;
+          }
         }
+        if (lines.length < maxLines && chunk) {
+          pushLine(chunk);
+        }
+        current = '';
+      } else {
+        // Palabra que no cabe sola pero no es extremadamente larga: ponerla en siguiente línea
+        // (esto no debería pasar normalmente, pero por seguridad)
+        if (lines.length < maxLines) {
+          pushLine(w);
+        }
+        current = '';
       }
-      if (lines.length < maxLines) pushLine(chunk);
-      current = '';
     } else {
+      // Tenemos texto actual, pero la siguiente palabra no cabe completa
+      // REGLA: Si una palabra no cabe completa, bajar toda la palabra a la siguiente línea
+      // NO dividir palabras por caracteres
       pushLine(current);
       current = w;
     }
