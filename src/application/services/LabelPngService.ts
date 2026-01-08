@@ -262,7 +262,8 @@ export function buildLabelSvg(
       const qrRightEdge = cfg.showQr ? xQr + qrSizePx : 0;
       const marginBetweenQrAndText = mmToPx(1, cfg.dpi);
       containerLeft = Math.max(xName, qrRightEdge + marginBetweenQrAndText);
-      const rightMargin = mmToPx(1, cfg.dpi);
+      // Aumentar margen derecho a 2mm para evitar que se corte la última letra al imprimir
+      const rightMargin = mmToPx(2, cfg.dpi);
       containerRight = widthPx - paddingPx - rightMargin;
       // Reducir un 15% adicional para asegurar que el texto centrado no se salga de los límites
       availableWidth = Math.max(10, (containerRight - containerLeft) * 0.85);

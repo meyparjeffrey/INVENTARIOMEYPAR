@@ -2585,59 +2585,40 @@ export function LabelsQrPage() {
                     };
 
                     if (bulkPdfPreviewMode === 'individual') {
-                      // Vista individual usando el mismo SVG que se genera en el PDF
-                      // Esto asegura que se vea exactamente igual al PDF generado
+                      // Vista individual interactiva con dimensiones fijas 70x25.4mm
                       // Usar dimensiones fijas de 70x25.4mm (MULTI3 estándar) para la vista previa
                       const previewConfig: LabelConfig = {
                         ...bulkPdfLabelConfig,
                         widthMm: 70,
                         heightMm: 25.4,
                       };
-                      const labelSvg = buildLabelSvg(
-                        previewProduct,
-                        bulkPdfPreviewQrDataUrl,
-                        previewConfig,
-                      );
-
-                      // Escalar para la vista previa usando dimensiones fijas 70x25.4mm
-                      const LABEL_WIDTH_MM = 70;
-                      const LABEL_HEIGHT_MM = 25.4;
-                      const labelWidthPx = mmToPx(LABEL_WIDTH_MM, bulkPdfLabelConfig.dpi);
-                      const labelHeightPx = mmToPx(
-                        LABEL_HEIGHT_MM,
-                        bulkPdfLabelConfig.dpi,
-                      );
-                      // Escalar para que quepa en el diálogo
-                      const maxPreviewWidth = 600;
-                      const maxPreviewHeight = 400;
-                      const scaleX = maxPreviewWidth / labelWidthPx;
-                      const scaleY = maxPreviewHeight / labelHeightPx;
-                      const scale = Math.min(scaleX, scaleY, 1); // No ampliar más del 100%
-                      const scaledWidth = labelWidthPx * scale;
-                      const scaledHeight = labelHeightPx * scale;
-
                       return (
-                        <div className="flex justify-center overflow-auto rounded border border-gray-300 bg-white p-2 dark:border-gray-600 dark:bg-gray-800">
-                          <div
-                            style={{
-                              width: `${scaledWidth}px`,
-                              height: `${scaledHeight}px`,
-                              position: 'relative',
-                              background: '#ffffff',
-                              border: '1px solid #ccc',
-                            }}
-                          >
-                            <img
-                              src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(labelSvg)}`}
-                              alt="Label Preview"
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'contain',
-                              }}
-                            />
-                          </div>
-                        </div>
+                        <InteractiveLabelPreview
+                          product={previewProduct}
+                          config={previewConfig}
+                          qrDataUrl={bulkPdfPreviewQrDataUrl}
+                          locationText={
+                            loc
+                              ? `${loc.aisle}-${loc.shelf}`
+                              : `${previewProduct.aisle}-${previewProduct.shelf}`
+                          }
+                          warehouseText={loc?.warehouse ?? previewProduct.warehouse ?? ''}
+                          onConfigChange={(updates) => {
+                            setBulkPdfLabelConfig((p) => {
+                              if (!p) return p;
+                              // Aplicar los cambios pero mantener las dimensiones fijas
+                              return {
+                                ...p,
+                                ...updates,
+                                widthMm: 70, // Mantener dimensiones fijas
+                                heightMm: 25.4, // Mantener dimensiones fijas
+                                offsetsMm: updates.offsetsMm ?? p.offsetsMm,
+                              };
+                            });
+                          }}
+                          maxWidth={600}
+                          maxHeight={400}
+                        />
                       );
                     }
 
