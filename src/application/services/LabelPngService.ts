@@ -172,25 +172,30 @@ export function buildLabelSvg(
 
   const texts: string[] = [];
 
-  // Código: centrado con el nombre (mismo centro que el contenedor del nombre)
-  // Calcular el centro del contenedor del nombre para alinear el código
-  let codeCenterX = xCode; // Por defecto usar la posición X del código
-  if (cfg.showName) {
-    // Calcular los mismos límites que usa el nombre
-    const qrSizePx = mmToPx(cfg.qrSizeMm, cfg.dpi);
-    const qrRightEdge = cfg.showQr ? xQr + qrSizePx : 0;
-    const marginBetweenQrAndText = mmToPx(1, cfg.dpi);
-    const containerLeft = Math.max(xName, qrRightEdge + marginBetweenQrAndText);
-    const rightMargin = mmToPx(1, cfg.dpi);
-    const containerRight = widthPx - paddingPx - rightMargin;
-    // Usar el mismo centro que el nombre
-    codeCenterX = containerLeft + (containerRight - containerLeft) / 2;
-  }
+  // Verificar si las dimensiones son las estándar MULTI3 (70x25.4mm)
+  // Solo aplicar restricciones de posicionamiento en este caso para el PDF
+  const isStandardMulti3 =
+    Math.abs(cfg.widthMm - 70) < 0.1 && Math.abs(cfg.heightMm - 25.4) < 0.1;
 
+  // Código: aplicar restricciones solo si es MULTI3 estándar
   if (cfg.showCode) {
-    // Centrar el código en el mismo punto que el nombre
+    let codeX = xCode;
+    let codeAnchor = 'start';
+
+    if (isStandardMulti3 && cfg.showName) {
+      // Para MULTI3 estándar: centrar código con nombre, no tocar QR
+      const qrRightEdge = cfg.showQr ? xQr + qrSizePx : 0;
+      const marginBetweenQrAndText = mmToPx(1, cfg.dpi);
+      const containerLeft = Math.max(xName, qrRightEdge + marginBetweenQrAndText);
+      const rightMargin = mmToPx(1, cfg.dpi);
+      const containerRight = widthPx - paddingPx - rightMargin;
+      // Centrar código en el mismo punto que el nombre
+      codeX = containerLeft + (containerRight - containerLeft) / 2;
+      codeAnchor = 'middle';
+    }
+
     texts.push(
-      `<text x="${codeCenterX}" y="${yCode}" font-family="Arial, sans-serif" font-size="${cfg.codeFontPx}" font-weight="700" dominant-baseline="hanging" text-anchor="middle">${code}</text>`,
+      `<text x="${codeX}" y="${yCode}" font-family="Arial, sans-serif" font-size="${cfg.codeFontPx}" font-weight="700" dominant-baseline="hanging" text-anchor="${codeAnchor}">${code}</text>`,
     );
   }
 
@@ -221,33 +226,31 @@ export function buildLabelSvg(
     );
   }
 
-  // Nombre: wrap a líneas según ancho disponible, centrado (igual que en vista previa)
-  // No debe superponerse con el QR ni salirse del borde derecho
-  // Añadir márgenes adicionales para mejor legibilidad
+  // Nombre: aplicar restricciones solo si es MULTI3 estándar
   if (cfg.showName) {
-    // Calcular límites: no debe superponerse con el QR ni salirse del borde derecho
-    const qrSizePx = mmToPx(cfg.qrSizeMm, cfg.dpi);
-    const qrRightEdge = cfg.showQr ? xQr + qrSizePx : 0;
+    let containerLeft: number;
+    let containerRight: number;
+    let availableWidth: number;
+    let centerX: number;
 
-    // Margen adicional entre el QR y el texto del nombre (1mm)
-    const marginBetweenQrAndText = mmToPx(1, cfg.dpi);
-
-    // El límite izquierdo del contenedor del nombre es el máximo entre:
-    // - La posición X del nombre
-    // - El borde derecho del QR + margen adicional (si existe y está a la izquierda del nombre)
-    const containerLeft = Math.max(xName, qrRightEdge + marginBetweenQrAndText);
-
-    // Margen adicional a la derecha de la etiqueta (1mm)
-    const rightMargin = mmToPx(1, cfg.dpi);
-
-    // El límite derecho del contenedor es el borde de la etiqueta menos el padding y el margen derecho
-    const containerRight = widthPx - paddingPx - rightMargin;
-
-    // Ancho disponible: espacio entre el límite izquierdo y el derecho
-    // Reducir un 15% adicional para asegurar que el texto centrado no se salga de los límites
-    // Esto compensa posibles imprecisiones en la estimación del ancho del texto
-    // y asegura que haya margen suficiente cuando el texto está centrado
-    const availableWidth = Math.max(10, (containerRight - containerLeft) * 0.85);
+    if (isStandardMulti3) {
+      // Para MULTI3 estándar: no tocar QR, centrado con código
+      const qrRightEdge = cfg.showQr ? xQr + qrSizePx : 0;
+      const marginBetweenQrAndText = mmToPx(1, cfg.dpi);
+      containerLeft = Math.max(xName, qrRightEdge + marginBetweenQrAndText);
+      const rightMargin = mmToPx(1, cfg.dpi);
+      containerRight = widthPx - paddingPx - rightMargin;
+      // Reducir un 15% adicional para asegurar que el texto centrado no se salga de los límites
+      availableWidth = Math.max(10, (containerRight - containerLeft) * 0.85);
+      centerX = containerLeft + (containerRight - containerLeft) / 2;
+    } else {
+      // Para otras dimensiones: movimiento libre
+      const rightMargin = mmToPx(1, cfg.dpi);
+      containerLeft = xName;
+      containerRight = widthPx - paddingPx - rightMargin;
+      availableWidth = Math.max(10, (containerRight - containerLeft) * 0.95);
+      centerX = containerLeft + (containerRight - containerLeft) / 2;
+    }
 
     const lines = wrapTextToLines({
       text: product.name,
@@ -260,9 +263,7 @@ export function buildLabelSvg(
     if (lines.length > 0) {
       const lineH = cfg.nameFontPx + 2;
       const weight = cfg.nameBold ? 700 : 600;
-      // Centrar cada línea en el espacio disponible entre containerLeft y containerRight
-      const centerX = containerLeft + (containerRight - containerLeft) / 2;
-
+      // Centrar cada línea en el espacio disponible
       const tspans = lines
         .map((ln, i) => {
           const yy = yName + i * lineH;

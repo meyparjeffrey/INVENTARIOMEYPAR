@@ -35,8 +35,17 @@ export interface InteractiveLabelPreviewProps {
   maxHeight?: number;
 }
 
-type DraggableElement = 'qr' | 'code' | 'name' | null;
-type ResizeHandle = 'se' | 'sw' | 'ne' | 'nw' | 'code' | 'name' | null;
+type DraggableElement = 'qr' | 'code' | 'name' | 'location' | 'warehouse' | null;
+type ResizeHandle =
+  | 'se'
+  | 'sw'
+  | 'ne'
+  | 'nw'
+  | 'code'
+  | 'name'
+  | 'location'
+  | 'warehouse'
+  | null;
 
 /**
  * Vista previa interactiva de etiqueta.
@@ -91,6 +100,7 @@ export function InteractiveLabelPreview({
   const scaledHeight = labelHeightPx * scale;
 
   // Convertir coordenadas de pantalla a coordenadas de etiqueta (mm)
+  // PERMITIR VALORES NEGATIVOS: los elementos pueden estar fuera del área de padding
   const screenToLabel = React.useCallback(
     (screenX: number, screenY: number): { x: number; y: number } => {
       if (!previewRef.current) return { x: 0, y: 0 };
@@ -100,8 +110,10 @@ export function InteractiveLabelPreview({
       const labelX = (screenX - rect.left) / scale;
       const labelY = (screenY - rect.top) / scale;
       // Convertir px a mm (restar padding primero)
+      // PERMITIR VALORES NEGATIVOS: los elementos pueden estar a la izquierda del padding
       const mmX = (labelX - paddingPx) / (config.dpi / 25.4);
       const mmY = (labelY - paddingPx) / (config.dpi / 25.4);
+      // No aplicar Math.max(0, ...) aquí - permitir valores negativos para movimiento libre
       return { x: mmX, y: mmY };
     },
     [scale, paddingPx, config.dpi],
@@ -150,6 +162,20 @@ export function InteractiveLabelPreview({
           x: e.clientX,
           y: e.clientY,
         });
+      } else if (handle === 'location-se' || handle === 'location-sw') {
+        setResizeStart({
+          size: 0,
+          fontSize: config.locationFontPx,
+          x: e.clientX,
+          y: e.clientY,
+        });
+      } else if (handle === 'warehouse-se' || handle === 'warehouse-sw') {
+        setResizeStart({
+          size: 0,
+          fontSize: config.warehouseFontPx,
+          x: e.clientX,
+          y: e.clientY,
+        });
       } else if (
         handle === 'se' ||
         handle === 'sw' ||
@@ -164,7 +190,13 @@ export function InteractiveLabelPreview({
         });
       }
     },
-    [config.qrSizeMm, config.codeFontPx, config.nameFontPx],
+    [
+      config.qrSizeMm,
+      config.codeFontPx,
+      config.nameFontPx,
+      config.locationFontPx,
+      config.warehouseFontPx,
+    ],
   );
 
   // Manejar movimiento del mouse
@@ -197,7 +229,11 @@ export function InteractiveLabelPreview({
           isResizing === 'code-se' ||
           isResizing === 'code-sw' ||
           isResizing === 'name-se' ||
-          isResizing === 'name-sw'
+          isResizing === 'name-sw' ||
+          isResizing === 'location-se' ||
+          isResizing === 'location-sw' ||
+          isResizing === 'warehouse-se' ||
+          isResizing === 'warehouse-sw'
         ) {
           // Redimensionar fuente de texto
           const deltaY = (e.clientY - resizeStart.y) / scale;
@@ -206,8 +242,14 @@ export function InteractiveLabelPreview({
           let newFontSize: number;
           if (isResizing.startsWith('code')) {
             newFontSize = Math.max(8, Math.min(60, resizeStart.fontSize + deltaPx));
-          } else {
+          } else if (isResizing.startsWith('name')) {
             newFontSize = Math.max(8, Math.min(40, resizeStart.fontSize + deltaPx));
+          } else if (isResizing.startsWith('location')) {
+            newFontSize = Math.max(6, Math.min(30, resizeStart.fontSize + deltaPx));
+          } else if (isResizing.startsWith('warehouse')) {
+            newFontSize = Math.max(6, Math.min(30, resizeStart.fontSize + deltaPx));
+          } else {
+            newFontSize = resizeStart.fontSize;
           }
 
           // Redondear a 2 decimales máximo
@@ -217,6 +259,10 @@ export function InteractiveLabelPreview({
             onConfigChange({ codeFontPx: newFontSize });
           } else if (isResizing.startsWith('name')) {
             onConfigChange({ nameFontPx: newFontSize });
+          } else if (isResizing.startsWith('location')) {
+            onConfigChange({ locationFontPx: newFontSize });
+          } else if (isResizing.startsWith('warehouse')) {
+            onConfigChange({ warehouseFontPx: newFontSize });
           }
 
           setResizeStart((prev) => ({
@@ -273,7 +319,16 @@ export function InteractiveLabelPreview({
     if (isDragging) {
       cursor = 'grabbing';
     } else if (isResizing) {
-      if (isResizing === 'code' || isResizing === 'name') {
+      if (
+        isResizing === 'code' ||
+        isResizing === 'name' ||
+        isResizing === 'location' ||
+        isResizing === 'warehouse' ||
+        isResizing.startsWith('code-') ||
+        isResizing.startsWith('name-') ||
+        isResizing.startsWith('location-') ||
+        isResizing.startsWith('warehouse-')
+      ) {
         cursor = 'ns-resize';
       } else {
         cursor = 'nwse-resize';
@@ -300,37 +355,34 @@ export function InteractiveLabelPreview({
     onConfigChange,
   ]);
 
-  // Calcular posiciones de los elementos
+  // Calcular posiciones de los elementos - MOVIMIENTO LIBRE SIN RESTRICCIONES
+  // Máxima flexibilidad: todos los elementos pueden moverse libremente sin importar solapamientos
   const qrSizePx = mmToPx(config.qrSizeMm, config.dpi);
   const qrX = paddingPx + mmToPx(config.offsetsMm.qr.x, config.dpi);
   const qrY = paddingPx + mmToPx(config.offsetsMm.qr.y, config.dpi);
-  // codeX se calcula pero no se usa directamente ya que el código se centra con el nombre
-  // const codeX = paddingPx + mmToPx(config.offsetsMm.code.x, config.dpi);
+  const codeX = paddingPx + mmToPx(config.offsetsMm.code.x, config.dpi);
   const codeY = paddingPx + mmToPx(config.offsetsMm.code.y, config.dpi);
   const nameX = paddingPx + mmToPx(config.offsetsMm.name.x, config.dpi);
   const nameY = paddingPx + mmToPx(config.offsetsMm.name.y, config.dpi);
+  const locationX = paddingPx + mmToPx(config.offsetsMm.location.x, config.dpi);
+  const locationY = paddingPx + mmToPx(config.offsetsMm.location.y, config.dpi);
+  const warehouseX = paddingPx + mmToPx(config.offsetsMm.warehouse.x, config.dpi);
+  const warehouseY = paddingPx + mmToPx(config.offsetsMm.warehouse.y, config.dpi);
 
-  // Calcular límites del nombre: no debe superponerse con el QR ni salirse del borde derecho
-  // Añadir márgenes adicionales para mejor legibilidad
-  const qrRightEdge = config.showQr && qrDataUrl ? qrX + qrSizePx : 0;
-
-  // Margen adicional entre el QR y el texto del nombre (1mm)
-  const marginBetweenQrAndText = mmToPx(1, config.dpi);
-
-  // El límite izquierdo del contenedor del nombre es el máximo entre:
-  // - La posición X del nombre
-  // - El borde derecho del QR + margen adicional (si existe y está a la izquierda del nombre)
-  const nameContainerLeft = Math.max(nameX, qrRightEdge + marginBetweenQrAndText);
-
-  // Margen adicional a la derecha de la etiqueta (1mm)
+  // Ancho disponible para el nombre: desde su posición X hasta el borde derecho (con margen)
+  // MOVIMIENTO COMPLETAMENTE LIBRE: el nombre puede estar en cualquier posición X
+  // El ancho del contenedor se calcula desde nameX hasta el borde derecho, sin importar el QR
   const rightMargin = mmToPx(1, config.dpi);
-
-  // El límite derecho del contenedor es el borde de la etiqueta menos el padding y el margen derecho
-  const nameContainerRight = labelWidthPx - paddingPx - rightMargin;
-  // Reducir un 15% adicional para asegurar que el texto centrado no se salga de los límites
+  const nameContainerLeft = nameX; // Posición X del nombre (puede ser cualquier valor, incluso negativo o a la izquierda del QR)
+  const nameContainerRight = labelWidthPx - paddingPx - rightMargin; // Borde derecho de la etiqueta
+  // Ancho disponible: desde la posición X del nombre hasta el borde derecho
+  // Si nameX es negativo o muy pequeño, el ancho será grande
+  // Si nameX está cerca del borde derecho, el ancho será pequeño
+  // Pero siempre permitir que el nombre pueda estar en cualquier posición X
+  // Usar Math.max para asegurar que el ancho sea siempre positivo, incluso si nameX es mayor que nameContainerRight
   const nameAvailableWidth = Math.max(
     10,
-    (nameContainerRight - nameContainerLeft) * 0.85,
+    Math.abs(nameContainerRight - Math.max(0, nameContainerLeft)) * 0.95,
   );
 
   return (
@@ -412,59 +464,52 @@ export function InteractiveLabelPreview({
           )}
 
           {/* Código */}
-          {config.showCode &&
-            (() => {
-              // Calcular el centro del contenedor del nombre para centrar el código
-              const codeCenterX =
-                nameContainerLeft + (nameContainerRight - nameContainerLeft) / 2;
-
-              return (
-                <div
-                  className={cn(
-                    'absolute cursor-move select-none',
-                    selectedElement === 'code' && 'ring-2 ring-blue-500',
-                  )}
-                  style={{
-                    left: `${codeCenterX}px`,
-                    top: `${codeY}px`,
-                    fontSize: `${config.codeFontPx}px`,
-                    fontWeight: 700,
-                    lineHeight: '1',
-                    margin: 0,
-                    padding: 0,
-                    transform: 'translateX(-50%)', // Centrar el texto desde su punto medio
-                  }}
-                  onMouseDown={(e) => handleMouseDown(e, 'code')}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setSelectedElement(selectedElement === 'code' ? null : 'code');
-                  }}
-                >
-                  {product.code}
-                  {/* Handles de redimensionado para código (esquinas inferiores) */}
-                  {selectedElement === 'code' && (
-                    <>
-                      <div
-                        className="absolute -bottom-1 -right-1 h-3 w-3 cursor-nwse-resize rounded-full bg-blue-500 ring-2 ring-white"
-                        style={{ transform: 'scale(1.5)' }}
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                          handleResizeStart(e, 'code-se');
-                        }}
-                      />
-                      <div
-                        className="absolute -bottom-1 -left-1 h-3 w-3 cursor-nesw-resize rounded-full bg-blue-500 ring-2 ring-white"
-                        style={{ transform: 'scale(1.5)' }}
-                        onMouseDown={(e) => {
-                          e.stopPropagation();
-                          handleResizeStart(e, 'code-sw');
-                        }}
-                      />
-                    </>
-                  )}
-                </div>
-              );
-            })()}
+          {config.showCode && (
+            <div
+              className={cn(
+                'absolute cursor-move select-none',
+                selectedElement === 'code' && 'ring-2 ring-blue-500',
+              )}
+              style={{
+                left: `${codeX}px`,
+                top: `${codeY}px`,
+                fontSize: `${config.codeFontPx}px`,
+                fontWeight: 700,
+                lineHeight: '1',
+                margin: 0,
+                padding: 0,
+                transform: 'none', // Movimiento libre sin centrado automático
+              }}
+              onMouseDown={(e) => handleMouseDown(e, 'code')}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedElement(selectedElement === 'code' ? null : 'code');
+              }}
+            >
+              {product.code}
+              {/* Handles de redimensionado para código (esquinas inferiores) */}
+              {selectedElement === 'code' && (
+                <>
+                  <div
+                    className="absolute -bottom-1 -right-1 h-3 w-3 cursor-nwse-resize rounded-full bg-blue-500 ring-2 ring-white"
+                    style={{ transform: 'scale(1.5)' }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      handleResizeStart(e, 'code-se');
+                    }}
+                  />
+                  <div
+                    className="absolute -bottom-1 -left-1 h-3 w-3 cursor-nesw-resize rounded-full bg-blue-500 ring-2 ring-white"
+                    style={{ transform: 'scale(1.5)' }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      handleResizeStart(e, 'code-sw');
+                    }}
+                  />
+                </>
+              )}
+            </div>
+          )}
 
           {/* Nombre */}
           {config.showName && (
@@ -476,7 +521,11 @@ export function InteractiveLabelPreview({
               style={{
                 left: `${nameContainerLeft}px`,
                 top: `${nameY}px`,
-                right: `${labelWidthPx - nameContainerRight}px`,
+                // Ancho del contenedor: desde nameX hasta el borde derecho
+                // Si nameX es negativo o muy pequeño, el ancho será grande
+                // Si nameX está cerca del borde derecho, el ancho será pequeño
+                // Usar Math.max para asegurar que el ancho sea siempre positivo
+                width: `${Math.max(10, nameContainerRight - nameContainerLeft)}px`,
                 fontSize: `${config.nameFontPx}px`,
                 fontWeight: config.nameBold ? 700 : 600,
                 lineHeight: `${config.nameFontPx + 2}px`,
@@ -529,7 +578,7 @@ export function InteractiveLabelPreview({
                     style={{ transform: 'scale(1.5)' }}
                     onMouseDown={(e) => {
                       e.stopPropagation();
-                      handleResizeStart(e, 'name');
+                      handleResizeStart(e, 'name-se');
                     }}
                   />
                   <div
@@ -537,7 +586,7 @@ export function InteractiveLabelPreview({
                     style={{ transform: 'scale(1.5)' }}
                     onMouseDown={(e) => {
                       e.stopPropagation();
-                      handleResizeStart(e, 'name');
+                      handleResizeStart(e, 'name-sw');
                     }}
                   />
                 </>
@@ -564,32 +613,88 @@ export function InteractiveLabelPreview({
           {/* Ubicación */}
           {config.showLocation && locationText && (
             <div
-              className="absolute select-none"
+              className={cn(
+                'absolute cursor-move select-none',
+                selectedElement === 'location' && 'ring-2 ring-blue-500',
+              )}
               style={{
-                left: `${paddingPx + mmToPx(config.offsetsMm.location.x, config.dpi)}px`,
-                top: `${paddingPx + mmToPx(config.offsetsMm.location.y, config.dpi)}px`,
-                right: `${paddingPx}px`,
+                left: `${locationX}px`,
+                top: `${locationY}px`,
                 fontSize: `${config.locationFontPx}px`,
                 fontWeight: config.locationBold ? 700 : 400,
               }}
+              onMouseDown={(e) => handleMouseDown(e, 'location')}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedElement(selectedElement === 'location' ? null : 'location');
+              }}
             >
               {locationText}
+              {/* Handles de redimensionado para ubicación (esquinas inferiores) */}
+              {selectedElement === 'location' && (
+                <>
+                  <div
+                    className="absolute -bottom-1 -right-1 h-3 w-3 cursor-nwse-resize rounded-full bg-blue-500 ring-2 ring-white"
+                    style={{ transform: 'scale(1.5)' }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      handleResizeStart(e, 'location-se');
+                    }}
+                  />
+                  <div
+                    className="absolute -bottom-1 -left-1 h-3 w-3 cursor-nesw-resize rounded-full bg-blue-500 ring-2 ring-white"
+                    style={{ transform: 'scale(1.5)' }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      handleResizeStart(e, 'location-sw');
+                    }}
+                  />
+                </>
+              )}
             </div>
           )}
 
           {/* Almacén */}
           {config.showWarehouse && warehouseText && (
             <div
-              className="absolute select-none"
+              className={cn(
+                'absolute cursor-move select-none',
+                selectedElement === 'warehouse' && 'ring-2 ring-blue-500',
+              )}
               style={{
-                left: `${paddingPx + mmToPx(config.offsetsMm.warehouse.x, config.dpi)}px`,
-                top: `${paddingPx + mmToPx(config.offsetsMm.warehouse.y, config.dpi)}px`,
-                right: `${paddingPx}px`,
+                left: `${warehouseX}px`,
+                top: `${warehouseY}px`,
                 fontSize: `${config.warehouseFontPx}px`,
                 fontWeight: config.warehouseBold ? 700 : 400,
               }}
+              onMouseDown={(e) => handleMouseDown(e, 'warehouse')}
+              onClick={(e) => {
+                e.stopPropagation();
+                setSelectedElement(selectedElement === 'warehouse' ? null : 'warehouse');
+              }}
             >
               {warehouseText}
+              {/* Handles de redimensionado para almacén (esquinas inferiores) */}
+              {selectedElement === 'warehouse' && (
+                <>
+                  <div
+                    className="absolute -bottom-1 -right-1 h-3 w-3 cursor-nwse-resize rounded-full bg-blue-500 ring-2 ring-white"
+                    style={{ transform: 'scale(1.5)' }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      handleResizeStart(e, 'warehouse-se');
+                    }}
+                  />
+                  <div
+                    className="absolute -bottom-1 -left-1 h-3 w-3 cursor-nesw-resize rounded-full bg-blue-500 ring-2 ring-white"
+                    style={{ transform: 'scale(1.5)' }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      handleResizeStart(e, 'warehouse-sw');
+                    }}
+                  />
+                </>
+              )}
             </div>
           )}
         </div>

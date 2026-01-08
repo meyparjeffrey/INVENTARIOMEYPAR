@@ -1292,32 +1292,26 @@ export function LabelsQrPage() {
                   <label className="text-xs text-gray-500 dark:text-gray-400">
                     {tt(t, 'labelsQr.label.widthMm', 'Ancho (mm)')}
                   </label>
-                  <Input
-                    type="number"
-                    min={10}
-                    step={1}
+                  <NumericInput
                     value={bulkLabelConfig.widthMm}
-                    onChange={(e) =>
-                      setBulkLabelConfig((p) =>
-                        p ? { ...p, widthMm: Number(e.target.value) } : p,
-                      )
+                    onChange={(newValue) =>
+                      setBulkLabelConfig((p) => (p ? { ...p, widthMm: newValue } : p))
                     }
+                    min={1}
+                    step={0.1}
                   />
                 </div>
                 <div>
                   <label className="text-xs text-gray-500 dark:text-gray-400">
                     {tt(t, 'labelsQr.label.heightMm', 'Alto (mm)')}
                   </label>
-                  <Input
-                    type="number"
-                    min={10}
-                    step={1}
+                  <NumericInput
                     value={bulkLabelConfig.heightMm}
-                    onChange={(e) =>
-                      setBulkLabelConfig((p) =>
-                        p ? { ...p, heightMm: Number(e.target.value) } : p,
-                      )
+                    onChange={(newValue) =>
+                      setBulkLabelConfig((p) => (p ? { ...p, heightMm: newValue } : p))
                     }
+                    min={1}
+                    step={0.1}
                   />
                 </div>
                 <div>
@@ -1342,16 +1336,14 @@ export function LabelsQrPage() {
                   <label className="text-xs text-gray-500 dark:text-gray-400">
                     {tt(t, 'labelsQr.label.qrMm', 'QR (mm)')}
                   </label>
-                  <Input
-                    type="number"
-                    min={6}
-                    step={1}
+                  <NumericInput
                     value={bulkLabelConfig.qrSizeMm}
-                    onChange={(e) =>
-                      setBulkLabelConfig((p) =>
-                        p ? { ...p, qrSizeMm: Number(e.target.value) } : p,
-                      )
+                    onChange={(newValue) =>
+                      setBulkLabelConfig((p) => (p ? { ...p, qrSizeMm: newValue } : p))
                     }
+                    min={6}
+                    max={25}
+                    step={0.1}
                   />
                 </div>
               </div>
@@ -1799,18 +1791,16 @@ export function LabelsQrPage() {
 
                           {(() => {
                             const pxOff = (mm: number) => mmToPx(mm, bulkLabelConfig.dpi);
-                            const rightX =
-                              paddingPx +
-                              (bulkLabelConfig.showQr ? qrSizePx + paddingPx : 0);
                             const lineH = Math.max(10, bulkLabelConfig.nameFontPx);
 
+                            // MOVIMIENTO LIBRE: cada elemento usa directamente su offset, sin depender del QR
                             const xCode =
-                              rightX + pxOff(bulkLabelConfig.offsetsMm.code.x);
+                              paddingPx + pxOff(bulkLabelConfig.offsetsMm.code.x);
                             const yCode =
                               paddingPx + pxOff(bulkLabelConfig.offsetsMm.code.y);
 
                             const xBarcode =
-                              rightX + pxOff(bulkLabelConfig.offsetsMm.barcode.x);
+                              paddingPx + pxOff(bulkLabelConfig.offsetsMm.barcode.x);
                             const yBarcode =
                               paddingPx +
                               bulkLabelConfig.codeFontPx +
@@ -1818,7 +1808,7 @@ export function LabelsQrPage() {
                               pxOff(bulkLabelConfig.offsetsMm.barcode.y);
 
                             const xLocation =
-                              rightX + pxOff(bulkLabelConfig.offsetsMm.location.x);
+                              paddingPx + pxOff(bulkLabelConfig.offsetsMm.location.x);
                             const yLocation =
                               paddingPx +
                               bulkLabelConfig.codeFontPx +
@@ -1827,7 +1817,7 @@ export function LabelsQrPage() {
                               pxOff(bulkLabelConfig.offsetsMm.location.y);
 
                             const xWarehouse =
-                              rightX + pxOff(bulkLabelConfig.offsetsMm.warehouse.x);
+                              paddingPx + pxOff(bulkLabelConfig.offsetsMm.warehouse.x);
                             const yWarehouse =
                               paddingPx +
                               bulkLabelConfig.codeFontPx +
@@ -1837,7 +1827,7 @@ export function LabelsQrPage() {
                               pxOff(bulkLabelConfig.offsetsMm.warehouse.y);
 
                             const xName =
-                              rightX + pxOff(bulkLabelConfig.offsetsMm.name.x);
+                              paddingPx + pxOff(bulkLabelConfig.offsetsMm.name.x);
                             const yName =
                               heightPx -
                               paddingPx -
@@ -2958,15 +2948,14 @@ export function LabelsQrPage() {
                           )}
 
                           {(() => {
-                            const rightX =
-                              paddingPx + (labelConfig.showQr ? qrSizePx + paddingPx : 0);
+                            // MOVIMIENTO LIBRE: cada elemento usa directamente su offset, sin depender del QR
                             const lineH = Math.max(10, labelConfig.nameFontPx);
 
-                            const xCode = rightX + pxOff(labelConfig.offsetsMm.code.x);
+                            const xCode = paddingPx + pxOff(labelConfig.offsetsMm.code.x);
                             const yCode = paddingPx + pxOff(labelConfig.offsetsMm.code.y);
 
                             const xBarcode =
-                              rightX + pxOff(labelConfig.offsetsMm.barcode.x);
+                              paddingPx + pxOff(labelConfig.offsetsMm.barcode.x);
                             const yBarcode =
                               paddingPx +
                               labelConfig.codeFontPx +
@@ -2974,7 +2963,7 @@ export function LabelsQrPage() {
                               pxOff(labelConfig.offsetsMm.barcode.y);
 
                             const xLocation =
-                              rightX + pxOff(labelConfig.offsetsMm.location.x);
+                              paddingPx + pxOff(labelConfig.offsetsMm.location.x);
                             const yLocation =
                               paddingPx +
                               labelConfig.codeFontPx +
@@ -2983,7 +2972,7 @@ export function LabelsQrPage() {
                               pxOff(labelConfig.offsetsMm.location.y);
 
                             const xWarehouse =
-                              rightX + pxOff(labelConfig.offsetsMm.warehouse.x);
+                              paddingPx + pxOff(labelConfig.offsetsMm.warehouse.x);
                             const yWarehouse =
                               paddingPx +
                               labelConfig.codeFontPx +
@@ -2992,7 +2981,7 @@ export function LabelsQrPage() {
                               lineH +
                               pxOff(labelConfig.offsetsMm.warehouse.y);
 
-                            const xName = rightX + pxOff(labelConfig.offsetsMm.name.x);
+                            const xName = paddingPx + pxOff(labelConfig.offsetsMm.name.x);
                             const yName =
                               labelHeightPx -
                               paddingPx -
@@ -3155,34 +3144,32 @@ export function LabelsQrPage() {
                     <label className="text-xs text-gray-500 dark:text-gray-400">
                       {tt(t, 'labelsQr.label.widthMm', 'Ancho (mm)')}
                     </label>
-                    <Input
-                      type="number"
-                      min={10}
-                      step={1}
+                    <NumericInput
                       value={(labelDialogConfig ?? labelConfig).widthMm}
-                      onChange={(e) =>
+                      onChange={(newValue) =>
                         setLabelDialogConfig((p) => ({
                           ...(p ?? labelConfig),
-                          widthMm: Number(e.target.value),
+                          widthMm: newValue,
                         }))
                       }
+                      min={1}
+                      step={0.1}
                     />
                   </div>
                   <div>
                     <label className="text-xs text-gray-500 dark:text-gray-400">
                       {tt(t, 'labelsQr.label.heightMm', 'Alto (mm)')}
                     </label>
-                    <Input
-                      type="number"
-                      min={10}
-                      step={1}
+                    <NumericInput
                       value={(labelDialogConfig ?? labelConfig).heightMm}
-                      onChange={(e) =>
+                      onChange={(newValue) =>
                         setLabelDialogConfig((p) => ({
                           ...(p ?? labelConfig),
-                          heightMm: Number(e.target.value),
+                          heightMm: newValue,
                         }))
                       }
+                      min={1}
+                      step={0.1}
                     />
                   </div>
                   <div>
