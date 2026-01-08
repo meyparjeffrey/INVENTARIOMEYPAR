@@ -432,6 +432,7 @@ export function LabelsQrPage() {
     bulkPdfLabelConfig,
     bulkPdfLabelConfig?.dpi,
     bulkPdfLabelConfig?.showQr,
+    labelConfig,
   ]);
 
   // QR dataURL para el preview dentro del diálogo de etiqueta (individual)
@@ -678,7 +679,7 @@ export function LabelsQrPage() {
     return () => {
       cancelled = true;
     };
-  }, [qrPreviewOpen, qrPreviewReloadKey, selectedAsset?.qrPath]);
+  }, [qrPreviewOpen, qrPreviewReloadKey, selectedAsset]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -695,7 +696,7 @@ export function LabelsQrPage() {
         const { data, error } = await supabaseClient
           .from('product_locations')
           .select(
-            'id,product_id,warehouse,aisle,shelf,is_primary,created_at,updated_at,created_by,updated_by',
+            'id,product_id,warehouse,aisle,shelf,quantity,is_primary,created_at,updated_at,created_by,updated_by',
           )
           .eq('product_id', productId)
           .order('is_primary', { ascending: false })
@@ -713,6 +714,7 @@ export function LabelsQrPage() {
           warehouse: row.warehouse,
           aisle: row.aisle,
           shelf: row.shelf,
+          quantity: row.quantity ?? 0,
           isPrimary: row.is_primary,
           createdAt: row.created_at,
           updatedAt: row.updated_at,
@@ -1837,7 +1839,7 @@ export function LabelsQrPage() {
                     const { data, error } = await supabaseClient
                       .from('product_locations')
                       .select(
-                        'id,product_id,warehouse,aisle,shelf,is_primary,created_at,updated_at',
+                        'id,product_id,warehouse,aisle,shelf,quantity,is_primary,created_at,updated_at',
                       )
                       .in('product_id', ids);
                     if (!error && data) {
@@ -1850,6 +1852,7 @@ export function LabelsQrPage() {
                             warehouse: row.warehouse,
                             aisle: row.aisle,
                             shelf: row.shelf,
+                            quantity: row.quantity ?? 0,
                             isPrimary: row.is_primary,
                             createdAt: row.created_at,
                             updatedAt: row.updated_at,
