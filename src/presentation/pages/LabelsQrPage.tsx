@@ -10,7 +10,6 @@ import {
   Tag,
 } from 'lucide-react';
 import * as React from 'react';
-import { toPng } from 'html-to-image';
 import type { Product, ProductLocation } from '@domain/entities';
 import type { ProductQrAsset } from '@domain/entities/ProductQrAsset';
 import type { ProductLabelAsset } from '@domain/entities/ProductLabelAsset';
@@ -20,7 +19,6 @@ import JSZip from 'jszip';
 import {
   buildLabelSvg,
   mmToPx,
-  wrapTextToLines,
   type LabelConfig,
 } from '@application/services/LabelPngService';
 import {
@@ -309,7 +307,6 @@ export function LabelsQrPage() {
     },
   });
 
-  const labelRef = React.useRef<HTMLDivElement>(null);
   const detailsRef = React.useRef<HTMLDivElement>(null);
 
   const [labelQuality, setLabelQuality] = React.useState<PngQuality>('auto');
@@ -1092,16 +1089,35 @@ export function LabelsQrPage() {
 
   const handleDownloadLabelPng = async () => {
     if (!selectedProduct) return;
-    if (!labelRef.current) return;
 
     try {
+      // Generar QR si es necesario
+      let qrDataUrl: string | null = null;
+      if (labelConfig.showQr) {
+        const s = qualityScale(labelQuality, labelConfig.dpi);
+        qrDataUrl = await QRCode.toDataURL(buildQrPayload(selectedProduct), {
+          type: 'image/png',
+          width: 512 * s,
+          margin: 0,
+          errorCorrectionLevel: 'M',
+          color: { dark: '#000000', light: '#FFFFFF' },
+        });
+      }
+
+      // Generar SVG y convertirlo a PNG
+      const labelProduct: Product = {
+        ...selectedProduct,
+        aisle: selectedLocation?.aisle ?? selectedProduct.aisle,
+        shelf: selectedLocation?.shelf ?? selectedProduct.shelf,
+        warehouse: selectedLocation?.warehouse ?? selectedProduct.warehouse,
+      };
+
+      const widthPx = mmToPx(labelConfig.widthMm, labelConfig.dpi);
+      const heightPx = mmToPx(labelConfig.heightMm, labelConfig.dpi);
       const scale = qualityScale(labelQuality, labelConfig.dpi);
-      const dataUrl = await toPng(labelRef.current, {
-        cacheBust: true,
-        pixelRatio: scale,
-      });
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
+      // Para descarga individual: usar posicionamiento libre (sin restricciones MULTI3)
+      const svg = buildLabelSvg(labelProduct, qrDataUrl, labelConfig, false);
+      const blob = await svgToPngBlob(svg, widthPx, heightPx, scale);
 
       // Guardar etiqueta en Storage/DB (best-effort)
       try {
@@ -1165,15 +1181,6 @@ export function LabelsQrPage() {
       );
     }
   };
-
-  const labelWidthPx = mmToPx(labelConfig.widthMm, labelConfig.dpi);
-  const labelHeightPx = mmToPx(labelConfig.heightMm, labelConfig.dpi);
-  const qrSizePx = mmToPx(labelConfig.qrSizeMm, labelConfig.dpi);
-  const paddingPx = mmToPx(labelConfig.paddingMm, labelConfig.dpi);
-  const pxOff = React.useCallback(
-    (mm: number) => mmToPx(mm, labelConfig.dpi),
-    [labelConfig.dpi],
-  );
 
   const locationText = React.useMemo(() => {
     if (!selectedProduct) return '';
@@ -1731,258 +1738,60 @@ export function LabelsQrPage() {
                 </div>
               </div>
 
-              {bulkPreviewProduct && (
-                <div className="mt-4 rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
-                  <div className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                    {tt(t, 'labelsQr.label.preview', 'Preview')} (
-                    {bulkLabelConfig.widthMm}×{bulkLabelConfig.heightMm}mm @{' '}
-                    {bulkLabelConfig.dpi}dpi)
+              {bulkPreviewProduct && bulkLabelConfig && (
+                <div className="mt-4 rounded-lg border border-gray-200 p-4 dark:border-gray-700">
+                  <div className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    {tt(t, 'labelsQr.label.preview', 'Preview')}
                   </div>
-                  <div className="overflow-auto">
-                    {(() => {
-                      const widthPx = mmToPx(
-                        bulkLabelConfig.widthMm,
-                        bulkLabelConfig.dpi,
-                      );
-                      const heightPx = mmToPx(
-                        bulkLabelConfig.heightMm,
-                        bulkLabelConfig.dpi,
-                      );
-                      const qrSizePx = mmToPx(
-                        bulkLabelConfig.qrSizeMm,
-                        bulkLabelConfig.dpi,
-                      );
-                      const paddingPx = mmToPx(
-                        bulkLabelConfig.paddingMm,
-                        bulkLabelConfig.dpi,
-                      );
+                  <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
+                    {tt(
+                      t,
+                      'labelsQr.zipDialog.previewHintIndividual',
+                      'Vista previa interactiva. Haz clic y arrastra el QR, código o nombre para moverlos. Haz clic en el QR y arrastra las esquinas para cambiar su tamaño.',
+                    )}
+                  </p>
+                  {(() => {
+                    const loc = productLocations.find(
+                      (l) => l.productId === bulkPreviewProduct.id,
+                    );
+                    const previewProduct: Product = {
+                      ...bulkPreviewProduct,
+                      aisle: loc?.aisle ?? bulkPreviewProduct.aisle,
+                      shelf: loc?.shelf ?? bulkPreviewProduct.shelf,
+                      warehouse: loc?.warehouse ?? bulkPreviewProduct.warehouse,
+                    };
 
-                      return (
-                        <div
-                          style={{
-                            width: `${widthPx}px`,
-                            height: `${heightPx}px`,
-                            background: '#ffffff',
-                            color: '#000000',
-                            position: 'relative',
-                            boxSizing: 'border-box',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {bulkLabelConfig.showQr && (
-                            <div
-                              style={{
-                                position: 'absolute',
-                                left: `${paddingPx + mmToPx(bulkLabelConfig.offsetsMm.qr.x, bulkLabelConfig.dpi)}px`,
-                                top: `${paddingPx + mmToPx(bulkLabelConfig.offsetsMm.qr.y, bulkLabelConfig.dpi)}px`,
-                                width: `${qrSizePx}px`,
-                                height: `${qrSizePx}px`,
-                                background: '#ffffff',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              {bulkPreviewQrDataUrl ? (
-                                <img
-                                  src={bulkPreviewQrDataUrl}
-                                  alt="QR"
-                                  style={{ width: '100%', height: '100%' }}
-                                />
-                              ) : (
-                                <div
-                                  style={{
-                                    width: '100%',
-                                    height: '100%',
-                                    border: '1px solid #eee',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: 10,
-                                    color: '#999',
-                                  }}
-                                >
-                                  QR...
-                                </div>
-                              )}
-                            </div>
-                          )}
-
-                          {(() => {
-                            const pxOff = (mm: number) => mmToPx(mm, bulkLabelConfig.dpi);
-                            const lineH = Math.max(10, bulkLabelConfig.nameFontPx);
-
-                            // MOVIMIENTO LIBRE: cada elemento usa directamente su offset, sin depender del QR
-                            const xCode =
-                              paddingPx + pxOff(bulkLabelConfig.offsetsMm.code.x);
-                            const yCode =
-                              paddingPx + pxOff(bulkLabelConfig.offsetsMm.code.y);
-
-                            const xBarcode =
-                              paddingPx + pxOff(bulkLabelConfig.offsetsMm.barcode.x);
-                            const yBarcode =
-                              paddingPx +
-                              bulkLabelConfig.codeFontPx +
-                              2 +
-                              pxOff(bulkLabelConfig.offsetsMm.barcode.y);
-
-                            const xLocation =
-                              paddingPx + pxOff(bulkLabelConfig.offsetsMm.location.x);
-                            const yLocation =
-                              paddingPx +
-                              bulkLabelConfig.codeFontPx +
-                              2 +
-                              lineH +
-                              pxOff(bulkLabelConfig.offsetsMm.location.y);
-
-                            const xWarehouse =
-                              paddingPx + pxOff(bulkLabelConfig.offsetsMm.warehouse.x);
-                            const yWarehouse =
-                              paddingPx +
-                              bulkLabelConfig.codeFontPx +
-                              2 +
-                              lineH +
-                              lineH +
-                              pxOff(bulkLabelConfig.offsetsMm.warehouse.y);
-
-                            // Calcular posición del nombre usando el mismo sistema que buildLabelSvg
-                            const xName =
-                              paddingPx + pxOff(bulkLabelConfig.offsetsMm.name.x);
-                            const yName =
-                              paddingPx + pxOff(bulkLabelConfig.offsetsMm.name.y);
-
-                            return (
-                              <>
-                                {bulkLabelConfig.showCode && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: `${xCode}px`,
-                                      top: `${yCode}px`,
-                                      right: `${paddingPx}px`,
-                                      fontSize: bulkLabelConfig.codeFontPx,
-                                      fontWeight: 700,
-                                    }}
-                                  >
-                                    {bulkPreviewProduct.code}
-                                  </div>
-                                )}
-
-                                {bulkLabelConfig.showBarcode && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: `${xBarcode}px`,
-                                      top: `${yBarcode}px`,
-                                      right: `${paddingPx}px`,
-                                      fontSize: bulkLabelConfig.barcodeFontPx,
-                                      fontWeight: bulkLabelConfig.barcodeBold ? 700 : 400,
-                                    }}
-                                  >
-                                    {bulkPreviewProduct.barcode ?? ''}
-                                  </div>
-                                )}
-
-                                {bulkLabelConfig.showLocation && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: `${xLocation}px`,
-                                      top: `${yLocation}px`,
-                                      right: `${paddingPx}px`,
-                                      fontSize: bulkLabelConfig.locationFontPx,
-                                      fontWeight: bulkLabelConfig.locationBold
-                                        ? 700
-                                        : 400,
-                                    }}
-                                  >
-                                    {bulkPreviewProduct.aisle}-{bulkPreviewProduct.shelf}
-                                  </div>
-                                )}
-
-                                {bulkLabelConfig.showWarehouse &&
-                                  bulkPreviewProduct.warehouse && (
-                                    <div
-                                      style={{
-                                        position: 'absolute',
-                                        left: `${xWarehouse}px`,
-                                        top: `${yWarehouse}px`,
-                                        right: `${paddingPx}px`,
-                                        fontSize: bulkLabelConfig.warehouseFontPx,
-                                        fontWeight: bulkLabelConfig.warehouseBold
-                                          ? 700
-                                          : 400,
-                                      }}
-                                    >
-                                      {bulkPreviewProduct.warehouse}
-                                    </div>
-                                  )}
-
-                                {bulkLabelConfig.showName &&
-                                  (() => {
-                                    // Usar la misma lógica de wrapping que buildLabelSvg
-                                    const rightMargin = mmToPx(1, bulkLabelConfig.dpi);
-                                    const containerLeft = xName;
-                                    const containerRight =
-                                      widthPx - paddingPx - rightMargin;
-                                    const availableWidth = Math.max(
-                                      10,
-                                      (containerRight - containerLeft) * 0.95,
-                                    );
-
-                                    const lines = wrapTextToLines({
-                                      text: bulkPreviewProduct.name,
-                                      maxWidthPx: availableWidth,
-                                      fontPx: bulkLabelConfig.nameFontPx,
-                                      isBold: bulkLabelConfig.nameBold,
-                                      maxLines: Math.max(
-                                        1,
-                                        Math.min(5, bulkLabelConfig.nameMaxLines),
-                                      ),
-                                    });
-
-                                    return (
-                                      <div
-                                        style={{
-                                          position: 'absolute',
-                                          left: `${containerLeft}px`,
-                                          top: `${yName}px`,
-                                          width: `${containerRight - containerLeft}px`,
-                                          fontSize: `${bulkLabelConfig.nameFontPx}px`,
-                                          fontWeight: bulkLabelConfig.nameBold
-                                            ? 700
-                                            : 600,
-                                          lineHeight: `${bulkLabelConfig.nameFontPx + 2}px`,
-                                          overflow: 'hidden',
-                                          display: 'flex',
-                                          flexDirection: 'column',
-                                          alignItems: 'center',
-                                          textAlign: 'center',
-                                          wordBreak: 'break-word',
-                                          maxHeight: `${(bulkLabelConfig.nameFontPx + 2) * bulkLabelConfig.nameMaxLines}px`,
-                                        }}
-                                      >
-                                        {lines.map((line, index) => (
-                                          <div
-                                            key={index}
-                                            style={{
-                                              width: '100%',
-                                              textAlign: 'center',
-                                            }}
-                                          >
-                                            {line}
-                                          </div>
-                                        ))}
-                                      </div>
-                                    );
-                                  })()}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      );
-                    })()}
-                  </div>
+                    // Vista individual interactiva
+                    return (
+                      <InteractiveLabelPreview
+                        product={previewProduct}
+                        config={bulkLabelConfig}
+                        qrDataUrl={bulkPreviewQrDataUrl}
+                        locationText={
+                          loc
+                            ? `${loc.aisle}-${loc.shelf}`
+                            : `${previewProduct.aisle}-${previewProduct.shelf}`
+                        }
+                        warehouseText={loc?.warehouse ?? previewProduct.warehouse ?? ''}
+                        onConfigChange={(updates) => {
+                          setBulkLabelConfig((p) => {
+                            if (!p) return p;
+                            // Hacer merge de offsetsMm si se proporciona
+                            const newOffsetsMm = updates.offsetsMm
+                              ? { ...p.offsetsMm, ...updates.offsetsMm }
+                              : p.offsetsMm;
+                            return {
+                              ...p,
+                              ...updates,
+                              offsetsMm: newOffsetsMm,
+                            };
+                          });
+                        }}
+                        maxWidth={600}
+                        maxHeight={400}
+                      />
+                    );
+                  })()}
                 </div>
               )}
             </div>
@@ -2008,6 +1817,8 @@ export function LabelsQrPage() {
                   const needQr = bulkZipMode === 'qr' || bulkZipMode === 'both';
                   const needLabels = bulkZipMode === 'labels' || bulkZipMode === 'both';
 
+                  // Asegurar que se use bulkLabelConfig si está disponible (con los cambios del usuario)
+                  // Si no está disponible, usar labelConfig como fallback
                   const labelCfg = bulkLabelConfig ?? labelConfig;
                   const widthPx = mmToPx(labelCfg.widthMm, labelCfg.dpi);
                   const heightPx = mmToPx(labelCfg.heightMm, labelCfg.dpi);
@@ -2101,7 +1912,8 @@ export function LabelsQrPage() {
                         warehouse: loc?.warehouse ?? p.warehouse,
                       };
 
-                      const svg = buildLabelSvg(labelProduct, qrDataUrl, labelCfg);
+                      // Para ZIP: no aplicar restricciones MULTI3, usar posicionamiento libre
+                      const svg = buildLabelSvg(labelProduct, qrDataUrl, labelCfg, false);
                       const labelBlob = await svgToPngBlob(
                         svg,
                         widthPx,
@@ -3123,177 +2935,35 @@ export function LabelsQrPage() {
                     )}
                   </div>
 
-                  {labelEnabled && labelPreviewOpen && (
+                  {labelEnabled && labelPreviewOpen && selectedProduct && (
                     <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900">
                       <div className="mb-2 text-xs text-gray-500 dark:text-gray-400">
                         {tt(t, 'labelsQr.label.preview', 'Preview')} (
                         {labelConfig.widthMm}×{labelConfig.heightMm}mm @ {labelConfig.dpi}
                         dpi)
                       </div>
-                      <div className="overflow-auto">
-                        <div
-                          ref={labelRef}
-                          style={{
-                            width: `${labelWidthPx}px`,
-                            height: `${labelHeightPx}px`,
-                            background: '#ffffff',
-                            color: '#000000',
-                            position: 'relative',
-                            boxSizing: 'border-box',
-                            overflow: 'hidden',
-                          }}
-                        >
-                          {/* QR */}
-                          {labelConfig.showQr && !!labelQrDataUrl && (
-                            <div
-                              style={{
-                                position: 'absolute',
-                                left: `${paddingPx + pxOff(labelConfig.offsetsMm.qr.x)}px`,
-                                top: `${paddingPx + pxOff(labelConfig.offsetsMm.qr.y)}px`,
-                                width: `${qrSizePx}px`,
-                                height: `${qrSizePx}px`,
-                                background: '#ffffff',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <img
-                                src={labelQrDataUrl}
-                                alt="QR"
-                                style={{ width: '100%', height: '100%' }}
-                              />
-                            </div>
-                          )}
-
-                          {(() => {
-                            // MOVIMIENTO LIBRE: cada elemento usa directamente su offset, sin depender del QR
-                            const lineH = Math.max(10, labelConfig.nameFontPx);
-
-                            const xCode = paddingPx + pxOff(labelConfig.offsetsMm.code.x);
-                            const yCode = paddingPx + pxOff(labelConfig.offsetsMm.code.y);
-
-                            const xBarcode =
-                              paddingPx + pxOff(labelConfig.offsetsMm.barcode.x);
-                            const yBarcode =
-                              paddingPx +
-                              labelConfig.codeFontPx +
-                              2 +
-                              pxOff(labelConfig.offsetsMm.barcode.y);
-
-                            const xLocation =
-                              paddingPx + pxOff(labelConfig.offsetsMm.location.x);
-                            const yLocation =
-                              paddingPx +
-                              labelConfig.codeFontPx +
-                              2 +
-                              lineH +
-                              pxOff(labelConfig.offsetsMm.location.y);
-
-                            const xWarehouse =
-                              paddingPx + pxOff(labelConfig.offsetsMm.warehouse.x);
-                            const yWarehouse =
-                              paddingPx +
-                              labelConfig.codeFontPx +
-                              2 +
-                              lineH +
-                              lineH +
-                              pxOff(labelConfig.offsetsMm.warehouse.y);
-
-                            const xName = paddingPx + pxOff(labelConfig.offsetsMm.name.x);
-                            const yName =
-                              labelHeightPx -
-                              paddingPx -
-                              labelConfig.nameFontPx +
-                              pxOff(labelConfig.offsetsMm.name.y);
-
-                            return (
-                              <>
-                                {labelConfig.showCode && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: `${xCode}px`,
-                                      top: `${yCode}px`,
-                                      right: `${paddingPx}px`,
-                                      fontSize: labelConfig.codeFontPx,
-                                      fontWeight: 700,
-                                    }}
-                                  >
-                                    {selectedProduct.code}
-                                  </div>
-                                )}
-
-                                {labelConfig.showBarcode && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: `${xBarcode}px`,
-                                      top: `${yBarcode}px`,
-                                      right: `${paddingPx}px`,
-                                      fontSize: labelConfig.barcodeFontPx,
-                                      fontWeight: labelConfig.barcodeBold ? 700 : 400,
-                                    }}
-                                  >
-                                    {selectedProduct.barcode ?? ''}
-                                  </div>
-                                )}
-
-                                {labelConfig.showLocation && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: `${xLocation}px`,
-                                      top: `${yLocation}px`,
-                                      right: `${paddingPx}px`,
-                                      fontSize: labelConfig.locationFontPx,
-                                      fontWeight: labelConfig.locationBold ? 700 : 400,
-                                    }}
-                                  >
-                                    {locationText}
-                                  </div>
-                                )}
-
-                                {labelConfig.showWarehouse && warehouseText && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: `${xWarehouse}px`,
-                                      top: `${yWarehouse}px`,
-                                      right: `${paddingPx}px`,
-                                      fontSize: labelConfig.warehouseFontPx,
-                                      fontWeight: labelConfig.warehouseBold ? 700 : 400,
-                                    }}
-                                  >
-                                    {warehouseText}
-                                  </div>
-                                )}
-
-                                {labelConfig.showName && (
-                                  <div
-                                    style={{
-                                      position: 'absolute',
-                                      left: `${xName}px`,
-                                      top: `${yName}px`,
-                                      right: `${paddingPx}px`,
-                                      fontSize: labelConfig.nameFontPx,
-                                      fontWeight: labelConfig.nameBold ? 700 : 600,
-                                      lineHeight: `${labelConfig.nameFontPx + 2}px`,
-                                      overflow: 'hidden',
-                                      display: '-webkit-box',
-                                      WebkitBoxOrient: 'vertical',
-                                      WebkitLineClamp: labelConfig.nameMaxLines,
-                                      wordBreak: 'break-word',
-                                    }}
-                                  >
-                                    {selectedProduct.name}
-                                  </div>
-                                )}
-                              </>
-                            );
-                          })()}
-                        </div>
-                      </div>
+                      <InteractiveLabelPreview
+                        product={selectedProduct}
+                        config={labelConfig}
+                        qrDataUrl={labelQrDataUrl}
+                        locationText={locationText}
+                        warehouseText={warehouseText}
+                        onConfigChange={(updates) => {
+                          // Actualizar labelConfig con los cambios
+                          setLabelConfig((prev) => {
+                            const newOffsetsMm = updates.offsetsMm
+                              ? { ...prev.offsetsMm, ...updates.offsetsMm }
+                              : prev.offsetsMm;
+                            return {
+                              ...prev,
+                              ...updates,
+                              offsetsMm: newOffsetsMm,
+                            };
+                          });
+                        }}
+                        maxWidth={400}
+                        maxHeight={300}
+                      />
                     </div>
                   )}
                 </div>
@@ -3913,7 +3583,8 @@ export function LabelsQrPage() {
                 const widthPx = mmToPx(cfg.widthMm, cfg.dpi);
                 const heightPx = mmToPx(cfg.heightMm, cfg.dpi);
                 const scale = qualityScale(labelDialogQuality, cfg.dpi);
-                const svg = buildLabelSvg(labelProduct, qrDataUrl, cfg);
+                // Para etiqueta individual: usar posicionamiento libre (sin restricciones MULTI3)
+                const svg = buildLabelSvg(labelProduct, qrDataUrl, cfg, false);
                 const pngBlob = await svgToPngBlob(svg, widthPx, heightPx, scale);
 
                 const locKey =

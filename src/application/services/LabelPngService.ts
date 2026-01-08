@@ -164,11 +164,17 @@ export function wrapTextToLines(opts: {
 /**
  * Construye un SVG de etiqueta (plantilla base) que luego puede convertirse a PNG.
  * `qrDataUrl` debe ser un dataURL local (evita CORS al rasterizar).
+ *
+ * @param product - Producto para generar la etiqueta
+ * @param qrDataUrl - DataURL del QR code (null si no se muestra)
+ * @param cfg - Configuración de la etiqueta
+ * @param applyMulti3Restrictions - Si es true, aplica restricciones de posicionamiento para MULTI3 estándar (solo para PDF). Si es false, usa posicionamiento libre (para ZIP).
  */
 export function buildLabelSvg(
   product: Product,
   qrDataUrl: string | null,
   cfg: LabelConfig,
+  applyMulti3Restrictions: boolean = true,
 ): string {
   const widthPx = mmToPx(cfg.widthMm, cfg.dpi);
   const heightPx = mmToPx(cfg.heightMm, cfg.dpi);
@@ -197,16 +203,17 @@ export function buildLabelSvg(
   const texts: string[] = [];
 
   // Verificar si las dimensiones son las estándar MULTI3 (70x25.4mm)
-  // Solo aplicar restricciones de posicionamiento en este caso para el PDF
+  // Solo aplicar restricciones de posicionamiento si applyMulti3Restrictions es true (para PDF)
   const isStandardMulti3 =
     Math.abs(cfg.widthMm - 70) < 0.1 && Math.abs(cfg.heightMm - 25.4) < 0.1;
+  const shouldApplyRestrictions = applyMulti3Restrictions && isStandardMulti3;
 
-  // Código: aplicar restricciones solo si es MULTI3 estándar
+  // Código: aplicar restricciones solo si shouldApplyRestrictions es true
   if (cfg.showCode) {
     let codeX = xCode;
     let codeAnchor = 'start';
 
-    if (isStandardMulti3 && cfg.showName) {
+    if (shouldApplyRestrictions && cfg.showName) {
       // Para MULTI3 estándar: centrar código con nombre, no tocar QR
       const qrRightEdge = cfg.showQr ? xQr + qrSizePx : 0;
       const marginBetweenQrAndText = mmToPx(1, cfg.dpi);
@@ -257,8 +264,8 @@ export function buildLabelSvg(
     let availableWidth: number;
     let centerX: number;
 
-    if (isStandardMulti3) {
-      // Para MULTI3 estándar: no tocar QR, centrado con código
+    if (shouldApplyRestrictions) {
+      // Para MULTI3 estándar (solo PDF): no tocar QR, centrado con código
       const qrRightEdge = cfg.showQr ? xQr + qrSizePx : 0;
       const marginBetweenQrAndText = mmToPx(1, cfg.dpi);
       containerLeft = Math.max(xName, qrRightEdge + marginBetweenQrAndText);

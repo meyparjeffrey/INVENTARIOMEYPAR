@@ -247,11 +247,11 @@ export function InteractiveLabelPreview({
           if (isResizing.startsWith('code')) {
             newFontSize = Math.max(8, Math.min(60, resizeStart.fontSize + deltaPx));
           } else if (isResizing.startsWith('name')) {
-            newFontSize = Math.max(8, Math.min(40, resizeStart.fontSize + deltaPx));
+            newFontSize = Math.max(8, Math.min(60, resizeStart.fontSize + deltaPx));
           } else if (isResizing.startsWith('location')) {
-            newFontSize = Math.max(6, Math.min(30, resizeStart.fontSize + deltaPx));
+            newFontSize = Math.max(6, Math.min(60, resizeStart.fontSize + deltaPx));
           } else if (isResizing.startsWith('warehouse')) {
-            newFontSize = Math.max(6, Math.min(30, resizeStart.fontSize + deltaPx));
+            newFontSize = Math.max(6, Math.min(60, resizeStart.fontSize + deltaPx));
           } else {
             newFontSize = resizeStart.fontSize;
           }
