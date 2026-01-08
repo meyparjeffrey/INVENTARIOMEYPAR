@@ -260,6 +260,9 @@ export function LabelsQrPage() {
   const [bulkPdfPreviewQrDataUrl, setBulkPdfPreviewQrDataUrl] = React.useState<
     string | null
   >(null);
+  const [bulkPdfPreviewMode, setBulkPdfPreviewMode] = React.useState<
+    'layout' | 'individual'
+  >('layout');
 
   const [qrPreviewUrl, setQrPreviewUrl] = React.useState<string | null>(null);
   const [qrPreviewOpen, setQrPreviewOpen] = React.useState(true);
@@ -291,7 +294,7 @@ export function LabelsQrPage() {
     locationFontPx: 10,
     warehouseFontPx: 10,
     nameFontPx: 31.3,
-    nameMaxLines: 2,
+    nameMaxLines: 3,
     barcodeBold: false,
     locationBold: false,
     warehouseBold: false,
@@ -302,7 +305,7 @@ export function LabelsQrPage() {
       barcode: { x: 1, y: 2.5 },
       location: { x: 1, y: 5 },
       warehouse: { x: 1, y: 7 },
-      name: { x: 20.35, y: 11.68 },
+      name: { x: 20.35, y: 9.68 },
     },
   });
 
@@ -2531,18 +2534,44 @@ export function LabelsQrPage() {
                 </div>
               </div>
 
-              {/* Preview Interactivo */}
+              {/* Preview del Layout A4 Completo o Individual */}
               {bulkPreviewProduct && bulkPdfLabelConfig && (
                 <div className="rounded-lg border border-gray-200 p-4 dark:border-gray-700">
-                  <div className="mb-3 text-sm font-semibold text-gray-900 dark:text-gray-50">
-                    {tt(t, 'labelsQr.label.preview', 'Preview')}
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="text-sm font-semibold text-gray-900 dark:text-gray-50">
+                      {tt(t, 'labelsQr.label.preview', 'Preview')}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        variant={bulkPdfPreviewMode === 'layout' ? 'primary' : 'outline'}
+                        size="sm"
+                        onClick={() => setBulkPdfPreviewMode('layout')}
+                      >
+                        Layout A4
+                      </Button>
+                      <Button
+                        variant={
+                          bulkPdfPreviewMode === 'individual' ? 'primary' : 'outline'
+                        }
+                        size="sm"
+                        onClick={() => setBulkPdfPreviewMode('individual')}
+                      >
+                        Individual
+                      </Button>
+                    </div>
                   </div>
                   <p className="mb-2 text-xs text-gray-500 dark:text-gray-400">
-                    {tt(
-                      t,
-                      'labelsQr.pdfDialog.previewHint',
-                      'Haz clic y arrastra el QR, código o nombre para moverlos. Haz clic en el QR y arrastra las esquinas para cambiar su tamaño.',
-                    )}
+                    {bulkPdfPreviewMode === 'layout'
+                      ? tt(
+                          t,
+                          'labelsQr.pdfDialog.previewHint',
+                          'Vista previa del layout completo que se generará en el PDF. Márgenes: 9mm superior e inferior.',
+                        )
+                      : tt(
+                          t,
+                          'labelsQr.pdfDialog.previewHintIndividual',
+                          'Vista previa de una etiqueta individual. Haz clic y arrastra el QR, código o nombre para moverlos.',
+                        )}
                   </p>
                   {(() => {
                     const loc = productLocations.find(
@@ -2554,30 +2583,187 @@ export function LabelsQrPage() {
                       shelf: loc?.shelf ?? bulkPreviewProduct.shelf,
                       warehouse: loc?.warehouse ?? bulkPreviewProduct.warehouse,
                     };
+
+                    if (bulkPdfPreviewMode === 'individual') {
+                      // Vista individual usando el mismo SVG que se genera en el PDF
+                      // Esto asegura que se vea exactamente igual al PDF generado
+                      // Usar dimensiones fijas de 70x25.4mm (MULTI3 estándar) para la vista previa
+                      const previewConfig: LabelConfig = {
+                        ...bulkPdfLabelConfig,
+                        widthMm: 70,
+                        heightMm: 25.4,
+                      };
+                      const labelSvg = buildLabelSvg(
+                        previewProduct,
+                        bulkPdfPreviewQrDataUrl,
+                        previewConfig,
+                      );
+
+                      // Escalar para la vista previa usando dimensiones fijas 70x25.4mm
+                      const LABEL_WIDTH_MM = 70;
+                      const LABEL_HEIGHT_MM = 25.4;
+                      const labelWidthPx = mmToPx(LABEL_WIDTH_MM, bulkPdfLabelConfig.dpi);
+                      const labelHeightPx = mmToPx(
+                        LABEL_HEIGHT_MM,
+                        bulkPdfLabelConfig.dpi,
+                      );
+                      // Escalar para que quepa en el diálogo
+                      const maxPreviewWidth = 600;
+                      const maxPreviewHeight = 400;
+                      const scaleX = maxPreviewWidth / labelWidthPx;
+                      const scaleY = maxPreviewHeight / labelHeightPx;
+                      const scale = Math.min(scaleX, scaleY, 1); // No ampliar más del 100%
+                      const scaledWidth = labelWidthPx * scale;
+                      const scaledHeight = labelHeightPx * scale;
+
+                      return (
+                        <div className="flex justify-center overflow-auto rounded border border-gray-300 bg-white p-2 dark:border-gray-600 dark:bg-gray-800">
+                          <div
+                            style={{
+                              width: `${scaledWidth}px`,
+                              height: `${scaledHeight}px`,
+                              position: 'relative',
+                              background: '#ffffff',
+                              border: '1px solid #ccc',
+                            }}
+                          >
+                            <img
+                              src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(labelSvg)}`}
+                              alt="Label Preview"
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'contain',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Vista del layout A4 completo
+                    // Constantes del layout A4 MULTI3 (igual que en LabelPdfService)
+                    const A4_WIDTH_MM = 210;
+                    const A4_HEIGHT_MM = 297;
+                    const TOP_MARGIN_MM = 9;
+                    const BOTTOM_MARGIN_MM = 9;
+                    const LABEL_WIDTH_MM = 70;
+                    const LABEL_HEIGHT_MM = 25.4;
+                    const LABELS_PER_ROW = 3;
+                    const LABELS_PER_COLUMN = 11;
+                    const USABLE_WIDTH_MM = A4_WIDTH_MM;
+                    const USABLE_HEIGHT_MM =
+                      A4_HEIGHT_MM - TOP_MARGIN_MM - BOTTOM_MARGIN_MM;
+
+                    // Calcular espaciado (igual que en LabelPdfService)
+                    const totalWidthNeeded = LABELS_PER_ROW * LABEL_WIDTH_MM;
+                    const totalHeightNeeded = LABELS_PER_COLUMN * LABEL_HEIGHT_MM;
+                    const spacingX =
+                      totalWidthNeeded < USABLE_WIDTH_MM
+                        ? (USABLE_WIDTH_MM - totalWidthNeeded) / (LABELS_PER_ROW + 1)
+                        : 0;
+                    const spacingY =
+                      totalHeightNeeded < USABLE_HEIGHT_MM
+                        ? (USABLE_HEIGHT_MM - totalHeightNeeded) / (LABELS_PER_COLUMN + 1)
+                        : 0;
+
+                    // Escalar para la vista previa (usar DPI de pantalla ~96)
+                    const screenDpi = 96;
+                    const scale = 0.3; // Escala para que quepa en el diálogo
+                    const a4WidthPx = (A4_WIDTH_MM * screenDpi) / 25.4;
+                    const a4HeightPx = (A4_HEIGHT_MM * screenDpi) / 25.4;
+                    const scaledWidth = a4WidthPx * scale;
+                    const scaledHeight = a4HeightPx * scale;
+
+                    // Generar SVG de una etiqueta de ejemplo
+                    const labelSvg = buildLabelSvg(
+                      previewProduct,
+                      bulkPdfPreviewQrDataUrl,
+                      bulkPdfLabelConfig,
+                    );
+
                     return (
-                      <InteractiveLabelPreview
-                        product={previewProduct}
-                        config={bulkPdfLabelConfig}
-                        qrDataUrl={bulkPdfPreviewQrDataUrl}
-                        locationText={
-                          loc
-                            ? `${loc.aisle}-${loc.shelf}`
-                            : `${previewProduct.aisle}-${previewProduct.shelf}`
-                        }
-                        warehouseText={loc?.warehouse ?? previewProduct.warehouse ?? ''}
-                        onConfigChange={(updates) => {
-                          setBulkPdfLabelConfig((p) => {
-                            if (!p) return p;
-                            return {
-                              ...p,
-                              ...updates,
-                              offsetsMm: updates.offsetsMm ?? p.offsetsMm,
-                            };
-                          });
-                        }}
-                        maxWidth={600}
-                        maxHeight={400}
-                      />
+                      <div className="flex justify-center overflow-auto rounded border border-gray-300 bg-white p-2 dark:border-gray-600 dark:bg-gray-800">
+                        <div
+                          style={{
+                            width: `${scaledWidth}px`,
+                            height: `${scaledHeight}px`,
+                            position: 'relative',
+                            background: '#ffffff',
+                            border: '1px solid #ccc',
+                          }}
+                        >
+                          {/* Márgenes visuales */}
+                          <div
+                            style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              right: 0,
+                              height: `${(TOP_MARGIN_MM * screenDpi * scale) / 25.4}px`,
+                              background: '#f0f0f0',
+                              opacity: 0.3,
+                            }}
+                          />
+                          <div
+                            style={{
+                              position: 'absolute',
+                              bottom: 0,
+                              left: 0,
+                              right: 0,
+                              height: `${(BOTTOM_MARGIN_MM * screenDpi * scale) / 25.4}px`,
+                              background: '#f0f0f0',
+                              opacity: 0.3,
+                            }}
+                          />
+                          {/* Grid de 33 etiquetas */}
+                          {Array.from({ length: LABELS_PER_COLUMN }).map((_, row) =>
+                            Array.from({ length: LABELS_PER_ROW }).map((_, col) => {
+                              const x =
+                                ((spacingX + col * (LABEL_WIDTH_MM + spacingX)) *
+                                  (screenDpi * scale)) /
+                                25.4;
+                              const y =
+                                ((TOP_MARGIN_MM +
+                                  spacingY +
+                                  row * (LABEL_HEIGHT_MM + spacingY)) *
+                                  screenDpi *
+                                  scale) /
+                                25.4;
+                              const labelWidthPx =
+                                (LABEL_WIDTH_MM * screenDpi * scale) / 25.4;
+                              const labelHeightPx =
+                                (LABEL_HEIGHT_MM * screenDpi * scale) / 25.4;
+
+                              return (
+                                <div
+                                  key={`${row}-${col}`}
+                                  style={{
+                                    position: 'absolute',
+                                    left: `${x}px`,
+                                    top: `${y}px`,
+                                    width: `${labelWidthPx}px`,
+                                    height: `${labelHeightPx}px`,
+                                    border: '0.5px solid #ddd',
+                                    background: '#ffffff',
+                                    overflow: 'hidden',
+                                  }}
+                                >
+                                  <img
+                                    src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(labelSvg)}`}
+                                    alt="Label"
+                                    style={{
+                                      width: '100%',
+                                      height: '100%',
+                                      objectFit: 'contain',
+                                    }}
+                                  />
+                                </div>
+                              );
+                            }),
+                          )}
+                        </div>
+                      </div>
                     );
                   })()}
                 </div>
