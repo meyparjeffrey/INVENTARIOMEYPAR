@@ -23,6 +23,7 @@ import { MovementsHelpModal } from '../components/movements/MovementsHelpModal';
 import { useLanguage } from '../context/LanguageContext';
 import { useMovements } from '../hooks/useMovements';
 import { useProducts } from '../hooks/useProducts';
+import { useRealtime } from '../hooks/useRealtime';
 import type {
   MovementType,
   MovementReasonCategory,
@@ -159,6 +160,20 @@ export function MovementsPage() {
     refresh,
     recordMovement,
   } = useMovements();
+
+  // Suscripcin en tiempo real para actualizar la tabla automǭticamente
+  useRealtime({
+    table: 'inventory_movements',
+    onInsert: () => {
+      refresh();
+    },
+    onUpdate: () => {
+      refresh();
+    },
+    onDelete: () => {
+      refresh();
+    },
+  });
 
   // Cargar productos para el formulario
   const { getAll: getAllProducts } = useProducts();

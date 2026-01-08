@@ -214,6 +214,13 @@ export function ActivityFeed({ activities = [] }: ActivityFeedProps) {
     },
   });
 
+  useRealtime({
+    table: 'inventory_movements',
+    onInsert: () => {
+      loadActivities();
+    },
+  });
+
   const displayActivities = activities.length > 0 ? activities : realActivities;
 
   return (
