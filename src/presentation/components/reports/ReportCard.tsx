@@ -7,7 +7,7 @@
  * @module @presentation/components/reports/ReportCard
  */
 
-import { Download, Eye, Calendar } from 'lucide-react';
+import { Eye, Calendar } from 'lucide-react';
 import * as React from 'react';
 import { Button } from '../ui/Button';
 import { useLanguage } from '../../context/LanguageContext';
@@ -34,8 +34,6 @@ export interface ReportCardProps {
   accentColor?: 'blue' | 'green' | 'amber' | 'purple' | 'red' | 'indigo';
   /** Callback al hacer clic en Ver */
   onView: () => void;
-  /** Callback al hacer clic en Exportar */
-  onExport: () => void;
   /** Callback al hacer clic en Programar */
   onSchedule?: () => void;
   /** Si está cargando */
@@ -73,7 +71,6 @@ export function ReportCard({
   icon,
   accentColor = 'blue',
   onView,
-  onExport,
   onSchedule,
   loading = false,
 }: ReportCardProps) {
@@ -123,16 +120,6 @@ export function ReportCard({
           >
             <Eye className="mr-2 h-4 w-4" />
             {t('reports.view')}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onExport}
-            disabled={loading}
-            className="flex-1"
-          >
-            <Download className="mr-2 h-4 w-4" />
-            {t('reports.export')}
           </Button>
           {onSchedule && (
             <Button

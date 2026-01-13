@@ -62,7 +62,7 @@ export interface ReportFilters {
  * KPIs de un informe.
  */
 export interface ReportKPIs {
-  [key: string]: number | string | null;
+  [key: string]: number | string | Record<string, number> | null;
 }
 
 /**

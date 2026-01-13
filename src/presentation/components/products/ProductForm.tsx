@@ -181,7 +181,7 @@ export function ProductForm({
     React.useState<string>('0');
   const [stockMinInput, setStockMinInput] = React.useState<string>('');
 
-  const repositoryRef = React.useRef(new SupabaseProductRepository(supabaseClient));
+  const repositoryRef = React.useRef(new SupabaseProductRepository());
   // Determinar warehouse inicial basado en el producto existente
   const getInitialWarehouse = (): 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA' => {
     if (!product) return 'MEYPAR'; // Por defecto MEYPAR para productos nuevos

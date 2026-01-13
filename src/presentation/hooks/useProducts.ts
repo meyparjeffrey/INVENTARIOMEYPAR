@@ -45,10 +45,10 @@ export function useProducts() {
   });
 
   const repositoryRef = React.useRef<ProductRepository>(
-    new SupabaseProductRepository(supabaseClient)
+    new SupabaseProductRepository()
   );
   const movementRepositoryRef = React.useRef(
-    new SupabaseInventoryMovementRepository(supabaseClient)
+    new SupabaseInventoryMovementRepository()
   );
   const movementServiceRef = React.useRef(
     new MovementService(movementRepositoryRef.current, repositoryRef.current)
@@ -69,32 +69,32 @@ export function useProducts() {
     };
 
     return {
-      id: row.id,
-      code: row.code,
-      barcode: row.barcode,
-      name: row.name,
-      description: row.description,
-      category: row.category,
-      stockCurrent: row.stock_current,
-      stockMin: row.stock_min,
-      stockMax: row.stock_max,
-      aisle: row.aisle,
-      shelf: row.shelf,
-      locationExtra: row.location_extra,
-      costPrice: Number(row.cost_price),
+      id: row.id as string,
+      code: row.code as string,
+      barcode: (row.barcode as string | null) ?? null,
+      name: row.name as string,
+      description: (row.description as string | null) ?? null,
+      category: (row.category as string | null) ?? null,
+      stockCurrent: Number(row.stock_current) || 0,
+      stockMin: Number(row.stock_min) || 0,
+      stockMax: (row.stock_max ? Number(row.stock_max) : null) ?? null,
+      aisle: (row.aisle as string | null) || '',
+      shelf: (row.shelf as string | null) || '',
+      locationExtra: (row.location_extra as string | null) ?? null,
+      costPrice: Number(row.cost_price) || 0,
       salePrice: row.sale_price ? Number(row.sale_price) : null,
-      purchaseUrl: row.purchase_url,
-      imageUrl: row.image_url,
-      isActive: row.is_active,
-      isBatchTracked: row.is_batch_tracked,
-      unitOfMeasure: row.unit_of_measure,
+      purchaseUrl: (row.purchase_url as string | null) ?? null,
+      imageUrl: (row.image_url as string | null) ?? null,
+      isActive: Boolean(row.is_active),
+      isBatchTracked: Boolean(row.is_batch_tracked),
+      unitOfMeasure: (row.unit_of_measure as string | null) ?? null,
       weightKg: row.weight_kg ? Number(row.weight_kg) : null,
-      dimensionsCm: parseDimensions(row.dimensions_cm),
-      notes: row.notes,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      createdBy: row.created_by,
-      updatedBy: row.updated_by
+      dimensionsCm: parseDimensions(row.dimensions_cm as string | null),
+      notes: (row.notes as string | null) ?? null,
+      createdAt: row.created_at as string,
+      updatedAt: row.updated_at as string,
+      createdBy: row.created_by as string,
+      updatedBy: (row.updated_by as string | null) ?? null
     };
   }, []);
 

@@ -89,14 +89,14 @@ export function SettingsPage() {
     }
   };
 
+  const hasChanges = React.useMemo(() => {
+    if (!authContext?.settings || !localSettings) return false;
+    return JSON.stringify(localSettings) !== JSON.stringify(authContext.settings);
+  }, [authContext?.settings, localSettings]);
+
   if (!authContext || !localSettings) {
     return null;
   }
-
-  const hasChanges = React.useMemo(() => {
-    if (!authContext.settings) return false;
-    return JSON.stringify(localSettings) !== JSON.stringify(authContext.settings);
-  }, [authContext.settings, localSettings]);
 
   return (
     <motion.div
@@ -169,7 +169,7 @@ export function SettingsPage() {
             settings={localSettings}
             profileName={`${authContext.profile.firstName} ${authContext.profile.lastName}`}
             profileInitials={authContext.profile.initials}
-            profileAvatarUrl={authContext.profile.avatarUrl}
+            profileAvatarUrl={authContext.profile.avatarUrl ?? null}
             onChange={handleSettingsChange}
           />
         </motion.div>

@@ -2,7 +2,6 @@ import type { PermissionKey, UserProfile } from "@domain/entities";
 import type { IAiService } from "./interfaces/IAiService";
 import type { AiResponse } from "@infrastructure/ai/types";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { getAiResponse } from "@infrastructure/ai/responseTranslations";
 import { AiChatService } from "./AiChatService";
 
 type LanguageCode = "es-ES" | "ca-ES";
@@ -90,7 +89,7 @@ export class GeminiAiService implements IAiService {
     // Si Gemini no está disponible, usar servicio local
     if (!this.isAvailable()) {
       console.warn("[GeminiAiService] ❌ Gemini no disponible, usando servicio local como fallback");
-      return this.fallbackService.processMessage(userMessage, userPermissions, userRole, language);
+      return this.fallbackService.processMessage(userMessage, userPermissions, userRole);
     }
     
     console.log("[GeminiAiService] ✅ Gemini disponible, procesando mensaje con Gemini API");
@@ -121,8 +120,7 @@ export class GeminiAiService implements IAiService {
         const localResponse = await this.fallbackService.processMessage(
           userMessage,
           userPermissions,
-          userRole,
-          language
+          userRole
         );
         
         // Si el servicio local tiene información útil, usarla como contexto
@@ -186,7 +184,7 @@ export class GeminiAiService implements IAiService {
     console.error("[GeminiAiService] ❌ Todos los modelos fallaron");
     console.error("[GeminiAiService] Último error:", lastError?.message);
     console.warn("[GeminiAiService] Usando servicio local como fallback debido al error");
-    return this.fallbackService.processMessage(userMessage, userPermissions, userRole, language);
+    return this.fallbackService.processMessage(userMessage, userPermissions, userRole);
   }
   
   /**

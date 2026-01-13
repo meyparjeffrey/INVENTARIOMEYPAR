@@ -142,7 +142,10 @@ export function GlobalSearch({
 
         // Agregar lotes
         batches?.forEach((b) => {
-          const product = b.products as { name: string } | null;
+          const productRaw = b.products;
+          const product = Array.isArray(productRaw)
+            ? productRaw[0]
+            : productRaw as { name: string } | null;
           searchResults.push({
             id: b.id,
             type: 'batch',

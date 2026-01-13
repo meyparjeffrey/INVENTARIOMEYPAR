@@ -5,7 +5,7 @@ import { useNavigate } from "react-router-dom";
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
 import { useProducts } from "../hooks/useProducts";
 import { ProductForm } from "../components/products/ProductForm";
-import type { CreateProductInput } from "@domain/repositories/ProductRepository";
+import type { CreateProductInput, UpdateProductInput } from "@domain/repositories/ProductRepository";
 import { useToast } from "../components/ui/Toast";
 
 /**
@@ -17,7 +17,7 @@ export function ProductNewPage() {
   const { success, error: showError } = useToast();
 
   const handleSubmit = React.useCallback(
-    async (data: CreateProductInput) => {
+    async (data: CreateProductInput | UpdateProductInput) => {
       try {
         // Obtener el usuario actual desde Supabase
         const {
@@ -31,7 +31,7 @@ export function ProductNewPage() {
         }
 
         const createData: CreateProductInput = {
-          ...data,
+          ...(data as CreateProductInput),
           createdBy: user.id
         };
 

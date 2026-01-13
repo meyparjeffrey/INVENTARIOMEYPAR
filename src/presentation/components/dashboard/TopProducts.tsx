@@ -66,7 +66,11 @@ export function TopProducts({ period: initialPeriod = 'month' }: TopProductsProp
       const productMap = new Map<string, TopProduct>();
 
       movements?.forEach((movement) => {
-        const product = movement.products as { code: string; name: string } | null;
+        const productRaw = movement.products;
+        const product = Array.isArray(productRaw)
+          ? productRaw[0]
+          : productRaw as { code: string; name: string } | null;
+          
         if (!product) return;
 
         const productId = movement.product_id as string;

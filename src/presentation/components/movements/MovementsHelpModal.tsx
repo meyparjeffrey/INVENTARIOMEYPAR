@@ -87,7 +87,7 @@ export function MovementsHelpModal({ isOpen, onClose }: MovementsHelpModalProps)
       isOpen={isOpen}
       onClose={onClose}
       title={t('movements.help.title') || 'Ayuda: Tipos de Movimientos'}
-      className="max-w-3xl"
+      size="full"
     >
       <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
         <div className="rounded-lg bg-blue-50 p-4 dark:bg-blue-900/20">

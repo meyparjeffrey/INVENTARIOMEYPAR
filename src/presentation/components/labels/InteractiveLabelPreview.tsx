@@ -323,15 +323,16 @@ export function InteractiveLabelPreview({
     if (isDragging) {
       cursor = 'grabbing';
     } else if (isResizing) {
+      const resizingStr = isResizing as string;
       if (
-        isResizing === 'code' ||
-        isResizing === 'name' ||
-        isResizing === 'location' ||
-        isResizing === 'warehouse' ||
-        isResizing.startsWith('code-') ||
-        isResizing.startsWith('name-') ||
-        isResizing.startsWith('location-') ||
-        isResizing.startsWith('warehouse-')
+        resizingStr === 'code' ||
+        resizingStr === 'name' ||
+        resizingStr === 'location' ||
+        resizingStr === 'warehouse' ||
+        resizingStr.startsWith('code-') ||
+        resizingStr.startsWith('name-') ||
+        resizingStr.startsWith('location-') ||
+        resizingStr.startsWith('warehouse-')
       ) {
         cursor = 'ns-resize';
       } else {

@@ -8,3 +8,4 @@ export * from './InventoryMovement';
 export * from './Ai';
 export * from './Audit';
 export * from './Settings';
+export * from './Report';

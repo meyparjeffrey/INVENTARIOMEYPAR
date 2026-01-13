@@ -301,10 +301,7 @@ export function MovementsPage() {
     // Preparar datos
     const excelData = movementsToExport.map((movement) => {
       const date = new Date(movement.movementDate);
-      const userName =
-        movement.userFirstName || movement.userLastName
-          ? `${movement.userFirstName || ''} ${movement.userLastName || ''}`.trim()
-          : '';
+      const userName = ''; // Usuario no disponible en MovementWithProduct
 
       const warehouseLabel =
         movement.warehouse === 'MEYPAR'
@@ -335,8 +332,8 @@ export function MovementsPage() {
                         movement.comments?.includes('Descripción:')
                       ? 'Descripción'
                       : t(`movements.type.${movement.movementType}`),
-        Producto: movement.product?.name || movement.productName || '',
-        'Código Producto': movement.product?.code || movement.productCode || '',
+        Producto: movement.product?.name || '',
+        'Código Producto': movement.product?.code || '',
         Almacén: warehouseLabel,
         Cantidad: movement.quantity,
         'Stock Antes': movement.quantityBefore,

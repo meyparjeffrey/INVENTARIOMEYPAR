@@ -41,7 +41,7 @@ function getLocationKey(p: AlarmProductLite) {
 
 export function CurrentAlarmsCard({ products }: { products: AlarmProductLite[] }) {
   const { t, language } = useLanguage();
-  const [groupBy, setGroupBy] = React.useState<AlarmGroupBy>('category');
+  const [groupBy, setGroupBy] = React.useState<AlarmGroupBy>('warehouse');
 
   const inAlarm = React.useMemo(() => {
     return (products ?? []).filter((p) => p.stockCurrent <= p.stockMin);

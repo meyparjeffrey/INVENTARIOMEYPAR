@@ -217,17 +217,6 @@ export function SearchResultsPage() {
               loading={loading}
               onView={handleView}
               onEdit={handleEdit}
-              columns={[
-                "code",
-                "name",
-                "category",
-                "stockCurrent",
-                "stockMin",
-                "location",
-                "supplierCode",
-                "status",
-                "actions"
-              ]}
             />
 
             {/* Paginación */}

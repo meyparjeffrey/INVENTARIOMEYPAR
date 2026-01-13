@@ -12,16 +12,12 @@ import { SupabaseProductRepository } from '@infrastructure/repositories/Supabase
 import { supabaseClient } from '@infrastructure/supabase/supabaseClient';
 import { MovementService } from '@application/services/MovementService';
 
-const movementRepository = new SupabaseInventoryMovementRepository(supabaseClient);
-const productRepository = new SupabaseProductRepository(supabaseClient);
+const movementRepository = new SupabaseInventoryMovementRepository();
+const productRepository = new SupabaseProductRepository();
 const movementService = new MovementService(movementRepository, productRepository);
 
 interface MovementWithProduct extends InventoryMovement {
   product?: Product;
-  userFirstName?: string | null;
-  userLastName?: string | null;
-  productCode?: string | null;
-  productName?: string | null;
   productStockCurrent?: number | null;
 }
 
@@ -96,19 +92,11 @@ export function useMovements(): UseMovementsReturn {
       const enrichedMovements: MovementWithProduct[] = result.data.map((m) => ({
         ...m,
         product: productsMap[m.productId],
-        userFirstName: m.userFirstName,
-        userLastName: m.userLastName,
-        productCode: m.productCode,
-        productName: m.productName,
-        productStockCurrent:
-          productsMap[m.productId]?.stockCurrent ??
-          (m as InventoryMovement & { productStockCurrent?: number | null })
-            .productStockCurrent ??
-          null,
+        productStockCurrent: productsMap[m.productId]?.stockCurrent ?? null,
       }));
 
       setMovements(enrichedMovements);
-      setTotalCount(result.totalCount);
+      setTotalCount(result.total);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Error al cargar movimientos';
       setError(message);

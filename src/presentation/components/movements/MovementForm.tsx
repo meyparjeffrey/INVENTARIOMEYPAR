@@ -68,7 +68,7 @@ export function MovementForm({
   const { t } = useLanguage();
   const [loading, setLoading] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const repositoryRef = React.useRef(new SupabaseProductRepository(supabaseClient));
+  const repositoryRef = React.useRef(new SupabaseProductRepository());
 
   // Form state
   const [movementType, setMovementType] = React.useState<MovementType>(

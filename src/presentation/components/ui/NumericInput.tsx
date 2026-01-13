@@ -44,7 +44,7 @@ export interface NumericInputProps extends Omit<
 export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps>(
   ({ value, onChange, min, max, ...props }, ref) => {
     const [inputValue, setInputValue] = React.useState<string>(String(value));
-    const inputRef = React.useRef<HTMLInputElement>(null);
+    const inputRef = React.useRef<HTMLInputElement | null>(null);
     const combinedRef = React.useCallback(
       (node: HTMLInputElement | null) => {
         inputRef.current = node;

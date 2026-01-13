@@ -139,10 +139,11 @@ export function ActivityFeed({ activities = [] }: ActivityFeedProps) {
       if (movementsError) throw movementsError;
 
       const movementActivities: Activity[] = (movements ?? []).map((movement) => {
-        const profile = movement.profiles as {
-          first_name: string;
-          last_name: string;
-        } | null;
+        const profileRaw = movement.profiles;
+        const profile = Array.isArray(profileRaw) 
+          ? profileRaw[0] 
+          : profileRaw as { first_name: string; last_name: string } | null;
+          
         const userName = profile
           ? `${profile.first_name} ${profile.last_name}`
           : t('dashboard.activity.userFallback');

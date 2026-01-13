@@ -539,7 +539,7 @@ export function ProfilePage() {
       </motion.div>
 
       {/* Dialog de confirmación de cancelación */}
-      <Dialog open={showCancelDialog} onOpenChange={setShowCancelDialog}>
+      <Dialog isOpen={showCancelDialog} onClose={() => setShowCancelDialog(false)}>
         <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>{t("profile.cancelDialog.title")}</DialogTitle>
@@ -559,7 +559,7 @@ export function ProfilePage() {
       </Dialog>
 
       {/* Dialog de confirmación para eliminar avatar */}
-      <Dialog open={showDeleteAvatarDialog} onOpenChange={setShowDeleteAvatarDialog}>
+      <Dialog isOpen={showDeleteAvatarDialog} onClose={() => setShowDeleteAvatarDialog(false)}>
         <DialogContent size="sm">
           <DialogHeader>
             <DialogTitle>{t("profile.deleteAvatar.title")}</DialogTitle>

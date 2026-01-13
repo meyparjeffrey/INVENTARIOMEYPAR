@@ -64,7 +64,8 @@ export function ReportTable({ data, loading = false }: ReportTableProps) {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800">
-            {data.rows.map((row, rowIndex) => (
+            {/* Limitar visualización a 100 filas para rendimiento, pero exportar todas */}
+            {data.rows.slice(0, 100).map((row, rowIndex) => (
               <tr
                 key={rowIndex}
                 className="transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
@@ -83,6 +84,19 @@ export function ReportTable({ data, loading = false }: ReportTableProps) {
                 ))}
               </tr>
             ))}
+            {/* Mensaje si hay más filas */}
+            {data.rows.length > 100 && (
+              <tr>
+                <td
+                  colSpan={data.headers.length}
+                  className="px-4 py-3 text-center text-sm italic text-gray-500 dark:text-gray-400"
+                >
+                  {language === 'ca-ES'
+                    ? `Mostrant 100 de ${data.rows.length} registres. Exporta l'informe per veure tots els registres.`
+                    : `Mostrando 100 de ${data.rows.length} registros. Exporta el informe para ver todos los registros.`}
+                </td>
+              </tr>
+            )}
           </tbody>
           {data.totals && (
             <tfoot className="bg-gray-100 dark:bg-gray-900">

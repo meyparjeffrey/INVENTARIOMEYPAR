@@ -473,8 +473,6 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'common.view': 'Ver',
     'common.export': 'Exportar',
     'common.close': 'Cerrar',
-    'common.back': 'Volver',
-    'common.refresh': 'Actualizar',
     'common.noResults': 'No se encontraron resultados',
     'common.comingSoon': 'Próximamente...',
     'common.unsavedChanges': '¿Descartar los cambios sin guardar?',
@@ -483,6 +481,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'common.unitsAbbrev': 'uds',
     'common.previous': 'Anterior',
     'common.next': 'Siguiente',
+    'common.today': 'Hoy',
     'common.page': 'Página',
     // Navegación
     'nav.dashboard': 'Dashboard',
@@ -1779,6 +1778,7 @@ const translations: Record<LanguageCode, Record<string, string>> = {
     'common.unitsAbbrev': 'uds',
     'common.previous': 'Anterior',
     'common.next': 'Següent',
+    'common.today': 'Avui',
     'common.page': 'Pàgina',
     // Navegació
     'nav.dashboard': 'Dashboard',

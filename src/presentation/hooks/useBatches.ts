@@ -5,7 +5,7 @@ import { SupabaseProductRepository } from "@infrastructure/repositories/Supabase
 import { supabaseClient } from "@infrastructure/supabase/supabaseClient";
 import { useRealtime } from "./useRealtime";
 
-const productRepository = new SupabaseProductRepository(supabaseClient);
+const productRepository = new SupabaseProductRepository();
 
 interface BatchWithProduct extends ProductBatch {
   product?: Product;
@@ -79,7 +79,7 @@ export function useBatches(): UseBatchesReturn {
       }));
 
       setBatches(enrichedBatches);
-      setTotalCount(result.totalCount);
+      setTotalCount(result.total);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error al cargar lotes";
       setError(message);
@@ -91,29 +91,29 @@ export function useBatches(): UseBatchesReturn {
   }, [filters, page, pageSize, loadProductsMap]);
 
   // Función auxiliar para mapear desde row de Supabase
-  const mapBatchFromRow = React.useCallback((row: any): ProductBatch => {
+  const mapBatchFromRow = React.useCallback((row: Record<string, unknown>): ProductBatch => {
     return {
-      id: row.id,
-      productId: row.product_id,
-      supplierId: row.supplier_id ?? undefined,
-      batchCode: row.batch_code,
-      batchBarcode: row.batch_barcode ?? undefined,
-      quantityTotal: row.quantity_total,
-      quantityAvailable: row.quantity_available,
-      quantityReserved: row.quantity_reserved ?? 0,
-      defectiveQty: row.defective_qty ?? 0,
+      id: row.id as string,
+      productId: row.product_id as string,
+      supplierId: (row.supplier_id as string | null) ?? undefined,
+      batchCode: row.batch_code as string,
+      batchBarcode: (row.batch_barcode as string | null) ?? undefined,
+      quantityTotal: Number(row.quantity_total) || 0,
+      quantityAvailable: Number(row.quantity_available) || 0,
+      quantityReserved: Number(row.quantity_reserved) || 0,
+      defectiveQty: Number(row.defective_qty) || 0,
       status: row.status as BatchStatus,
-      blockedReason: row.blocked_reason ?? undefined,
-      qualityScore: row.quality_score ?? 1.0,
-      receivedAt: row.received_at,
-      expiryDate: row.expiry_date ?? undefined,
-      manufactureDate: row.manufacture_date ?? undefined,
-      costPerUnit: row.cost_per_unit ?? undefined,
-      locationOverride: row.location_override ?? undefined,
-      notes: row.notes ?? undefined,
-      createdAt: row.created_at,
-      updatedAt: row.updated_at,
-      createdBy: row.created_by ?? undefined
+      blockedReason: (row.blocked_reason as string | null) ?? undefined,
+      qualityScore: Number(row.quality_score) || 1.0,
+      receivedAt: row.received_at as string,
+      expiryDate: (row.expiry_date as string | null) ?? undefined,
+      manufactureDate: (row.manufacture_date as string | null) ?? undefined,
+      costPerUnit: (row.cost_per_unit ? Number(row.cost_per_unit) : null) ?? undefined,
+      locationOverride: (row.location_override as string | null) ?? undefined,
+      notes: (row.notes as string | null) ?? undefined,
+      createdAt: row.created_at as string,
+      updatedAt: row.updated_at as string,
+      createdBy: (row.created_by as string | null) ?? undefined
     };
   }, []);
 
@@ -123,15 +123,15 @@ export function useBatches(): UseBatchesReturn {
   }, [loadBatches]);
 
   // Sincronización en tiempo real con Supabase
-  useRealtime<any>({
+  useRealtime<Record<string, unknown>>({
     table: "product_batches",
     onInsert: async (newBatch) => {
       // Cuando se crea un nuevo lote en Supabase, cargarlo con su producto
       try {
-        const product = await productRepository.findById(newBatch.product_id);
+        const product = await productRepository.findById(newBatch.product_id as string);
         const enrichedBatch: BatchWithProduct = {
           ...mapBatchFromRow(newBatch),
-          product
+          product: product || undefined
         };
         setBatches((prev) => {
           // Evitar duplicados
@@ -151,10 +151,10 @@ export function useBatches(): UseBatchesReturn {
     onUpdate: async (updatedBatch) => {
       // Cuando se actualiza un lote en Supabase, actualizarlo en la lista
       try {
-        const product = await productRepository.findById(updatedBatch.product_id);
+        const product = await productRepository.findById(updatedBatch.product_id as string);
         const enrichedBatch: BatchWithProduct = {
           ...mapBatchFromRow(updatedBatch),
-          product
+          product: product || undefined
         };
         setBatches((prev) =>
           prev.map((b) => (b.id === enrichedBatch.id ? enrichedBatch : b))

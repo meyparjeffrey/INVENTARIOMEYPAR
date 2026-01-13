@@ -24,6 +24,13 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  ScatterChart,
+  Scatter,
+  RadarChart,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+  Radar,
 } from 'recharts';
 import type { ChartConfig } from '@domain/entities/Report';
 import { useLanguage } from '../../context/LanguageContext';
@@ -137,7 +144,9 @@ export function ReportCharts({ charts }: ReportChartsProps) {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) =>
+                  `${name}: ${percent ? (percent * 100).toFixed(0) : 0}%`
+                }
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
@@ -149,6 +158,84 @@ export function ReportCharts({ charts }: ReportChartsProps) {
               <Tooltip />
               <Legend />
             </PieChart>
+          </ResponsiveContainer>
+        );
+
+      case 'scatter':
+        return (
+          <ResponsiveContainer width="100%" height={300} key={index}>
+            <ScatterChart
+              data={data.datasets[0]?.data.map((val, i) => ({
+                name: data.labels[i] || '',
+                value: val,
+                x: i,
+                y: val,
+              }))}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                className="stroke-gray-200 dark:stroke-gray-700"
+              />
+              <XAxis dataKey="name" className="text-xs" />
+              <YAxis className="text-xs" />
+              <Tooltip />
+              <Legend />
+              <Scatter dataKey="y" fill={COLORS[0]} />
+            </ScatterChart>
+          </ResponsiveContainer>
+        );
+
+      case 'radar':
+        return (
+          <ResponsiveContainer width="100%" height={300} key={index}>
+            <RadarChart
+              data={data.labels.map((label, i) => ({
+                subject: label,
+                value: data.datasets[0]?.data[i] || 0,
+                fullMark: 100,
+              }))}
+            >
+              <PolarGrid />
+              <PolarAngleAxis dataKey="subject" className="text-xs" />
+              <PolarRadiusAxis angle={90} domain={[0, 100]} />
+              <Radar
+                name="Valor"
+                dataKey="value"
+                stroke={COLORS[0]}
+                fill={COLORS[0]}
+                fillOpacity={0.6}
+              />
+              <Tooltip />
+              <Legend />
+            </RadarChart>
+          </ResponsiveContainer>
+        );
+
+      case 'heatmap':
+        // Heatmap simplificado usando BarChart
+        return (
+          <ResponsiveContainer width="100%" height={300} key={index}>
+            <BarChart
+              data={data.datasets[0]?.data.map((val, i) => ({
+                name: data.labels[i] || '',
+                value: val,
+              }))}
+            >
+              <CartesianGrid
+                strokeDasharray="3 3"
+                className="stroke-gray-200 dark:stroke-gray-700"
+              />
+              <XAxis dataKey="name" className="text-xs" />
+              <YAxis className="text-xs" />
+              <Tooltip />
+              <Legend />
+              <Bar
+                dataKey="value"
+                fill={COLORS[0]}
+                radius={[4, 4, 0, 0]}
+                fillOpacity={0.8}
+              />
+            </BarChart>
           </ResponsiveContainer>
         );
 

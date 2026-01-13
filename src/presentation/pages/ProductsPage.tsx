@@ -3,6 +3,7 @@ import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import * as XLSX from 'xlsx';
 import type { Product } from '@domain/entities';
+import type { ProductFilters as DomainProductFilters } from '@domain/repositories/ProductRepository';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useProducts } from '../hooks/useProducts';
@@ -591,7 +592,7 @@ export function ProductsPage() {
 
     try {
       // Construir filtros actuales para obtener TODOS los productos filtrados
-      const currentFilters: ProductFiltersState = {
+      const currentFilters: DomainProductFilters = {
         search: searchTerm || undefined,
         includeInactive: showInactive,
         lowStock: showLowStock || advancedFilters.lowStock || undefined,
@@ -602,6 +603,7 @@ export function ProductsPage() {
         priceMin: advancedFilters.priceMin,
         priceMax: advancedFilters.priceMax,
         supplierCode: advancedFilters.supplierCode,
+        warehouse: advancedFilters.warehouse,
         aisle: advancedFilters.aisle,
         shelf: advancedFilters.shelf,
         stockMinMin: advancedFilters.stockMinMin,
@@ -683,15 +685,8 @@ export function ProductsPage() {
           'Stock Mínimo': product.stockMin ?? 0,
           Almacén: warehouses,
           Ubicación: locations,
-          'Precio Coste (€)':
-            typeof product.costPrice === 'number'
-              ? product.costPrice
-              : parseFloat(product.costPrice?.toString() || '0'),
-          'Precio Venta (€)': product.salePrice
-            ? typeof product.salePrice === 'number'
-              ? product.salePrice
-              : parseFloat(product.salePrice.toString())
-            : '',
+          'Precio Coste (€)': typeof product.costPrice === 'number' ? product.costPrice : 0,
+          'Precio Venta (€)': typeof product.salePrice === 'number' ? product.salePrice : '',
           'Cód.Provedor': product.supplierCode || '',
         };
       });
@@ -846,8 +841,9 @@ export function ProductsPage() {
       try {
         // Si includeFilters es false, exportar TODOS los productos sin filtros
         // Si includeFilters es true, aplicar los filtros actuales
-        const filtersToApply: ProductFiltersState | undefined = includeFilters
+        const filtersToApply: DomainProductFilters | undefined = includeFilters
           ? {
+              search: searchTerm || undefined,
               includeInactive: showInactive,
               lowStock: showLowStock || advancedFilters.lowStock || undefined,
               category: advancedFilters.category,
@@ -858,6 +854,15 @@ export function ProductsPage() {
               priceMax: advancedFilters.priceMax,
               supplierCode: advancedFilters.supplierCode,
               warehouse: advancedFilters.warehouse,
+              aisle: advancedFilters.aisle,
+              shelf: advancedFilters.shelf,
+              stockMinMin: advancedFilters.stockMinMin,
+              stockMinMax: advancedFilters.stockMinMax,
+              batchStatus: advancedFilters.batchStatus,
+              lastModifiedFrom: advancedFilters.dateFrom,
+              lastModifiedTo: advancedFilters.dateTo,
+              createdAtFrom: advancedFilters.createdAtFrom,
+              createdAtTo: advancedFilters.createdAtTo,
             }
           : undefined;
 
@@ -972,16 +977,8 @@ export function ProductsPage() {
                     ? `${p.aisle}${p.shelf}`
                     : '-';
           },
-          costPrice: (p) =>
-            typeof p.costPrice === 'number'
-              ? p.costPrice
-              : parseFloat(p.costPrice?.toString() || '0'),
-          salePrice: (p) =>
-            p.salePrice
-              ? typeof p.salePrice === 'number'
-                ? p.salePrice
-                : parseFloat(p.salePrice.toString())
-              : '',
+          costPrice: (p) => typeof p.costPrice === 'number' ? p.costPrice : 0,
+          salePrice: (p) => typeof p.salePrice === 'number' ? p.salePrice : '',
           supplierCode: (p) => p.supplierCode || '', // Se mapeará a "Cód.Provedor" en el label
           isBatchTracked: (p) => (p.isBatchTracked ? 'Sí' : 'No'),
           unitOfMeasure: (p) => p.unitOfMeasure || '',
@@ -1221,7 +1218,7 @@ export function ProductsPage() {
           {/* Toggle de vista */}
           <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-white p-1 dark:border-gray-700 dark:bg-gray-800">
             <Button
-              variant={viewMode === 'table' ? 'default' : 'ghost'}
+              variant={viewMode === 'table' ? 'primary' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('table')}
               title={t('products.view.table')}
@@ -1230,7 +1227,7 @@ export function ProductsPage() {
               <Table2 className="h-4 w-4" />
             </Button>
             <Button
-              variant={viewMode === 'grid' ? 'default' : 'ghost'}
+              variant={viewMode === 'grid' ? 'primary' : 'ghost'}
               size="sm"
               onClick={() => setViewMode('grid')}
               title={t('products.view.grid')}
@@ -1294,10 +1291,6 @@ export function ProductsPage() {
               <ProductFilters
                 filters={advancedFilters}
                 onFiltersChange={setAdvancedFilters}
-                onClear={() => {
-                  setAdvancedFilters({});
-                  setShowLowStock(false);
-                }}
               />
             </div>
             <label className="flex items-center gap-2 text-sm whitespace-nowrap">
@@ -1629,7 +1622,7 @@ export function ProductsPage() {
           totalCount={pagination.total}
           onSelectAll={async () => {
             // Obtener TODOS los productos filtrados (no solo los de la página actual)
-            const currentFilters: ProductFiltersState = {
+            const currentFilters: DomainProductFilters = {
               search: searchTerm || undefined,
               includeInactive: showInactive,
               lowStock: showLowStock || advancedFilters.lowStock || undefined,

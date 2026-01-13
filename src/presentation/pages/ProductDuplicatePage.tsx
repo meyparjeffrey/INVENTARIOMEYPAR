@@ -7,7 +7,7 @@ import { ProductForm } from "../components/products/ProductForm";
 import { Button } from "../components/ui/Button";
 import { useLanguage } from "../context/LanguageContext";
 import { useAuth } from "../context/AuthContext";
-import type { CreateProductInput } from "@domain/repositories/ProductRepository";
+import type { CreateProductInput, UpdateProductInput } from "@domain/repositories/ProductRepository";
 
 /**
  * Página para duplicar un producto existente.
@@ -52,7 +52,7 @@ export function ProductDuplicatePage() {
     loadProduct();
   }, [id, getById]);
 
-  const handleSubmit = async (data: CreateProductInput) => {
+  const handleSubmit = async (data: CreateProductInput | UpdateProductInput) => {
     if (!authContext?.profile?.id) {
       setError("No hay usuario autenticado");
       return;
@@ -64,7 +64,7 @@ export function ProductDuplicatePage() {
 
       // Añadir createdBy al data
       const productData: CreateProductInput = {
-        ...data,
+        ...(data as CreateProductInput),
         createdBy: authContext.profile.id
       };
 
