@@ -84,12 +84,17 @@ const LabelsQrPage = React.lazy(() =>
   import('../pages/LabelsQrPage').then((module) => ({ default: module.LabelsQrPage })),
 );
 
+const ReportsPage = React.lazy(() =>
+  import('../pages/ReportsPage').then((module) => ({ default: module.ReportsPage })),
+);
+
 // Lazy load de páginas
 const DashboardPage = React.lazy(() =>
   import('../pages/DashboardPage').then((m) => ({ default: m.DashboardPage })),
 );
 
-// Placeholders para otras páginas
+// Placeholders para otras páginas (no usado actualmente, pero se mantiene para futuras páginas)
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const PlaceholderPage = ({ title }: { title: string }) => (
   <div className="flex h-full items-center justify-center">
     <div className="text-center">
@@ -299,7 +304,17 @@ const routes: RouteObject[] = [
       },
       {
         path: '/reports',
-        element: <PlaceholderPage title="Reportes" />,
+        element: (
+          <React.Suspense
+            fallback={
+              <div className="flex h-full items-center justify-center">
+                <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary-600 border-r-transparent" />
+              </div>
+            }
+          >
+            <ReportsPage />
+          </React.Suspense>
+        ),
       },
       {
         path: '/profile',

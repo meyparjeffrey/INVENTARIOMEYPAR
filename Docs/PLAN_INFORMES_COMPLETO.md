@@ -4,6 +4,14 @@
 
 Crear una página de informes completa, profesional y funcional que impresione a los jefes, con análisis avanzados, visualizaciones interactivas, exportaciones múltiples y un diseño moderno que mantenga la coherencia con el resto de la aplicación.
 
+### 🌍 MULTIIDIOMA (CRÍTICO)
+
+- **TODO** el texto visible debe estar traducido a ESPAÑOL y CATALÁN
+- Las traducciones se añaden en `src/presentation/context/LanguageContext.tsx`
+- Usar el hook `useLanguage()` con `t(key)` para todas las traducciones
+- Idioma por defecto: **CATALÁN (ca-ES)**
+- Formato de claves: `reports.*` para todas las traducciones de informes
+
 ---
 
 ## 📋 ANÁLISIS DEL ESTADO ACTUAL
