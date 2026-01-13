@@ -1,10 +1,11 @@
-import type { Product, UUID } from "@domain/entities";
+import type { Product, UUID } from '@domain/entities';
 import type {
   CreateProductInput,
+  ProductFilters,
   ProductRepository,
-  UpdateProductInput
-} from "@domain/repositories/ProductRepository";
-import type { MovementService } from "./MovementService";
+  UpdateProductInput,
+} from '@domain/repositories/ProductRepository';
+import type { MovementService } from './MovementService';
 
 /**
  * Servicio de lógica de negocio para productos.
@@ -13,7 +14,7 @@ import type { MovementService } from "./MovementService";
 export class ProductService {
   constructor(
     private repository: ProductRepository,
-    private movementService?: MovementService
+    private movementService?: MovementService,
   ) {}
 
   /**
@@ -26,10 +27,7 @@ export class ProductService {
   /**
    * Valida que el código no esté duplicado.
    */
-  async validateCodeUnique(
-    code: string,
-    excludeId?: UUID
-  ): Promise<boolean> {
+  async validateCodeUnique(code: string, excludeId?: UUID): Promise<boolean> {
     const existing = await this.repository.findByCodeOrBarcode(code);
     if (!existing) return true;
     if (excludeId && existing.id === excludeId) return true;
@@ -39,10 +37,7 @@ export class ProductService {
   /**
    * Valida que el barcode no esté duplicado.
    */
-  async validateBarcodeUnique(
-    barcode: string,
-    excludeId?: UUID
-  ): Promise<boolean> {
+  async validateBarcodeUnique(barcode: string, excludeId?: UUID): Promise<boolean> {
     if (!barcode) return true;
     const existing = await this.repository.findByCodeOrBarcode(barcode);
     if (!existing) return true;
@@ -57,31 +52,31 @@ export class ProductService {
     // Validar código único
     const codeUnique = await this.validateCodeUnique(input.code);
     if (!codeUnique) {
-      return "Este código ya existe. Elige otro.";
+      return 'Este código ya existe. Elige otro.';
     }
 
     // Validar barcode único si se proporciona
     if (input.barcode) {
       const barcodeUnique = await this.validateBarcodeUnique(input.barcode);
       if (!barcodeUnique) {
-        return "Este código de barras ya está en uso.";
+        return 'Este código de barras ya está en uso.';
       }
     }
 
     // Validar stock
     if (input.stockMin < 0) {
-      return "El stock mínimo no puede ser negativo.";
+      return 'El stock mínimo no puede ser negativo.';
     }
 
     if (input.stockMax !== null && input.stockMax !== undefined) {
       if (input.stockMax < input.stockMin) {
-        return "El stock máximo no puede ser menor que el mínimo.";
+        return 'El stock máximo no puede ser menor que el mínimo.';
       }
     }
 
     // Validar precios
     if (input.costPrice < 0) {
-      return "El precio de coste no puede ser negativo.";
+      return 'El precio de coste no puede ser negativo.';
     }
 
     if (
@@ -89,14 +84,14 @@ export class ProductService {
       input.salePrice !== undefined &&
       input.salePrice < input.costPrice
     ) {
-      return "El precio de venta no puede ser menor que el de coste.";
+      return 'El precio de venta no puede ser menor que el de coste.';
     }
 
     // Validar dimensiones si se proporcionan
     if (input.dimensionsCm) {
       const { length, width, height } = input.dimensionsCm;
       if (length <= 0 || width <= 0 || height <= 0) {
-        return "Las dimensiones deben ser números positivos.";
+        return 'Las dimensiones deben ser números positivos.';
       }
     }
 
@@ -106,15 +101,12 @@ export class ProductService {
   /**
    * Valida los datos de entrada para actualizar un producto.
    */
-  async validateUpdate(
-    id: UUID,
-    input: UpdateProductInput
-  ): Promise<string | null> {
+  async validateUpdate(id: UUID, input: UpdateProductInput): Promise<string | null> {
     // Validar código único si se cambia
     if (input.code !== undefined) {
       const codeUnique = await this.validateCodeUnique(input.code, id);
       if (!codeUnique) {
-        return "Este código ya existe. Elige otro.";
+        return 'Este código ya existe. Elige otro.';
       }
     }
 
@@ -122,14 +114,14 @@ export class ProductService {
     if (input.barcode !== undefined && input.barcode) {
       const barcodeUnique = await this.validateBarcodeUnique(input.barcode, id);
       if (!barcodeUnique) {
-        return "Este código de barras ya está en uso.";
+        return 'Este código de barras ya está en uso.';
       }
     }
 
     // Validar stock si se actualiza
     const product = await this.repository.findById(id);
     if (!product) {
-      return "Producto no encontrado.";
+      return 'Producto no encontrado.';
     }
 
     const stockMin = input.stockMin ?? product.stockMin;
@@ -137,7 +129,7 @@ export class ProductService {
 
     if (stockMax !== null && stockMax !== undefined) {
       if (stockMax < stockMin) {
-        return "El stock máximo no puede ser menor que el mínimo.";
+        return 'El stock máximo no puede ser menor que el mínimo.';
       }
     }
 
@@ -147,7 +139,7 @@ export class ProductService {
 
     if (salePrice !== null && salePrice !== undefined) {
       if (salePrice < costPrice) {
-        return "El precio de venta no puede ser menor que el de coste.";
+        return 'El precio de venta no puede ser menor que el de coste.';
       }
     }
 
@@ -179,7 +171,7 @@ export class ProductService {
     // Obtener producto actual para comparar cambios
     const productBefore = await this.repository.findById(id);
     if (!productBefore) {
-      throw new Error("Producto no encontrado.");
+      throw new Error('Producto no encontrado.');
     }
 
     // Actualizar el producto
@@ -192,13 +184,13 @@ export class ProductService {
       } catch (err) {
         // No bloqueamos la actualización si falla el registro de movimientos
         // eslint-disable-next-line no-console
-        console.error("Error en recordAutomaticMovements:", err);
+        console.error('Error en recordAutomaticMovements:', err);
       }
     } else {
       // eslint-disable-next-line no-console
-      console.warn("No se registran movimientos automáticos:", {
+      console.warn('No se registran movimientos automáticos:', {
         hasMovementService: !!this.movementService,
-        hasUserId: !!userId
+        hasUserId: !!userId,
       });
     }
 
@@ -212,36 +204,67 @@ export class ProductService {
     productBefore: Product,
     productAfter: Product,
     input: UpdateProductInput,
-    userId: UUID
+    userId: UUID,
   ): Promise<void> {
     if (!this.movementService) {
       // eslint-disable-next-line no-console
-      console.warn("MovementService no disponible");
+      console.warn('MovementService no disponible');
       return;
     }
 
     // eslint-disable-next-line no-console
-    console.log("🔍 Registrando movimientos automáticos para producto:", productBefore.id);
+    console.log(
+      '🔍 Registrando movimientos automáticos para producto:',
+      productBefore.id,
+    );
     // eslint-disable-next-line no-console
-    console.log("   userId:", userId);
+    console.log('   userId:', userId);
     // eslint-disable-next-line no-console
-    console.log("   hasMovementService:", !!this.movementService);
+    console.log('   hasMovementService:', !!this.movementService);
     // eslint-disable-next-line no-console
-    console.log("   input.stockCurrent:", input.stockCurrent, "vs productBefore.stockCurrent:", productBefore.stockCurrent);
+    console.log(
+      '   input.stockCurrent:',
+      input.stockCurrent,
+      'vs productBefore.stockCurrent:',
+      productBefore.stockCurrent,
+    );
     // eslint-disable-next-line no-console
-    console.log("   input.name:", input.name, "vs productBefore.name:", productBefore.name);
+    console.log(
+      '   input.name:',
+      input.name,
+      'vs productBefore.name:',
+      productBefore.name,
+    );
     // eslint-disable-next-line no-console
-    console.log("   input.code:", input.code, "vs productBefore.code:", productBefore.code);
+    console.log(
+      '   input.code:',
+      input.code,
+      'vs productBefore.code:',
+      productBefore.code,
+    );
     // eslint-disable-next-line no-console
-    console.log("   input.supplierCode:", input.supplierCode, "vs productBefore.supplierCode:", productBefore.supplierCode);
+    console.log(
+      '   input.supplierCode:',
+      input.supplierCode,
+      'vs productBefore.supplierCode:',
+      productBefore.supplierCode,
+    );
     // eslint-disable-next-line no-console
-    console.log("   input.barcode:", input.barcode, "vs productBefore.barcode:", productBefore.barcode);
+    console.log(
+      '   input.barcode:',
+      input.barcode,
+      'vs productBefore.barcode:',
+      productBefore.barcode,
+    );
 
     const changes: string[] = [];
     let stockChange: { before: number; after: number; diff: number } | null = null;
 
     // Detectar cambio de stock
-    if (input.stockCurrent !== undefined && input.stockCurrent !== productBefore.stockCurrent) {
+    if (
+      input.stockCurrent !== undefined &&
+      input.stockCurrent !== productBefore.stockCurrent
+    ) {
       const stockDiff = input.stockCurrent - productBefore.stockCurrent;
       const absDiff = Math.abs(stockDiff);
 
@@ -249,7 +272,7 @@ export class ProductService {
         stockChange = {
           before: productBefore.stockCurrent,
           after: input.stockCurrent,
-          diff: absDiff
+          diff: absDiff,
         };
         changes.push(`Stock: ${productBefore.stockCurrent} → ${input.stockCurrent}`);
       }
@@ -257,56 +280,90 @@ export class ProductService {
 
     // Función helper para normalizar valores null/undefined
     const normalizeValue = (val: string | null | undefined): string => {
-      return val === null || val === undefined ? "" : String(val);
+      return val === null || val === undefined ? '' : String(val);
     };
 
     // Detectar otros cambios importantes (normalizando null/undefined)
-    if (input.name !== undefined && normalizeValue(input.name) !== normalizeValue(productBefore.name)) {
-      changes.push(`Nombre: "${productBefore.name || "N/A"}" → "${input.name || "N/A"}"`);
+    if (
+      input.name !== undefined &&
+      normalizeValue(input.name) !== normalizeValue(productBefore.name)
+    ) {
+      changes.push(`Nombre: "${productBefore.name || 'N/A'}" → "${input.name || 'N/A'}"`);
     }
 
-    if (input.code !== undefined && normalizeValue(input.code) !== normalizeValue(productBefore.code)) {
-      changes.push(`Código: "${productBefore.code || "N/A"}" → "${input.code || "N/A"}"`);
+    if (
+      input.code !== undefined &&
+      normalizeValue(input.code) !== normalizeValue(productBefore.code)
+    ) {
+      changes.push(`Código: "${productBefore.code || 'N/A'}" → "${input.code || 'N/A'}"`);
     }
 
-    if (input.aisle !== undefined && normalizeValue(input.aisle) !== normalizeValue(productBefore.aisle)) {
-      changes.push(`Pasillo: "${productBefore.aisle || "N/A"}" → "${input.aisle || "N/A"}"`);
+    if (
+      input.aisle !== undefined &&
+      normalizeValue(input.aisle) !== normalizeValue(productBefore.aisle)
+    ) {
+      changes.push(
+        `Pasillo: "${productBefore.aisle || 'N/A'}" → "${input.aisle || 'N/A'}"`,
+      );
     }
 
-    if (input.shelf !== undefined && normalizeValue(input.shelf) !== normalizeValue(productBefore.shelf)) {
-      changes.push(`Estante: "${productBefore.shelf || "N/A"}" → "${input.shelf || "N/A"}"`);
+    if (
+      input.shelf !== undefined &&
+      normalizeValue(input.shelf) !== normalizeValue(productBefore.shelf)
+    ) {
+      changes.push(
+        `Estante: "${productBefore.shelf || 'N/A'}" → "${input.shelf || 'N/A'}"`,
+      );
     }
 
-    if (input.locationExtra !== undefined && normalizeValue(input.locationExtra) !== normalizeValue(productBefore.locationExtra)) {
-      changes.push(`Ubicación extra: "${productBefore.locationExtra || "N/A"}" → "${input.locationExtra || "N/A"}"`);
+    if (
+      input.locationExtra !== undefined &&
+      normalizeValue(input.locationExtra) !== normalizeValue(productBefore.locationExtra)
+    ) {
+      changes.push(
+        `Ubicación extra: "${productBefore.locationExtra || 'N/A'}" → "${input.locationExtra || 'N/A'}"`,
+      );
     }
 
-    if (input.supplierCode !== undefined && normalizeValue(input.supplierCode) !== normalizeValue(productBefore.supplierCode)) {
-      changes.push(`Código proveedor: "${productBefore.supplierCode || "N/A"}" → "${input.supplierCode || "N/A"}"`);
+    if (
+      input.supplierCode !== undefined &&
+      normalizeValue(input.supplierCode) !== normalizeValue(productBefore.supplierCode)
+    ) {
+      changes.push(
+        `Código proveedor: "${productBefore.supplierCode || 'N/A'}" → "${input.supplierCode || 'N/A'}"`,
+      );
     }
 
-    if (input.barcode !== undefined && normalizeValue(input.barcode) !== normalizeValue(productBefore.barcode)) {
-      changes.push(`Código de barras: "${productBefore.barcode || "N/A"}" → "${input.barcode || "N/A"}"`);
+    if (
+      input.barcode !== undefined &&
+      normalizeValue(input.barcode) !== normalizeValue(productBefore.barcode)
+    ) {
+      changes.push(
+        `Código de barras: "${productBefore.barcode || 'N/A'}" → "${input.barcode || 'N/A'}"`,
+      );
     }
 
     // Si hay cambios, crear UN SOLO movimiento que combine todo
     if (changes.length > 0) {
       try {
         const quantity = stockChange ? stockChange.diff : 0;
-        const quantityBefore = stockChange ? stockChange.before : productBefore.stockCurrent;
+        const quantityBefore = stockChange
+          ? stockChange.before
+          : productBefore.stockCurrent;
         const quantityAfter = stockChange ? stockChange.after : productAfter.stockCurrent;
 
         // Construir el motivo principal
-        let requestReason = "Ajuste automático: ";
+        let requestReason = 'Ajuste automático: ';
         if (stockChange) {
-          requestReason += stockChange.diff > 0
-            ? `Stock aumentado de ${stockChange.before} a ${stockChange.after}`
-            : `Stock disminuido de ${stockChange.before} a ${stockChange.after}`;
+          requestReason +=
+            stockChange.diff > 0
+              ? `Stock aumentado de ${stockChange.before} a ${stockChange.after}`
+              : `Stock disminuido de ${stockChange.before} a ${stockChange.after}`;
           if (changes.length > 1) {
-            requestReason += " y otros cambios";
+            requestReason += ' y otros cambios';
           }
         } else {
-          requestReason += "Cambios en propiedades del producto";
+          requestReason += 'Cambios en propiedades del producto';
         }
 
         // Construir comentarios detallados con todos los cambios
@@ -314,49 +371,49 @@ export class ProductService {
         if (stockChange) {
           commentsParts.push(`Stock: ${stockChange.before} → ${stockChange.after}`);
         }
-        const otherChanges = changes.filter(c => !c.startsWith("Stock:"));
+        const otherChanges = changes.filter((c) => !c.startsWith('Stock:'));
         if (otherChanges.length > 0) {
           commentsParts.push(...otherChanges);
         }
-        const comments = commentsParts.join("; ");
+        const comments = commentsParts.join('; ');
 
         await this.movementService.recordMovementOnly({
           productId: productBefore.id,
           userId,
-          movementType: "ADJUSTMENT",
+          movementType: 'ADJUSTMENT',
           quantity,
           quantityBefore,
           quantityAfter,
           requestReason,
-          reasonCategory: "CORRECTION",
-          comments
+          reasonCategory: 'CORRECTION',
+          comments,
         });
         // eslint-disable-next-line no-console
-        console.log("✅ Movimiento único registrado exitosamente con todos los cambios");
+        console.log('✅ Movimiento único registrado exitosamente con todos los cambios');
         // eslint-disable-next-line no-console
-        console.log("   Cambios incluidos:", changes.length);
+        console.log('   Cambios incluidos:', changes.length);
       } catch (err) {
         // eslint-disable-next-line no-console
-        console.error("❌ Error registrando movimiento automático:", err);
+        console.error('❌ Error registrando movimiento automático:', err);
         // eslint-disable-next-line no-console
         if (err instanceof Error) {
-          console.error("   Mensaje:", err.message);
-          console.error("   Stack:", err.stack);
+          console.error('   Mensaje:', err.message);
+          console.error('   Stack:', err.stack);
         }
       }
     } else {
       // eslint-disable-next-line no-console
-      console.log("   ℹ️  No se detectaron cambios relevantes para registrar movimiento");
+      console.log('   ℹ️  No se detectaron cambios relevantes para registrar movimiento');
     }
   }
 
   /**
    * Elimina físicamente un producto de la base de datos.
-   * 
+   *
    * IMPORTANTE: Esta es una eliminación permanente e irreversible.
    * El producto se eliminará completamente de Supabase junto con sus relaciones
    * según las políticas CASCADE configuradas en la base de datos.
-   * 
+   *
    * @param {UUID} id - ID del producto a eliminar
    * @returns {Promise<Product>} El producto eliminado (para mostrar información en el diálogo)
    * @throws {Error} Si el producto no existe
@@ -365,7 +422,7 @@ export class ProductService {
     // Verificar que el producto existe
     const product = await this.repository.findById(id);
     if (!product) {
-      throw new Error("Producto no encontrado.");
+      throw new Error('Producto no encontrado.');
     }
 
     // Eliminación física permanente (sin restricción de stock)
@@ -373,4 +430,3 @@ export class ProductService {
     return product;
   }
 }
-

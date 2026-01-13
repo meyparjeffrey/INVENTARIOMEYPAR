@@ -3,7 +3,46 @@
  * Define todas las opciones y sub-opciones disponibles
  */
 
-import type { AiResponse } from "./types";
+import type { AiResponse } from './types';
+
+/**
+ * Función para traducir un label del menú según el idioma
+ */
+export function translateMenuLabel(
+  id: string,
+  t: (key: string, params?: Record<string, string>) => string,
+): string {
+  try {
+    const translationKey = `ai.chat.menu.${id}`;
+    const translated = t(translationKey);
+    // Si la traducción no existe, devolver el ID como fallback
+    return translated !== translationKey ? translated : id;
+  } catch (error) {
+    console.warn(`Error traduciendo menú ${id}:`, error);
+    return id;
+  }
+}
+
+/**
+ * Traduce recursivamente un menú según el idioma
+ */
+export function translateMenuStructure(
+  menu: MenuOption[],
+  t: (key: string, params?: Record<string, string>) => string,
+): MenuOption[] {
+  try {
+    return menu.map((option) => ({
+      ...option,
+      label: translateMenuLabel(option.id, t),
+      subOptions: option.subOptions
+        ? translateMenuStructure(option.subOptions, t)
+        : undefined,
+    }));
+  } catch (error) {
+    console.warn('Error traduciendo estructura de menú:', error);
+    return menu; // Retornar menú sin traducir en caso de error
+  }
+}
 
 export interface MenuOption {
   id: string;
@@ -21,307 +60,307 @@ export interface MenuOption {
  */
 export const CHAT_MENU_STRUCTURE: MenuOption[] = [
   {
-    id: "products",
-    label: "Productos",
-    emoji: "📦",
+    id: 'products',
+    label: 'Productos',
+    emoji: '📦',
     subOptions: [
       {
-        id: "products-create",
-        label: "Crear Producto",
-        emoji: "➕",
-        action: "how_to:create_product",
-        path: "/products/new"
+        id: 'products-create',
+        label: 'Crear Producto',
+        emoji: '➕',
+        action: 'how_to:create_product',
+        path: '/products/new',
       },
       {
-        id: "products-list",
-        label: "Ver Productos",
-        emoji: "📋",
-        path: "/products"
+        id: 'products-list',
+        label: 'Ver Productos',
+        emoji: '📋',
+        path: '/products',
       },
       {
-        id: "products-stock",
-        label: "Consultar Stock",
-        emoji: "📊",
-        action: "query:stock",
+        id: 'products-stock',
+        label: 'Consultar Stock',
+        emoji: '📊',
+        action: 'query:stock',
         subOptions: [
           {
-            id: "products-stock-alarm",
-            label: "Productos en Alarma",
-            emoji: "⚠️",
-            query: "alarma"
+            id: 'products-stock-alarm',
+            label: 'Productos en Alarma',
+            emoji: '⚠️',
+            query: 'alarma',
           },
           {
-            id: "products-stock-by-code",
-            label: "Por Código",
-            emoji: "🔍",
-            action: "query:stock_by_code"
+            id: 'products-stock-by-code',
+            label: 'Por Código',
+            emoji: '🔍',
+            action: 'query:stock_by_code',
           },
           {
-            id: "products-stock-low",
-            label: "Stock Bajo",
-            emoji: "📉",
-            query: "stock bajo"
-          }
-        ]
+            id: 'products-stock-low',
+            label: 'Stock Bajo',
+            emoji: '📉',
+            query: 'stock bajo',
+          },
+        ],
       },
       {
-        id: "products-filter",
-        label: "Filtrar Productos",
-        emoji: "🔎",
-        action: "how_to:filter_products"
+        id: 'products-filter',
+        label: 'Filtrar Productos',
+        emoji: '🔎',
+        action: 'how_to:filter_products',
       },
       {
-        id: "products-export",
-        label: "Exportar",
-        emoji: "📥",
-        action: "how_to:export_products",
-        path: "/products"
+        id: 'products-export',
+        label: 'Exportar',
+        emoji: '📥',
+        action: 'how_to:export_products',
+        path: '/products',
       },
       {
-        id: "products-movements",
-        label: "Historial de Movimientos",
-        emoji: "📜",
-        action: "query:product_movements"
-      }
-    ]
+        id: 'products-movements',
+        label: 'Historial de Movimientos',
+        emoji: '📜',
+        action: 'query:product_movements',
+      },
+    ],
   },
   {
-    id: "movements",
-    label: "Movimientos",
-    emoji: "🔄",
+    id: 'movements',
+    label: 'Movimientos',
+    emoji: '🔄',
     subOptions: [
       {
-        id: "movements-list",
-        label: "Ver Movimientos",
-        emoji: "📋",
-        path: "/movements"
+        id: 'movements-list',
+        label: 'Ver Movimientos',
+        emoji: '📋',
+        path: '/movements',
       },
       {
-        id: "movements-create-in",
-        label: "Registrar Entrada",
-        emoji: "⬆️",
-        action: "how_to:create_movement_in"
+        id: 'movements-create-in',
+        label: 'Registrar Entrada',
+        emoji: '⬆️',
+        action: 'how_to:create_movement_in',
       },
       {
-        id: "movements-create-out",
-        label: "Registrar Salida",
-        emoji: "⬇️",
-        action: "how_to:create_movement_out"
+        id: 'movements-create-out',
+        label: 'Registrar Salida',
+        emoji: '⬇️',
+        action: 'how_to:create_movement_out',
       },
       {
-        id: "movements-filter",
-        label: "Filtrar Movimientos",
-        emoji: "🔎",
-        action: "how_to:filter_movements"
+        id: 'movements-filter',
+        label: 'Filtrar Movimientos',
+        emoji: '🔎',
+        action: 'how_to:filter_movements',
       },
       {
-        id: "movements-export",
-        label: "Exportar",
-        emoji: "📥",
-        action: "how_to:export_movements"
+        id: 'movements-export',
+        label: 'Exportar',
+        emoji: '📥',
+        action: 'how_to:export_movements',
       },
       {
-        id: "movements-by-product",
-        label: "Por Producto",
-        emoji: "🔍",
-        action: "query:movements_by_product"
-      }
-    ]
+        id: 'movements-by-product',
+        label: 'Por Producto',
+        emoji: '🔍',
+        action: 'query:movements_by_product',
+      },
+    ],
   },
   {
-    id: "batches",
-    label: "Lotes",
-    emoji: "📦",
+    id: 'batches',
+    label: 'Lotes',
+    emoji: '📦',
     subOptions: [
       {
-        id: "batches-list",
-        label: "Ver Lotes",
-        emoji: "📋",
-        path: "/batches"
+        id: 'batches-list',
+        label: 'Ver Lotes',
+        emoji: '📋',
+        path: '/batches',
       },
       {
-        id: "batches-expiring",
-        label: "Por Caducar",
-        emoji: "⏰",
-        query: "lotes por caducar"
+        id: 'batches-expiring',
+        label: 'Por Caducar',
+        emoji: '⏰',
+        query: 'lotes por caducar',
       },
       {
-        id: "batches-expired",
-        label: "Caducados",
-        emoji: "❌",
-        query: "lotes caducados"
+        id: 'batches-expired',
+        label: 'Caducados',
+        emoji: '❌',
+        query: 'lotes caducados',
       },
       {
-        id: "batches-defective",
-        label: "Defectuosos",
-        emoji: "⚠️",
-        query: "lotes defectuosos"
-      }
-    ]
+        id: 'batches-defective',
+        label: 'Defectuosos',
+        emoji: '⚠️',
+        query: 'lotes defectuosos',
+      },
+    ],
   },
   {
-    id: "alerts",
-    label: "Alarmas",
-    emoji: "🚨",
+    id: 'alerts',
+    label: 'Alarmas',
+    emoji: '🚨',
     subOptions: [
       {
-        id: "alerts-list",
-        label: "Ver Alarmas",
-        emoji: "📋",
-        path: "/alerts"
+        id: 'alerts-list',
+        label: 'Ver Alarmas',
+        emoji: '📋',
+        path: '/alerts',
       },
       {
-        id: "alerts-stock",
-        label: "Stock Bajo",
-        emoji: "📉",
-        query: "productos en alarma"
+        id: 'alerts-stock',
+        label: 'Stock Bajo',
+        emoji: '📉',
+        query: 'productos en alarma',
       },
       {
-        id: "alerts-batches",
-        label: "Lotes Críticos",
-        emoji: "⏰",
-        query: "lotes críticos"
-      }
-    ]
+        id: 'alerts-batches',
+        label: 'Lotes Críticos',
+        emoji: '⏰',
+        query: 'lotes críticos',
+      },
+    ],
   },
   {
-    id: "scanner",
-    label: "Escáner",
-    emoji: "📷",
+    id: 'scanner',
+    label: 'Escáner',
+    emoji: '📷',
     subOptions: [
       {
-        id: "scanner-use",
-        label: "Usar Escáner",
-        emoji: "🔍",
-        action: "how_to:use_scanner",
-        path: "/scanner"
+        id: 'scanner-use',
+        label: 'Usar Escáner',
+        emoji: '🔍',
+        action: 'how_to:use_scanner',
+        path: '/scanner',
       },
       {
-        id: "scanner-usb",
-        label: "Escáner USB",
-        emoji: "🔌",
-        action: "how_to:scanner_usb"
+        id: 'scanner-usb',
+        label: 'Escáner USB',
+        emoji: '🔌',
+        action: 'how_to:scanner_usb',
       },
       {
-        id: "scanner-camera",
-        label: "Cámara",
-        emoji: "📸",
-        action: "how_to:scanner_camera"
-      }
-    ]
+        id: 'scanner-camera',
+        label: 'Cámara',
+        emoji: '📸',
+        action: 'how_to:scanner_camera',
+      },
+    ],
   },
   {
-    id: "dashboard",
-    label: "Dashboard",
-    emoji: "📊",
+    id: 'dashboard',
+    label: 'Dashboard',
+    emoji: '📊',
     subOptions: [
       {
-        id: "dashboard-view",
-        label: "Ver Dashboard",
-        emoji: "🏠",
-        path: "/dashboard"
+        id: 'dashboard-view',
+        label: 'Ver Dashboard',
+        emoji: '🏠',
+        path: '/dashboard',
       },
       {
-        id: "dashboard-kpis",
-        label: "KPIs",
-        emoji: "📈",
-        action: "info:dashboard_kpis"
+        id: 'dashboard-kpis',
+        label: 'KPIs',
+        emoji: '📈',
+        action: 'info:dashboard_kpis',
       },
       {
-        id: "dashboard-charts",
-        label: "Gráficos",
-        emoji: "📊",
-        action: "info:dashboard_charts"
+        id: 'dashboard-charts',
+        label: 'Gráficos',
+        emoji: '📊',
+        action: 'info:dashboard_charts',
       },
       {
-        id: "dashboard-activity",
-        label: "Actividad Reciente",
-        emoji: "🕐",
-        action: "info:dashboard_activity"
-      }
-    ]
+        id: 'dashboard-activity',
+        label: 'Actividad Reciente',
+        emoji: '🕐',
+        action: 'info:dashboard_activity',
+      },
+    ],
   },
   {
-    id: "settings",
-    label: "Configuración",
-    emoji: "⚙️",
+    id: 'settings',
+    label: 'Configuración',
+    emoji: '⚙️',
     subOptions: [
       {
-        id: "settings-view",
-        label: "Ver Configuración",
-        emoji: "🔧",
-        path: "/settings"
+        id: 'settings-view',
+        label: 'Ver Configuración',
+        emoji: '🔧',
+        path: '/settings',
       },
       {
-        id: "settings-language",
-        label: "Idioma",
-        emoji: "🌐",
-        action: "how_to:change_language"
+        id: 'settings-language',
+        label: 'Idioma',
+        emoji: '🌐',
+        action: 'how_to:change_language',
       },
       {
-        id: "settings-theme",
-        label: "Tema",
-        emoji: "🎨",
-        action: "how_to:change_theme"
+        id: 'settings-theme',
+        label: 'Tema',
+        emoji: '🎨',
+        action: 'how_to:change_theme',
       },
       {
-        id: "settings-profile",
-        label: "Perfil",
-        emoji: "👤",
-        path: "/profile"
-      }
-    ]
+        id: 'settings-profile',
+        label: 'Perfil',
+        emoji: '👤',
+        path: '/profile',
+      },
+    ],
   },
   {
-    id: "admin",
-    label: "Administración",
-    emoji: "👑",
+    id: 'admin',
+    label: 'Administración',
+    emoji: '👑',
     subOptions: [
       {
-        id: "admin-view",
-        label: "Panel Admin",
-        emoji: "🛡️",
-        path: "/admin"
+        id: 'admin-view',
+        label: 'Panel Admin',
+        emoji: '🛡️',
+        path: '/admin',
       },
       {
-        id: "admin-users",
-        label: "Usuarios",
-        emoji: "👥",
-        action: "how_to:manage_users"
+        id: 'admin-users',
+        label: 'Usuarios',
+        emoji: '👥',
+        action: 'how_to:manage_users',
       },
       {
-        id: "admin-permissions",
-        label: "Permisos",
-        emoji: "🔐",
-        action: "info:permissions"
-      }
-    ]
+        id: 'admin-permissions',
+        label: 'Permisos',
+        emoji: '🔐',
+        action: 'info:permissions',
+      },
+    ],
   },
   {
-    id: "reports",
-    label: "Reportes",
-    emoji: "📄",
+    id: 'reports',
+    label: 'Reportes',
+    emoji: '📄',
     subOptions: [
       {
-        id: "reports-export",
-        label: "Exportar Datos",
-        emoji: "📥",
-        action: "how_to:export_data"
+        id: 'reports-export',
+        label: 'Exportar Datos',
+        emoji: '📥',
+        action: 'how_to:export_data',
       },
       {
-        id: "reports-excel",
-        label: "Exportar Excel",
-        emoji: "📊",
-        action: "how_to:export_excel"
+        id: 'reports-excel',
+        label: 'Exportar Excel',
+        emoji: '📊',
+        action: 'how_to:export_excel',
       },
       {
-        id: "reports-csv",
-        label: "Exportar CSV",
-        emoji: "📋",
-        action: "how_to:export_csv"
-      }
-    ]
-  }
+        id: 'reports-csv',
+        label: 'Exportar CSV',
+        emoji: '📋',
+        action: 'how_to:export_csv',
+      },
+    ],
+  },
 ];
 
 /**
@@ -329,17 +368,27 @@ export const CHAT_MENU_STRUCTURE: MenuOption[] = [
  */
 export function generateMenuResponse(
   menuId?: string,
-  parentId?: string
+  parentId?: string,
+  t?: (key: string, params?: Record<string, string>) => string,
 ): AiResponse {
+  // Traducir la estructura del menú si hay función de traducción
+  const menuStructure = t
+    ? translateMenuStructure(CHAT_MENU_STRUCTURE, t)
+    : CHAT_MENU_STRUCTURE;
+
   let options: MenuOption[] = [];
-  let title = "¿En qué puedo ayudarte?";
-  let description = "Selecciona una opción para continuar:";
+  let title = t ? t('ai.chat.menu.mainQuestion') : '¿En qué puedo ayudarte?';
+  let description = t
+    ? t('ai.chat.menu.mainDescription')
+    : 'Selecciona una opción para continuar:';
 
   if (!menuId) {
     // Menú principal
-    options = CHAT_MENU_STRUCTURE;
-    title = "👋 ¡Hola! Soy MEYPAR IA";
-    description = "Elige una categoría para comenzar:";
+    options = menuStructure;
+    title = t ? t('ai.chat.menu.mainTitle') : '👋 ¡Hola! Soy MEYPAR IA';
+    description = t
+      ? t('ai.chat.menu.mainDescription')
+      : 'Elige una categoría para comenzar:';
   } else {
     // Buscar el menú seleccionado
     const findMenu = (menus: MenuOption[], id: string): MenuOption | null => {
@@ -353,11 +402,13 @@ export function generateMenuResponse(
       return null;
     };
 
-    const selectedMenu = findMenu(CHAT_MENU_STRUCTURE, menuId);
+    const selectedMenu = findMenu(menuStructure, menuId);
     if (selectedMenu && selectedMenu.subOptions) {
       options = selectedMenu.subOptions;
-      title = `${selectedMenu.emoji || ""} ${selectedMenu.label}`;
-      description = `Opciones disponibles para ${selectedMenu.label.toLowerCase()}:`;
+      title = `${selectedMenu.emoji || ''} ${selectedMenu.label}`;
+      description = t
+        ? t('ai.chat.menu.subOptions', { menu: selectedMenu.label })
+        : `Opciones disponibles para ${selectedMenu.label.toLowerCase()}:`;
     }
   }
 
@@ -376,8 +427,7 @@ export function generateMenuResponse(
       action: opt.action,
       path: opt.path,
       query: opt.query,
-      hasSubOptions: !!opt.subOptions && opt.subOptions.length > 0
-    }))
+      hasSubOptions: !!opt.subOptions && opt.subOptions.length > 0,
+    })),
   };
 }
-

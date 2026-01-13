@@ -1,35 +1,38 @@
-import * as XLSX from "xlsx";
+// XLSX se usa implícitamente a través de las funciones que lo requieren
 
 /**
  * Calcula el ancho óptimo de una columna basado en su contenido.
  * Mejora: Considera caracteres especiales, números y fechas.
  */
-export function calculateColumnWidth(data: any[], header: string): number {
+export function calculateColumnWidth(
+  data: (string | number | null | undefined)[],
+  header: string,
+): number {
   // Ancho mínimo y máximo
   const minWidth = 10;
   const maxWidth = 60;
-  
+
   // Calcular ancho del header (considerando caracteres especiales)
   let maxLength = header.length;
-  
+
   // Calcular ancho máximo del contenido
   data.forEach((value) => {
-    if (value === null || value === undefined || value === "") {
+    if (value === null || value === undefined || value === '') {
       return;
     }
-    
-    const str = value?.toString() || "";
-    
+
+    const str = value?.toString() || '';
+
     // Para números, considerar formato con separadores de miles
-    if (typeof value === "number") {
-      const formatted = value.toLocaleString("es-ES", { 
-        minimumFractionDigits: 0, 
-        maximumFractionDigits: 2 
+    if (typeof value === 'number') {
+      const formatted = value.toLocaleString('es-ES', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
       });
       maxLength = Math.max(maxLength, formatted.length);
     } else {
       // Para strings, considerar caracteres especiales (algunos ocupan más espacio)
-      const charWidth = str.split("").reduce((acc, char) => {
+      const charWidth = str.split('').reduce((acc: number, char: string) => {
         // Caracteres anchos (chinos, japoneses, etc.) cuentan como 2
         if (/[\u4e00-\u9fa5\u3040-\u309f\u30a0-\u30ff]/.test(char)) {
           return acc + 2;
@@ -39,11 +42,11 @@ export function calculateColumnWidth(data: any[], header: string): number {
       maxLength = Math.max(maxLength, charWidth);
     }
   });
-  
+
   // Añadir padding (más espacio para números y fechas)
-  const isNumeric = data.some((v) => typeof v === "number");
+  const isNumeric = data.some((v) => typeof v === 'number');
   const padding = isNumeric ? 4 : 3;
-  
+
   const width = Math.min(Math.max(maxLength + padding, minWidth), maxWidth);
   return width;
 }
@@ -56,19 +59,19 @@ export function formatCurrencyCell(value: number | string | null | undefined): {
   t: string;
   z: string;
 } | null {
-  if (value === null || value === undefined || value === "") {
+  if (value === null || value === undefined || value === '') {
     return null;
   }
-  
-  const numValue = typeof value === "number" ? value : parseFloat(String(value));
+
+  const numValue = typeof value === 'number' ? value : parseFloat(String(value));
   if (isNaN(numValue)) {
     return null;
   }
-  
+
   return {
     v: numValue,
-    t: "n",
-    z: "#,##0.00 €"
+    t: 'n',
+    z: '#,##0.00 €',
   };
 }
 
@@ -76,42 +79,43 @@ export function formatCurrencyCell(value: number | string | null | undefined): {
  * Crea una fila de totales para Excel.
  */
 export function createTotalsRow(
-  data: Record<string, any>[],
+  data: Record<string, string | number | null | undefined>[],
   columns: string[],
-  totalsConfig: Record<string, "sum" | "avg" | "count">
-): Record<string, any> {
-  const totals: Record<string, any> = {};
-  
+  totalsConfig: Record<string, 'sum' | 'avg' | 'count'>,
+): Record<string, string | number> {
+  const totals: Record<string, string | number> = {};
+
   columns.forEach((colKey) => {
     const config = totalsConfig[colKey];
     if (!config) {
-      totals[colKey] = "";
+      totals[colKey] = '';
       return;
     }
-    
-    const values = data.map((row) => {
-      const value = row[colKey];
-      return typeof value === "number" ? value : parseFloat(String(value)) || 0;
-    }).filter((v) => !isNaN(v));
-    
+
+    const values = data
+      .map((row) => {
+        const value = row[colKey];
+        return typeof value === 'number' ? value : parseFloat(String(value)) || 0;
+      })
+      .filter((v) => !isNaN(v));
+
     if (values.length === 0) {
-      totals[colKey] = "";
+      totals[colKey] = '';
       return;
     }
-    
+
     switch (config) {
-      case "sum":
+      case 'sum':
         totals[colKey] = values.reduce((a, b) => a + b, 0);
         break;
-      case "avg":
+      case 'avg':
         totals[colKey] = values.reduce((a, b) => a + b, 0) / values.length;
         break;
-      case "count":
+      case 'count':
         totals[colKey] = values.length;
         break;
     }
   });
-  
+
   return totals;
 }
-

@@ -1,8 +1,8 @@
-import { ChevronRight } from "lucide-react";
-import * as React from "react";
-import { motion } from "framer-motion";
-import { cn } from "../../lib/cn";
-import type { MenuOption } from "@infrastructure/ai/ChatMenuStructure";
+import { ChevronRight } from 'lucide-react';
+import * as React from 'react';
+import { motion } from 'framer-motion';
+import { cn } from '../../lib/cn';
+import type { MenuOption } from '@infrastructure/ai/ChatMenuStructure';
 
 interface ChatMenuButtonsProps {
   options: MenuOption[];
@@ -16,8 +16,13 @@ interface ChatMenuButtonsProps {
 export function ChatMenuButtons({
   options,
   onOptionClick,
-  isLoading = false
+  isLoading = false,
 }: ChatMenuButtonsProps) {
+  // Validar que options exista y no esté vacío
+  if (!options || options.length === 0) {
+    return null;
+  }
+
   return (
     <div className="grid grid-cols-1 gap-2 mt-4">
       {options.map((option, index) => {
@@ -32,15 +37,15 @@ export function ChatMenuButtons({
             onClick={() => !isLoading && onOptionClick(option)}
             disabled={isLoading}
             className={cn(
-              "group flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white px-4 py-3 text-left transition-all",
-              "hover:border-primary-500 hover:bg-primary-50 hover:shadow-md",
-              "dark:border-gray-700 dark:bg-gray-800 dark:hover:border-primary-500 dark:hover:bg-primary-900/20",
-              "disabled:opacity-50 disabled:cursor-not-allowed",
-              "focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              'group flex items-center gap-3 rounded-lg border-2 border-gray-200 bg-white px-4 py-3 text-left transition-all',
+              'hover:border-primary-500 hover:bg-primary-50 hover:shadow-md',
+              'dark:border-gray-700 dark:bg-gray-800 dark:hover:border-primary-500 dark:hover:bg-primary-900/20',
+              'disabled:opacity-50 disabled:cursor-not-allowed',
+              'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2',
             )}
           >
             {/* Emoji/Icono */}
-            <span className="text-2xl flex-shrink-0">{option.emoji || "📌"}</span>
+            <span className="text-2xl flex-shrink-0">{option.emoji || '📌'}</span>
 
             {/* Label */}
             <span className="flex-1 font-medium text-gray-900 dark:text-gray-100">
@@ -57,4 +62,3 @@ export function ChatMenuButtons({
     </div>
   );
 }
-

@@ -3,18 +3,21 @@
  * Todas las respuestas del chat deben estar aquí en ambos idiomas
  */
 
-type LanguageCode = "es-ES" | "ca-ES";
+type LanguageCode = 'es-ES' | 'ca-ES';
 
 export const aiResponses: Record<LanguageCode, Record<string, string>> = {
-  "es-ES": {
+  'es-ES': {
     // Errores generales
-    "error.invalidQuestion": "Por favor, escribe una pregunta válida.",
-    "error.generic": "Lo siento, hubo un error al procesar tu mensaje. Por favor, inténtalo de nuevo.",
-    "error.dataQuery": "Lo siento, hubo un error al consultar los datos. Por favor, inténtalo de nuevo.",
-    "error.noPermission": "No tienes permisos para consultar información de productos. Necesitas el permiso 'products.view'.",
-    
+    'error.invalidQuestion': 'Por favor, escribe una pregunta válida.',
+    'error.generic':
+      'Lo siento, hubo un error al procesar tu mensaje. Por favor, inténtalo de nuevo.',
+    'error.dataQuery':
+      'Lo siento, hubo un error al consultar los datos. Por favor, inténtalo de nuevo.',
+    'error.noPermission':
+      "No tienes permisos para consultar información de productos. Necesitas el permiso 'products.view'.",
+
     // Crear producto
-    "howTo.createProduct": `Para crear un nuevo producto:
+    'howTo.createProduct': `Para crear un nuevo producto:
 
 1. **Navega a la página de productos**: Haz clic en "Productos" en el menú lateral o ve a \`/products\`.
 
@@ -34,7 +37,7 @@ export const aiResponses: Record<LanguageCode, Record<string, string>> = {
 Una vez creado, serás redirigido a la lista de productos.`,
 
     // Editar producto
-    "howTo.editProduct": `Para editar un producto existente:
+    'howTo.editProduct': `Para editar un producto existente:
 
 1. **Ve a la lista de productos**: Navega a \`/products\` desde el menú lateral.
 
@@ -51,7 +54,7 @@ Una vez creado, serás redirigido a la lista de productos.`,
 **Nota**: Solo puedes editar productos si tienes el permiso "products.edit".`,
 
     // Escáner
-    "howTo.useScanner": `Para usar el escáner en la aplicación:
+    'howTo.useScanner': `Para usar el escáner en la aplicación:
 
 1. **Navega al módulo de Escáner**: Haz clic en "Escáner" en el menú lateral o ve a \`/scanner\`.
 
@@ -71,7 +74,7 @@ Una vez creado, serás redirigido a la lista de productos.`,
 **Tip**: El escáner USB se comporta como un teclado, escribe el código y envía Enter automáticamente.`,
 
     // Movimientos
-    "howTo.createMovement": `Para registrar un movimiento de inventario:
+    'howTo.createMovement': `Para registrar un movimiento de inventario:
 
 1. **Opción 1 - Desde el escáner**:
    - Escanea el código del producto o lote
@@ -93,7 +96,7 @@ Una vez creado, serás redirigido a la lista de productos.`,
 **Nota**: El stock se actualiza automáticamente después de registrar el movimiento.`,
 
     // Respuesta general
-    "howTo.general": `Puedo ayudarte con varias tareas en la aplicación:
+    'howTo.general': `Puedo ayudarte con varias tareas en la aplicación:
 
 **Gestión de Productos**:
 - Crear, editar y ver productos
@@ -114,11 +117,14 @@ Una vez creado, serás redirigido a la lista de productos.`,
 ¿Sobre qué funcionalidad específica te gustaría saber más?`,
 
     // Consultas de datos
-    "dataQuery.noAlarms": "No hay productos en alarma actualmente. Todos los productos tienen stock suficiente.",
-    "dataQuery.alarmsFound": "Encontré {count} producto(s) en alarma de stock:\n\n",
-    "dataQuery.moreAlarms": "\n... y {count} producto(s) más. Puedes ver todos en la página de Alarmas.",
-    "dataQuery.productNotFound": "No se encontró ningún producto con el código \"{code}\". Verifica que el código sea correcto.",
-    "dataQuery.generic": `Puedo ayudarte a consultar:
+    'dataQuery.noAlarms':
+      'No hay productos en alarma actualmente. Todos los productos tienen stock suficiente.',
+    'dataQuery.alarmsFound': 'Encontré {count} producto(s) en alarma de stock:\n\n',
+    'dataQuery.moreAlarms':
+      '\n... y {count} producto(s) más. Puedes ver todos en la página de Alarmas.',
+    'dataQuery.productNotFound':
+      'No se encontró ningún producto con el código "{code}". Verifica que el código sea correcto.',
+    'dataQuery.generic': `Puedo ayudarte a consultar:
 
 - Productos en alarma de stock
 - Información de un producto por código
@@ -130,15 +136,19 @@ Ejemplos de preguntas:
 - Muestra productos con stock bajo`,
 
     // Permisos
-    "permissions.hasPermission": "Sí, tienes permiso para \"{desc}\" ({key}).",
-    "permissions.noPermission": "No, no tienes permiso para \"{desc}\".\n\nEste permiso está disponible para los roles: {roles}.",
-    "permissions.currentRole": "\n\nTu rol actual es: {role}.",
-    "permissions.contactAdmin": "\n\nContacta a un administrador si necesitas este permiso.",
-    "permissions.askSpecific": "Para saber qué permisos tienes, puedo ayudarte. ¿Qué acción específica quieres realizar? Por ejemplo: \"¿Puedo crear productos?\" o \"¿Puedo usar el escáner?\"",
-    "permissions.list": "Tu rol actual es: {role}.\n\nTienes los siguientes permisos:\n{permissions}",
+    'permissions.hasPermission': 'Sí, tienes permiso para "{desc}" ({key}).',
+    'permissions.noPermission':
+      'No, no tienes permiso para "{desc}".\n\nEste permiso está disponible para los roles: {roles}.',
+    'permissions.currentRole': '\n\nTu rol actual es: {role}.',
+    'permissions.contactAdmin':
+      '\n\nContacta a un administrador si necesitas este permiso.',
+    'permissions.askSpecific':
+      'Para saber qué permisos tienes, puedo ayudarte. ¿Qué acción específica quieres realizar? Por ejemplo: "¿Puedo crear productos?" o "¿Puedo usar el escáner?"',
+    'permissions.list':
+      'Tu rol actual es: {role}.\n\nTienes los siguientes permisos:\n{permissions}',
 
     // Respuesta de bienvenida
-    "general.welcome": `Hola, soy tu asistente de IA. Puedo ayudarte con:
+    'general.welcome': `Hola, soy tu asistente de IA. Puedo ayudarte con:
 
 - **Cómo usar la aplicación**: Explicarte paso a paso cómo realizar acciones
 - **Consultar datos**: Buscar información sobre productos, lotes, movimientos
@@ -148,18 +158,22 @@ Ejemplos de preguntas:
 ¿En qué puedo ayudarte específicamente?`,
 
     // Permiso denegado
-    "permissionDenied.message": "No puedes {action} porque no tienes el permiso necesario.\n\n**Permiso requerido**: {permission}\n**Descripción**: {desc}\n**Tu rol actual**: {role}\n**Roles permitidos**: {allowedRoles}\n\nContacta a un administrador si necesitas acceso a esta funcionalidad."
+    'permissionDenied.message':
+      'No puedes {action} porque no tienes el permiso necesario.\n\n**Permiso requerido**: {permission}\n**Descripción**: {desc}\n**Tu rol actual**: {role}\n**Roles permitidos**: {allowedRoles}\n\nContacta a un administrador si necesitas acceso a esta funcionalidad.',
   },
-  
-  "ca-ES": {
+
+  'ca-ES': {
     // Errores generales
-    "error.invalidQuestion": "Si us plau, escriu una pregunta vàlida.",
-    "error.generic": "Ho sento, hi ha hagut un error en processar el teu missatge. Si us plau, torna-ho a intentar.",
-    "error.dataQuery": "Ho sento, hi ha hagut un error en consultar les dades. Si us plau, torna-ho a intentar.",
-    "error.noPermission": "No tens permisos per consultar informació de productes. Necessites el permís 'products.view'.",
-    
+    'error.invalidQuestion': 'Si us plau, escriu una pregunta vàlida.',
+    'error.generic':
+      'Ho sento, hi ha hagut un error en processar el teu missatge. Si us plau, torna-ho a intentar.',
+    'error.dataQuery':
+      'Ho sento, hi ha hagut un error en consultar les dades. Si us plau, torna-ho a intentar.',
+    'error.noPermission':
+      "No tens permisos per consultar informació de productes. Necessites el permís 'products.view'.",
+
     // Crear producte
-    "howTo.createProduct": `Per crear un nou producte:
+    'howTo.createProduct': `Per crear un nou producte:
 
 1. **Navega a la pàgina de productes**: Fes clic a "Producte" al menú lateral o ves a \`/products\`.
 
@@ -179,7 +193,7 @@ Ejemplos de preguntas:
 Un cop creat, seràs redirigit a la llista de productes.`,
 
     // Editar producte
-    "howTo.editProduct": `Per editar un producte existent:
+    'howTo.editProduct': `Per editar un producte existent:
 
 1. **Ves a la llista de productes**: Navega a \`/products\` des del menú lateral.
 
@@ -196,7 +210,7 @@ Un cop creat, seràs redirigit a la llista de productes.`,
 **Nota**: Només pots editar productes si tens el permís "products.edit".`,
 
     // Escàner
-    "howTo.useScanner": `Per utilitzar l'escàner a l'aplicació:
+    'howTo.useScanner': `Per utilitzar l'escàner a l'aplicació:
 
 1. **Navega al mòdul d'Escàner**: Fes clic a "Escàner" al menú lateral o ves a \`/scanner\`.
 
@@ -216,7 +230,7 @@ Un cop creat, seràs redirigit a la llista de productes.`,
 **Consell**: L'escàner USB es comporta com un teclat, escriu el codi i envia Enter automàticament.`,
 
     // Moviments
-    "howTo.createMovement": `Per registrar un moviment d'inventari:
+    'howTo.createMovement': `Per registrar un moviment d'inventari:
 
 1. **Opció 1 - Des de l'escàner**:
    - Escaneja el codi del producte o lot
@@ -238,13 +252,17 @@ Un cop creat, seràs redirigit a la llista de productes.`,
 **Nota**: L'estoc s'actualitza automàticament després de registrar el moviment.`,
 
     // Keywords para clasificación
-    "keywords.howTo": "com, cómo, como, com fer, com crear, com utilitzar, com usar, como hacer, cómo hacer, como crear, cómo crear, como editar, cómo editar, como usar, cómo usar, como escanear, cómo escanear, com escanejar, como modificar, cómo modificar, com modificar, crear, editar, modificar, eliminar, esborrar, afegir, añadir, registrar, escanear, escanejar, escáner, escàner, pasos, passos, explicar, explicar-me, ayuda con, ajuda amb, necesito, necessito, quiero, vull",
-    "keywords.dataQuery": "quins, quines, quin, quina, qué, que, què, quins productes, qué productos, quins productes estan, qué productos están, productes en alarma, productos en alarma, estoc baix, stock bajo, estoc actual, stock actual, informació, información, consultar, consulta, buscar, cercar, mostrar, mostrar-me, llista, lista, quant, cuánto, cuántos, quants, quantes",
-    "keywords.permissions": "permís, permiso, permisos, permisos, puc, puedo, puc crear, puedo crear, puc editar, puedo editar, puc eliminar, puedo eliminar, puc escanear, puedo escanear, quins permisos, qué permisos, quins permisos tinc, qué permisos tengo, rol, role, rols, roles",
-    "keywords.features": "funcionalitats, funcionalidades, característiques, características, què pot fer, qué puede hacer, què fa, qué hace, com funciona, cómo funciona, quines opcions, qué opciones, quines accions, qué acciones",
+    'keywords.howTo':
+      'com, cómo, como, com fer, com crear, com utilitzar, com usar, como hacer, cómo hacer, como crear, cómo crear, como editar, cómo editar, como usar, cómo usar, como escanear, cómo escanear, com escanejar, como modificar, cómo modificar, com modificar, crear, editar, modificar, eliminar, esborrar, afegir, añadir, registrar, escanear, escanejar, escáner, escàner, pasos, passos, explicar, explicar-me, ayuda con, ajuda amb, necesito, necessito, quiero, vull',
+    'keywords.dataQuery':
+      'quins, quines, quin, quina, qué, que, què, quins productes, qué productos, quins productes estan, qué productos están, productes en alarma, productos en alarma, estoc baix, stock bajo, estoc actual, stock actual, informació, información, consultar, consulta, buscar, cercar, mostrar, mostrar-me, llista, lista, quant, cuánto, cuántos, quants, quantes',
+    'keywords.permissions':
+      'permís, permiso, permisos, permisos, puc, puedo, puc crear, puedo crear, puc editar, puedo editar, puc eliminar, puedo eliminar, puc escanear, puedo escanear, quins permisos, qué permisos, quins permisos tinc, qué permisos tengo, rol, role, rols, roles',
+    'keywords.features':
+      'funcionalitats, funcionalidades, característiques, características, què pot fer, qué puede hacer, què fa, qué hace, com funciona, cómo funciona, quines opcions, qué opciones, quines accions, qué acciones',
 
     // Resposta general
-    "howTo.general": `Puc ajudar-te amb diverses tasques a l'aplicació:
+    'howTo.general': `Puc ajudar-te amb diverses tasques a l'aplicació:
 
 **Gestió de Productes**:
 - Crear, editar i veure productes
@@ -265,11 +283,14 @@ Un cop creat, seràs redirigit a la llista de productes.`,
 Sobre quina funcionalitat específica t'agradaria saber més?`,
 
     // Consultes de dades
-    "dataQuery.noAlarms": "No hi ha productes en alarma actualment. Tots els productes tenen estoc suficient.",
-    "dataQuery.alarmsFound": "He trobat {count} producte(s) en alarma d'estoc:\n\n",
-    "dataQuery.moreAlarms": "\n... i {count} producte(s) més. Pots veure'ls tots a la pàgina d'Alarmes.",
-    "dataQuery.productNotFound": "No s'ha trobat cap producte amb el codi \"{code}\". Verifica que el codi sigui correcte.",
-    "dataQuery.generic": `Puc ajudar-te a consultar:
+    'dataQuery.noAlarms':
+      'No hi ha productes en alarma actualment. Tots els productes tenen estoc suficient.',
+    'dataQuery.alarmsFound': "He trobat {count} producte(s) en alarma d'estoc:\n\n",
+    'dataQuery.moreAlarms':
+      "\n... i {count} producte(s) més. Pots veure'ls tots a la pàgina d'Alarmes.",
+    'dataQuery.productNotFound':
+      'No s\'ha trobat cap producte amb el codi "{code}". Verifica que el codi sigui correcte.',
+    'dataQuery.generic': `Puc ajudar-te a consultar:
 
 - Productes en alarma d'estoc
 - Informació d'un producte per codi
@@ -281,21 +302,19 @@ Exemples de preguntes:
 - Mostra productes amb estoc baix`,
 
     // Permisos
-    "permissions.hasPermission": "Sí, tens permís per \"{desc}\" ({key}).",
-    "permissions.noPermission": "No, no tens permís per \"{desc}\".\n\nAquest permís està disponible per als rols: {roles}.",
-    "permissions.currentRole": "\n\nEl teu rol actual és: {role}.",
-    "permissions.contactAdmin": "\n\nContacta amb un administrador si necessites aquest permís.",
-    "permissions.askSpecific": "Per saber quins permisos tens, puc ajudar-te. Quina acció específica vols realitzar? Per exemple: \"Puc crear productes?\" o \"Puc utilitzar l'escàner?\"",
-    "permissions.list": "El teu rol actual és: {role}.\n\nTens els següents permisos:\n{permissions}",
-
-    // Keywords para clasificación
-    "keywords.howTo": "com, cómo, como, com fer, com crear, com utilitzar, com usar, como hacer, cómo hacer, como crear, cómo crear, como editar, cómo editar, como usar, cómo usar, como escanear, cómo escanear, com escanejar, como modificar, cómo modificar, com modificar, crear, editar, modificar, eliminar, esborrar, afegir, añadir, registrar, escanear, escanejar, escáner, escàner, pasos, passos, explicar, explicar-me, ayuda con, ajuda amb, necesito, necessito, quiero, vull",
-    "keywords.dataQuery": "quins, quines, quin, quina, qué, que, què, quins productes, qué productos, quins productes estan, qué productos están, productes en alarma, productos en alarma, estoc baix, stock bajo, estoc actual, stock actual, informació, información, consultar, consulta, buscar, cercar, mostrar, mostrar-me, llista, lista, quant, cuánto, cuántos, quants, quantes",
-    "keywords.permissions": "permís, permiso, permisos, permisos, puc, puedo, puc crear, puedo crear, puc editar, puedo editar, puc eliminar, puedo eliminar, puc escanear, puedo escanear, quins permisos, qué permisos, quins permisos tinc, qué permisos tengo, rol, role, rols, roles",
-    "keywords.features": "funcionalitats, funcionalidades, característiques, características, què pot fer, qué puede hacer, què fa, qué hace, com funciona, cómo funciona, quines opcions, qué opciones, quines accions, qué acciones",
+    'permissions.hasPermission': 'Sí, tens permís per "{desc}" ({key}).',
+    'permissions.noPermission':
+      'No, no tens permís per "{desc}".\n\nAquest permís està disponible per als rols: {roles}.',
+    'permissions.currentRole': '\n\nEl teu rol actual és: {role}.',
+    'permissions.contactAdmin':
+      '\n\nContacta amb un administrador si necessites aquest permís.',
+    'permissions.askSpecific':
+      'Per saber quins permisos tens, puc ajudar-te. Quina acció específica vols realitzar? Per exemple: "Puc crear productes?" o "Puc utilitzar l\'escàner?"',
+    'permissions.list':
+      'El teu rol actual és: {role}.\n\nTens els següents permisos:\n{permissions}',
 
     // Resposta de benvinguda
-    "general.welcome": `Hola, sóc el teu assistent d'IA. Puc ajudar-te amb:
+    'general.welcome': `Hola, sóc el teu assistent d'IA. Puc ajudar-te amb:
 
 - **Com utilitzar l'aplicació**: Explicar-te pas a pas com realitzar accions
 - **Consultar dades**: Buscar informació sobre productes, lots, moviments
@@ -305,39 +324,52 @@ Exemples de preguntes:
 En què et puc ajudar específicament?`,
 
     // Permís denegat
-    "permissionDenied.message": "No pots {action} perquè no tens el permís necessari.\n\n**Permís requerit**: {permission}\n**Descripció**: {desc}\n**El teu rol actual**: {role}\n**Rols permessos**: {allowedRoles}\n\nContacta amb un administrador si necessites accés a aquesta funcionalitat."
-  }
+    'permissionDenied.message':
+      'No pots {action} perquè no tens el permís necessari.\n\n**Permís requerit**: {permission}\n**Descripció**: {desc}\n**El teu rol actual**: {role}\n**Rols permessos**: {allowedRoles}\n\nContacta amb un administrador si necessites accés a aquesta funcionalitat.',
+  },
 };
 
 /**
  * Obtiene una traducción de respuesta con soporte para parámetros
  */
-export function getAiResponse(language: LanguageCode, key: string, params?: Record<string, any>): string {
+export function getAiResponse(
+  language: LanguageCode,
+  key: string,
+  params?: Record<string, string | number>,
+): string {
   const translations = aiResponses[language];
   let template = translations[key];
-  
+
   if (!template) {
     // Fallback a español si no existe la traducción
-    template = aiResponses["es-ES"][key] || key;
+    template = aiResponses['es-ES'][key] || key;
   }
-  
+
   if (!params) {
     return template;
   }
-  
+
   // Reemplazar placeholders {key} con valores
   let result = template;
   for (const [paramKey, value] of Object.entries(params)) {
     const placeholder = `{${paramKey}}`;
-    if (typeof value === "string") {
-      result = result.replace(new RegExp(placeholder.replace(/[{}]/g, "\\$&"), "g"), value);
+    if (typeof value === 'string') {
+      result = result.replace(
+        new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'),
+        value,
+      );
     } else if (Array.isArray(value)) {
-      result = result.replace(new RegExp(placeholder.replace(/[{}]/g, "\\$&"), "g"), value.join(", "));
+      result = result.replace(
+        new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'),
+        value.join(', '),
+      );
     } else {
-      result = result.replace(new RegExp(placeholder.replace(/[{}]/g, "\\$&"), "g"), String(value));
+      result = result.replace(
+        new RegExp(placeholder.replace(/[{}]/g, '\\$&'), 'g'),
+        String(value),
+      );
     }
   }
-  
+
   return result;
 }
-

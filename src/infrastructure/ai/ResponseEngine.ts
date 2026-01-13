@@ -2,19 +2,28 @@ import type {
   AiResponse,
   ProjectStructure,
   QuestionIntent,
-  QuestionCategory
-} from "./types";
-import { CodeAnalyzer } from "./CodeAnalyzer";
-import { CHAT_MENU_STRUCTURE, generateMenuResponse, type MenuOption } from "./ChatMenuStructure";
+  QuestionCategory,
+} from './types';
+import { CodeAnalyzer } from './CodeAnalyzer';
+import { CHAT_MENU_STRUCTURE, generateMenuResponse } from './ChatMenuStructure';
 
 /**
  * Motor que clasifica preguntas y genera respuestas contextuales
  */
 export class ResponseEngine {
   private codeAnalyzer: CodeAnalyzer;
+  private language: 'es-ES' | 'ca-ES';
 
-  constructor() {
+  constructor(language: 'es-ES' | 'ca-ES' = 'es-ES') {
+    this.language = language;
     this.codeAnalyzer = CodeAnalyzer.getInstance();
+  }
+
+  /**
+   * Actualiza el idioma del motor de respuestas
+   */
+  setLanguage(language: 'es-ES' | 'ca-ES'): void {
+    this.language = language;
   }
 
   /**
@@ -22,103 +31,202 @@ export class ResponseEngine {
    */
   async classifyQuestion(question: string): Promise<QuestionIntent> {
     try {
-      if (!question || typeof question !== "string" || !question.trim()) {
+      if (!question || typeof question !== 'string' || !question.trim()) {
         return {
-          category: "general",
+          category: 'general',
           keywords: [],
-          confidence: 0
+          confidence: 0,
         };
       }
-      
+
       const lowerQuestion = question.toLowerCase();
 
-    // Palabras clave para cada categoría (ES y CA)
-    const howToKeywords = [
-      "cómo", "como", "com", "com fer", "com crear", "com utilitzar", "com usar",
-      "como hacer", "cómo hacer", "como crear", "cómo crear", "como editar", "cómo editar",
-      "como usar", "cómo usar", "como escanear", "cómo escanear", "com escanejar",
-      "como modificar", "cómo modificar", "com modificar",
-      "como filtrar", "cómo filtrar", "como buscar", "cómo buscar",
-      "como exportar", "cómo exportar",
-      "pasos", "passos", "explicar", "explicar-me", "ayuda con", "ajuda amb",
-      "manual", "guía", "guia", "instrucciones"
-    ];
+      // PRIORIDAD: Detectar comandos específicos ANTES de buscar palabras clave
+      // Esto asegura que comandos como "how_to:create_product" se detecten correctamente
+      if (lowerQuestion.startsWith('how_to:')) {
+        const action = lowerQuestion.replace('how_to:', '');
+        return {
+          category: 'how_to',
+          keywords: [action],
+          confidence: 1.0,
+          action: action,
+        };
+      }
 
-    const dataQueryKeywords = [
-      "qué", "que", "què", "cuántos", "cuantos", "quants", "cuántas", "cuantas", "quantes",
-      "listar", "llistar", "mostrar", "dame", "dona'm", "dime", "digues-me",
-      "buscar", "cercar", "encontrar", "trobar",
-      "productos en alarma", "productes en alarma", "quins productes", "quins productos",
-      "stock", "estoc", "cuánto stock", "quant estoc", "tiene stock", "té estoc",
-      "lotes", "lots", "movimientos", "moviments", "historial", "moviments de",
-      "historial del", "movimientos del", "cuánto tiene", "quant té"
-    ];
+      if (lowerQuestion.startsWith('query:')) {
+        return {
+          category: 'data_query',
+          keywords: [],
+          confidence: 1.0,
+        };
+      }
 
-    const permissionsKeywords = [
-      "permiso", "permisos", "permís", "permisos",
-      "rol", "roles", "puedo", "puc", "puede", "pot",
-      "autorización", "autorització", "acceso", "accés"
-    ];
+      if (lowerQuestion.startsWith('info:')) {
+        return {
+          category: 'features',
+          keywords: [],
+          confidence: 1.0,
+        };
+      }
 
-    const featuresKeywords = [
-      "funcionalidad",
-      "funcionalidades",
-      "características",
-      "caracteristicas",
-      "qué hace",
-      "que hace",
-      "para qué sirve",
-      "para que sirve"
-    ];
+      // Palabras clave para cada categoría (ES y CA)
+      const howToKeywords = [
+        'cómo',
+        'como',
+        'com',
+        'com fer',
+        'com crear',
+        'com utilitzar',
+        'com usar',
+        'como hacer',
+        'cómo hacer',
+        'como crear',
+        'cómo crear',
+        'como editar',
+        'cómo editar',
+        'como usar',
+        'cómo usar',
+        'como escanear',
+        'cómo escanear',
+        'com escanejar',
+        'como modificar',
+        'cómo modificar',
+        'com modificar',
+        'como filtrar',
+        'cómo filtrar',
+        'como buscar',
+        'cómo buscar',
+        'como exportar',
+        'cómo exportar',
+        'pasos',
+        'passos',
+        'explicar',
+        'explicar-me',
+        'ayuda con',
+        'ajuda amb',
+        'manual',
+        'guía',
+        'guia',
+        'instrucciones',
+      ];
 
-    // Contar coincidencias
-    const howToScore = howToKeywords.filter((kw) =>
-      lowerQuestion.includes(kw)
-    ).length;
-    const dataQueryScore = dataQueryKeywords.filter((kw) =>
-      lowerQuestion.includes(kw)
-    ).length;
-    const permissionsScore = permissionsKeywords.filter((kw) =>
-      lowerQuestion.includes(kw)
-    ).length;
-    const featuresScore = featuresKeywords.filter((kw) =>
-      lowerQuestion.includes(kw)
-    ).length;
+      const dataQueryKeywords = [
+        'qué',
+        'que',
+        'què',
+        'cuántos',
+        'cuantos',
+        'quants',
+        'cuántas',
+        'cuantas',
+        'quantes',
+        'listar',
+        'llistar',
+        'mostrar',
+        'dame',
+        "dona'm",
+        'dime',
+        'digues-me',
+        'buscar',
+        'cercar',
+        'encontrar',
+        'trobar',
+        'productos en alarma',
+        'productes en alarma',
+        'quins productes',
+        'quins productos',
+        'stock',
+        'estoc',
+        'cuánto stock',
+        'quant estoc',
+        'tiene stock',
+        'té estoc',
+        'lotes',
+        'lots',
+        'movimientos',
+        'moviments',
+        'historial',
+        'moviments de',
+        'historial del',
+        'movimientos del',
+        'cuánto tiene',
+        'quant té',
+      ];
 
-    // Determinar categoría principal
-    const scores = [
-      { category: "how_to" as QuestionCategory, score: howToScore },
-      { category: "data_query" as QuestionCategory, score: dataQueryScore },
-      { category: "permissions" as QuestionCategory, score: permissionsScore },
-      { category: "features" as QuestionCategory, score: featuresScore }
-    ];
+      const permissionsKeywords = [
+        'permiso',
+        'permisos',
+        'permís',
+        'permisos',
+        'rol',
+        'roles',
+        'puedo',
+        'puc',
+        'puede',
+        'pot',
+        'autorización',
+        'autorització',
+        'acceso',
+        'accés',
+      ];
 
-    scores.sort((a, b) => b.score - a.score);
-    const maxScore = scores[0].score;
+      const featuresKeywords = [
+        'funcionalidad',
+        'funcionalidades',
+        'características',
+        'caracteristicas',
+        'qué hace',
+        'que hace',
+        'para qué sirve',
+        'para que sirve',
+      ];
 
-    // Si no hay coincidencias claras, es una pregunta general
-    if (maxScore === 0) {
-      return {
-        category: "general",
-        keywords: [],
-        confidence: 0.5
-      };
-    }
+      // Contar coincidencias
+      const howToScore = howToKeywords.filter((kw) => lowerQuestion.includes(kw)).length;
+      const dataQueryScore = dataQueryKeywords.filter((kw) =>
+        lowerQuestion.includes(kw),
+      ).length;
+      const permissionsScore = permissionsKeywords.filter((kw) =>
+        lowerQuestion.includes(kw),
+      ).length;
+      const featuresScore = featuresKeywords.filter((kw) =>
+        lowerQuestion.includes(kw),
+      ).length;
 
-    const confidence = Math.min(maxScore / 3, 1); // Normalizar a 0-1
+      // Determinar categoría principal
+      const scores = [
+        { category: 'how_to' as QuestionCategory, score: howToScore },
+        { category: 'data_query' as QuestionCategory, score: dataQueryScore },
+        { category: 'permissions' as QuestionCategory, score: permissionsScore },
+        { category: 'features' as QuestionCategory, score: featuresScore },
+      ];
+
+      scores.sort((a, b) => b.score - a.score);
+      const maxScore = scores[0].score;
+
+      // Si no hay coincidencias claras, es una pregunta general
+      if (maxScore === 0) {
+        return {
+          category: 'general',
+          keywords: [],
+          confidence: 0.5,
+        };
+      }
+
+      const confidence = Math.min(maxScore / 3, 1); // Normalizar a 0-1
 
       return {
         category: scores[0].category,
         keywords: question.split(/\s+/),
         confidence,
-        action: this.extractAction(question)
+        action: this.extractAction(question),
       };
     } catch (error) {
-      console.error("Error clasificando pregunta:", error);
+      console.error('Error clasificando pregunta:', error);
       return {
-        category: "general",
+        category: 'general',
         keywords: [],
-        confidence: 0
+        confidence: 0,
       };
     }
   }
@@ -131,18 +239,18 @@ export class ResponseEngine {
 
     // Extraer verbos de acción
     const actions: Record<string, string> = {
-      crear: "create",
-      editar: "edit",
-      modificar: "edit",
-      eliminar: "delete",
-      ver: "view",
-      buscar: "search",
-      escanear: "scan",
-      exportar: "export",
-      imprimir: "print",
-      filtrar: "filter",
-      usuario: "user",
-      dashboard: "view"
+      crear: 'create',
+      editar: 'edit',
+      modificar: 'edit',
+      eliminar: 'delete',
+      ver: 'view',
+      buscar: 'search',
+      escanear: 'scan',
+      exportar: 'export',
+      imprimir: 'print',
+      filtrar: 'filter',
+      usuario: 'user',
+      dashboard: 'view',
     };
 
     for (const [spanish, english] of Object.entries(actions)) {
@@ -161,40 +269,52 @@ export class ResponseEngine {
     question: string,
     intent: QuestionIntent,
     userPermissions: string[],
-    userRole?: string
+    userRole?: string,
   ): Promise<AiResponse> {
     try {
       let structure: ProjectStructure;
       try {
         structure = await this.codeAnalyzer.analyzeProject();
       } catch (error) {
-        console.warn("Error analizando proyecto, usando estructura mínima:", error);
+        console.warn('Error analizando proyecto, usando estructura mínima:', error);
         structure = {
           routes: [],
           components: [],
           services: [],
           hooks: [],
           permissions: [],
-          lastAnalyzed: new Date()
+          lastAnalyzed: new Date(),
         };
       }
 
-      console.log("📋 Categoría detectada:", intent.category);
-      
+      console.log('📋 Categoría detectada:', intent.category);
+
       switch (intent.category) {
-        case "how_to":
+        case 'how_to':
           console.log("📖 Generando respuesta 'how_to'");
-          return this.generateHowToResponse(question, intent, structure, userPermissions, userRole);
+          return this.generateHowToResponse(
+            question,
+            intent,
+            structure,
+            userPermissions,
+            userRole,
+          );
 
-        case "data_query":
+        case 'data_query':
           console.log("📊 Generando respuesta 'data_query'");
-          return this.generateDataQueryResponse(question, intent);
+          return this.generateDataQueryResponse();
 
-        case "permissions":
+        case 'permissions':
           console.log("🔐 Generando respuesta 'permissions'");
-          return this.generatePermissionsResponse(question, intent, structure, userPermissions, userRole);
+          return this.generatePermissionsResponse(
+            question,
+            intent,
+            structure,
+            userPermissions,
+            userRole,
+          );
 
-        case "features":
+        case 'features':
           console.log("⚙️ Generando respuesta 'features'");
           return this.generateFeaturesResponse(question, intent, structure);
 
@@ -203,9 +323,10 @@ export class ResponseEngine {
           return this.generateGeneralResponse(question);
       }
     } catch (error) {
-      console.error("Error en generateResponse:", error);
+      console.error('Error en generateResponse:', error);
       return {
-        content: "Lo siento, hubo un error al generar la respuesta. Por favor, inténtalo de nuevo."
+        content:
+          'Lo siento, hubo un error al generar la respuesta. Por favor, inténtalo de nuevo.',
       };
     }
   }
@@ -218,199 +339,318 @@ export class ResponseEngine {
     intent: QuestionIntent,
     structure: ProjectStructure,
     userPermissions: string[],
-    userRole?: string
+    userRole?: string,
   ): AiResponse {
     const lowerQuestion = question.toLowerCase();
-    let response = "";
+    let response = '';
     const sources: string[] = [];
     let requiresPermission: string | undefined;
 
     // Manejar acciones específicas del menú
-    if (lowerQuestion.startsWith("how_to:")) {
-      const action = lowerQuestion.replace("how_to:", "");
+    if (lowerQuestion.startsWith('how_to:')) {
+      const action = lowerQuestion.replace('how_to:', '');
       switch (action) {
-        case "create_product":
-          requiresPermission = "products.create";
+        case 'create_product':
+          requiresPermission = 'products.create';
           if (!userPermissions.includes(requiresPermission)) {
             return this.generatePermissionDeniedResponse(
-              "crear productos",
+              'crear productos',
               requiresPermission,
               userRole,
-              ["WAREHOUSE", "ADMIN"]
+              ['WAREHOUSE', 'ADMIN'],
             );
           }
-          response = `<strong>📦 Cómo Crear un Producto</strong><br /><br />
+          response = `<div class="space-y-4 leading-relaxed">
+<h2 class="mt-0 mb-4 text-xl font-bold text-gray-800 dark:text-gray-200">📦 Cómo Crear un Producto</h2>
 
-<strong>Paso 1: Acceder al formulario</strong><br />
-• Navega a la página de productos desde el menú lateral<br />
-• Haz clic en el botón "Nuevo Producto" (arriba a la derecha)<br /><br />
+<section class="space-y-3">
+  <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Paso 1: Acceder al formulario</h3>
+  <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+    <li>Navega a la página de <strong>Productos</strong> desde el menú lateral</li>
+    <li>Haz clic en el botón <strong>"Nuevo Producto"</strong> ubicado en la parte superior derecha o <a href="/products/new" class="text-primary-600 dark:text-primary-400 hover:underline font-medium" data-route="/products/new">ir directamente al formulario</a></li>
+  </ul>
+</section>
 
-<strong>Paso 2: Completar el formulario</strong><br /><br />
+<section class="space-y-3">
+  <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Paso 2: Completar el formulario</h3>
 
-<strong>📋 Información Básica:</strong><br />
-• <strong>Código*</strong>: Identificador único del producto (ej: CABLE-001). No puede repetirse.<br />
-• <strong>Nombre*</strong>: Nombre descriptivo del producto (ej: "Cable Unifilar Marrón 1x1")<br />
-• <strong>Descripción</strong>: Detalles adicionales sobre el producto (opcional)<br />
-• <strong>Categoría</strong>: Clasificación del producto (opcional)<br />
-• <strong>Código de Barras</strong>: Código EAN/UPC para escaneo (opcional)<br /><br />
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">📋 Información Básica</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li><strong>Código*</strong>: Identificador único del producto (ej: <code class="px-1.5 py-0.5 bg-gray-100 dark:bg-gray-700 rounded text-xs font-mono">CABLE-001</code>). <em>No puede repetirse.</em></li>
+      <li><strong>Nombre*</strong>: Nombre descriptivo del producto (ej: <em>"Cable Unifilar Marrón 1x1"</em>)</li>
+      <li><strong>Descripción</strong>: <span class="text-gray-500 dark:text-gray-500">Detalles adicionales sobre el producto (opcional)</span></li>
+      <li><strong>Categoría</strong>: <span class="text-gray-500 dark:text-gray-500">Clasificación del producto (opcional)</span></li>
+      <li><strong>Código de Barras</strong>: <span class="text-gray-500 dark:text-gray-500">Código EAN/UPC para escaneo (opcional)</span></li>
+    </ul>
+  </div>
 
-<strong>📊 Stock:</strong><br />
-• <strong>Stock Actual*</strong>: Cantidad disponible actualmente en el almacén<br />
-• <strong>Stock Mínimo*</strong>: Cantidad mínima antes de generar alarma (cuando el stock actual ≤ mínimo, aparece en alertas)<br />
-• <strong>Stock Máximo</strong>: Cantidad máxima recomendada (opcional, para control de sobrestock)<br />
-• <strong>Unidad de Medida</strong>: Unidad (unidades, kg, m, etc.)<br /><br />
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">📊 Stock</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li><strong>Stock Actual*</strong>: Cantidad disponible actualmente en el almacén</li>
+      <li><strong>Stock Mínimo*</strong>: Cantidad mínima antes de generar alarma. <em>Cuando el stock actual ≤ mínimo, aparece en alertas.</em></li>
+      <li><strong>Stock Máximo</strong>: <span class="text-gray-500 dark:text-gray-500">Cantidad máxima recomendada (opcional, para control de sobrestock)</span></li>
+      <li><strong>Unidad de Medida</strong>: <span class="text-gray-500 dark:text-gray-500">Unidad (unidades, kg, m, etc.)</span></li>
+    </ul>
+  </div>
 
-<strong>📍 Ubicación:</strong><br />
-• <strong>Pasillo*</strong>: Número o letra del pasillo donde está ubicado<br />
-• <strong>Estante*</strong>: Número o letra del estante<br />
-• <strong>Ubicación Extra</strong>: Información adicional de ubicación (opcional)<br /><br />
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">📍 Ubicación</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li><strong>Pasillo*</strong>: Número o letra del pasillo donde está ubicado</li>
+      <li><strong>Estante*</strong>: Número o letra del estante</li>
+      <li><strong>Ubicación Extra</strong>: <span class="text-gray-500 dark:text-gray-500">Información adicional de ubicación (opcional)</span></li>
+    </ul>
+  </div>
 
-<strong>💰 Precios:</strong><br />
-• <strong>Precio de Coste*</strong>: Precio al que compras el producto al proveedor<br />
-• <strong>Precio de Venta</strong>: Precio al que vendes el producto (opcional)<br /><br />
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">💰 Precios</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li><strong>Precio de Coste*</strong>: Precio al que compras el producto al proveedor</li>
+      <li><strong>Precio de Venta</strong>: <span class="text-gray-500 dark:text-gray-500">Precio al que vendes el producto (opcional)</span></li>
+    </ul>
+  </div>
 
-<strong>📦 Información Adicional:</strong><br />
-• <strong>Código de Proveedor</strong>: Referencia del producto en el catálogo del proveedor<br />
-• <strong>URL de Compra</strong>: Enlace directo para comprar el producto<br />
-• <strong>URL de Imagen</strong>: Enlace a imagen del producto<br />
-• <strong>Peso</strong>: Peso del producto (opcional)<br />
-• <strong>Dimensiones</strong>: Dimensiones del producto (opcional)<br />
-• <strong>Notas</strong>: Observaciones adicionales (opcional)<br /><br />
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">📦 Información Adicional</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li><strong>Código de Proveedor</strong>: <span class="text-gray-500 dark:text-gray-500">Referencia del producto en el catálogo del proveedor</span></li>
+      <li><strong>URL de Compra</strong>: <span class="text-gray-500 dark:text-gray-500">Enlace directo para comprar el producto</span></li>
+      <li><strong>URL de Imagen</strong>: <span class="text-gray-500 dark:text-gray-500">Enlace a imagen del producto</span></li>
+      <li><strong>Peso</strong>: <span class="text-gray-500 dark:text-gray-500">Peso del producto (opcional)</span></li>
+      <li><strong>Dimensiones</strong>: <span class="text-gray-500 dark:text-gray-500">Dimensiones del producto (opcional)</span></li>
+      <li><strong>Notas</strong>: <span class="text-gray-500 dark:text-gray-500">Observaciones adicionales (opcional)</span></li>
+    </ul>
+  </div>
 
-<strong>⚙️ Opciones:</strong><br />
-• <strong>Producto Activo</strong>: Si está desactivado, no aparecerá en listados (útil para productos descontinuados)<br />
-• <strong>Control por Lotes</strong>: Activa si el producto requiere seguimiento por lotes (fechas de caducidad, números de lote, etc.)<br /><br />
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">⚙️ Opciones</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li><strong>Producto Activo</strong>: <em>Si está desactivado, no aparecerá en listados</em> (útil para productos descontinuados)</li>
+      <li><strong>Control por Lotes</strong>: <em>Activa si el producto requiere seguimiento por lotes</em> (fechas de caducidad, números de lote, etc.)</li>
+    </ul>
+  </div>
+</section>
 
-<strong>⚠️ Campos obligatorios (*):</strong> Código, Nombre, Stock Actual, Stock Mínimo, Pasillo, Estante, Precio de Coste<br /><br />
+<div class="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-600 rounded">
+  <strong class="text-yellow-800 dark:text-yellow-300">⚠️ Campos obligatorios (*):</strong>
+  <p class="mt-2 text-yellow-700 dark:text-yellow-400">Código, Nombre, Stock Actual, Stock Mínimo, Pasillo, Estante, Precio de Coste</p>
+</div>
 
-<strong>Paso 3: Guardar</strong><br />
-• Haz clic en "Crear Producto" para guardar<br />
-• Serás redirigido a la lista de productos<br />
-• El producto aparecerá inmediatamente en la tabla<br /><br />
+<section class="space-y-3">
+  <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Paso 3: Guardar</h3>
+  <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+    <li>Haz clic en el botón <strong>"Crear Producto"</strong> para guardar</li>
+    <li>Serás redirigido automáticamente a la lista de productos</li>
+    <li>El producto aparecerá inmediatamente en la tabla</li>
+  </ul>
+</section>
 
-<strong>💡 Consejo:</strong> Si activas "Control por Lotes", podrás gestionar fechas de caducidad y números de lote para este producto.`;
-          sources.push("/products/new");
+<div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 dark:border-blue-600 rounded">
+  <strong class="text-blue-800 dark:text-blue-300">💡 Consejo:</strong>
+  <p class="mt-2 text-blue-700 dark:text-blue-400">Si activas <strong>"Control por Lotes"</strong>, podrás gestionar fechas de caducidad y números de lote para este producto.</p>
+</div>
+</div>`;
+          sources.push('/products/new');
           break;
 
-        case "filter_products":
-          response = `<strong>🔎 Cómo Filtrar y Buscar Productos</strong><br /><br />
+        case 'filter_products':
+          response = `<div class="space-y-4 leading-relaxed">
+<h2 class="mt-0 mb-4 text-xl font-bold text-gray-800 dark:text-gray-200">🔎 Cómo Filtrar y Buscar Productos</h2>
 
-<strong>Método 1: Búsqueda Rápida</strong><br />
-• Usa la barra de búsqueda en la parte superior de la página<br />
-• Busca por: nombre del producto, código o código de barras<br />
-• La búsqueda es en tiempo real (se filtra mientras escribes)<br />
-• No distingue entre mayúsculas y minúsculas<br /><br />
+<section class="space-y-3">
+  <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Método 1: Búsqueda Rápida</h3>
+  <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+    <li>Usa la barra de búsqueda en la parte superior de la página o <a href="/products" class="text-primary-600 dark:text-primary-400 hover:underline font-medium" data-route="/products">ir a productos</a></li>
+    <li>Busca por: nombre del producto, código o código de barras</li>
+    <li>La búsqueda es en tiempo real (se filtra mientras escribes)</li>
+    <li>No distingue entre mayúsculas y minúsculas</li>
+  </ul>
+</section>
 
-<strong>Método 2: Filtros Rápidos</strong><br /><br />
+<section class="space-y-3">
+  <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Método 2: Filtros Rápidos</h3>
+  
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">⚠️ Solo Alarma</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li>Muestra solo productos con stock bajo</li>
+      <li>Un producto está en alarma cuando: <strong>Stock Actual ≤ Stock Mínimo</strong></li>
+      <li>Útil para identificar rápidamente qué productos necesitan reposición</li>
+      <li>Este filtro consulta <strong>TODA</strong> la base de datos, no solo la página visible</li>
+    </ul>
+  </div>
 
-<strong>⚠️ Solo Alarma:</strong><br />
-• Muestra solo productos con stock bajo<br />
-• Un producto está en alarma cuando: Stock Actual ≤ Stock Mínimo<br />
-• Útil para identificar rápidamente qué productos necesitan reposición<br />
-• Este filtro consulta TODA la base de datos, no solo la página visible<br /><br />
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">📋 Incluir Inactivos</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li>Por defecto, solo se muestran productos activos</li>
+      <li>Activa este filtro para ver también productos desactivados</li>
+      <li>Útil para productos descontinuados o temporalmente fuera de uso</li>
+    </ul>
+  </div>
+</section>
 
-<strong>📋 Incluir Inactivos:</strong><br />
-• Por defecto, solo se muestran productos activos<br />
-• Activa este filtro para ver también productos desactivados<br />
-• Útil para productos descontinuados o temporalmente fuera de uso<br /><br />
+<section class="space-y-3">
+  <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Método 3: Filtros Avanzados</h3>
+  <p class="text-sm">Haz clic en el icono de embudo (🔽) para abrir el menú de filtros avanzados:</p>
+  
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">📂 Categoría</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li>Filtra productos por su categoría específica</li>
+      <li>Ejemplo: "Cables", "Herramientas", "Material Eléctrico"</li>
+      <li>Solo muestra productos de la categoría seleccionada</li>
+    </ul>
+  </div>
 
-<strong>Método 3: Filtros Avanzados</strong><br />
-Haz clic en el icono de embudo (🔽) para abrir el menú de filtros avanzados:<br /><br />
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">📦 Control por Lotes</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li>Muestra solo productos que tienen control por lotes activado</li>
+      <li>Útil para gestionar productos con fechas de caducidad</li>
+      <li>Los productos con lotes requieren seguimiento especial</li>
+    </ul>
+  </div>
 
-<strong>📂 Categoría:</strong><br />
-• Filtra productos por su categoría específica<br />
-• Ejemplo: "Cables", "Herramientas", "Material Eléctrico"<br />
-• Solo muestra productos de la categoría seleccionada<br /><br />
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">📊 Rango de Stock</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li><strong>Stock Mínimo:</strong> Filtra productos con stock mínimo mayor o igual al valor</li>
+      <li><strong>Stock Máximo:</strong> Filtra productos con stock máximo menor o igual al valor</li>
+      <li>Útil para encontrar productos con stock específico</li>
+    </ul>
+  </div>
 
-<strong>📦 Control por Lotes:</strong><br />
-• Muestra solo productos que tienen control por lotes activado<br />
-• Útil para gestionar productos con fechas de caducidad<br />
-• Los productos con lotes requieren seguimiento especial<br /><br />
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">💰 Rango de Precios</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li><strong>Precio Mínimo:</strong> Filtra productos con precio de coste mayor o igual</li>
+      <li><strong>Precio Máximo:</strong> Filtra productos con precio de coste menor o igual</li>
+      <li>Útil para análisis de costes</li>
+    </ul>
+  </div>
 
-<strong>📊 Rango de Stock:</strong><br />
-• <strong>Stock Mínimo:</strong> Filtra productos con stock mínimo mayor o igual al valor<br />
-• <strong>Stock Máximo:</strong> Filtra productos con stock máximo menor o igual al valor<br />
-• Útil para encontrar productos con stock específico<br /><br />
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">🏷️ Código de Proveedor</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li>Busca productos por su código de referencia del proveedor</li>
+      <li>Útil cuando conoces la referencia del proveedor pero no el código interno</li>
+    </ul>
+  </div>
+</section>
 
-<strong>💰 Rango de Precios:</strong><br />
-• <strong>Precio Mínimo:</strong> Filtra productos con precio de coste mayor o igual<br />
-• <strong>Precio Máximo:</strong> Filtra productos con precio de coste menor o igual<br />
-• Útil para análisis de costes<br /><br />
-
-<strong>🏷️ Código de Proveedor:</strong><br />
-• Busca productos por su código de referencia del proveedor<br />
-• Útil cuando conoces la referencia del proveedor pero no el código interno<br /><br />
-
-<strong>💡 Consejos:</strong><br />
-• Los filtros se combinan entre sí (AND lógico)<br />
-• Puedes usar múltiples filtros a la vez<br />
-• Para limpiar todos los filtros: usa el botón "Limpiar filtros" o cierra las etiquetas de filtro activas<br />
-• Los filtros activos se muestran como etiquetas debajo de la barra de búsqueda<br />
-• Puedes hacer clic en la X de cada etiqueta para eliminar ese filtro específico`;
-          sources.push("/products");
+<div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-400 dark:border-blue-600 rounded">
+  <strong class="text-blue-800 dark:text-blue-300">💡 Consejos:</strong>
+  <ul class="mt-2 space-y-1 text-sm text-blue-700 dark:text-blue-400 list-disc list-inside">
+    <li>Los filtros se combinan entre sí (AND lógico)</li>
+    <li>Puedes usar múltiples filtros a la vez</li>
+    <li>Para limpiar todos los filtros: usa el botón "Limpiar filtros" o cierra las etiquetas de filtro activas</li>
+    <li>Los filtros activos se muestran como etiquetas debajo de la barra de búsqueda</li>
+    <li>Puedes hacer clic en la X de cada etiqueta para eliminar ese filtro específico</li>
+  </ul>
+</div>
+</div>`;
+          sources.push('/products');
           break;
 
-        case "export_products":
-        case "export_excel":
-        case "export_csv":
-        case "export_data":
-          response = `<strong>📥 Cómo Exportar Productos</strong><br /><br />
+        case 'export_products':
+        case 'export_excel':
+        case 'export_csv':
+        case 'export_data':
+          response = `<div class="space-y-4 leading-relaxed">
+<h2 class="mt-0 mb-4 text-xl font-bold text-gray-800 dark:text-gray-200">📥 Cómo Exportar Productos</h2>
 
-<strong>Paso 1: Acceder a la Exportación</strong><br />
-• Ve a la página de Productos (/products)<br />
-• Haz clic en el botón "Exportar" (arriba a la derecha, icono de descarga 📥)<br />
-• Se abrirá un cuadro de diálogo modal<br /><br />
+<section class="space-y-3">
+  <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Paso 1: Acceder a la Exportación</h3>
+  <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+    <li>Ve a la página de <a href="/products" class="text-primary-600 dark:text-primary-400 hover:underline font-medium" data-route="/products">Productos</a></li>
+    <li>Haz clic en el botón <strong>"Exportar"</strong> (arriba a la derecha, icono de descarga 📥)</li>
+    <li>Se abrirá un cuadro de diálogo modal</li>
+  </ul>
+</section>
 
-<strong>Paso 2: Seleccionar Formato</strong><br />
-• <strong>Excel (.xlsx)</strong>: Formato de Excel con formato y estilos<br />
-  - Mejor para análisis y presentaciones<br />
-  - Mantiene formato de números y fechas<br />
-  - Permite fórmulas y gráficos<br /><br />
-• <strong>CSV (.csv)</strong>: Formato de texto separado por comas<br />
-  - Compatible con cualquier programa de hojas de cálculo<br />
-  - Más ligero y rápido<br />
-  - Ideal para importar en otros sistemas<br /><br />
+<section class="space-y-3">
+  <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Paso 2: Seleccionar Formato</h3>
+  
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">Excel (.xlsx)</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li>Formato de Excel con formato y estilos</li>
+      <li>Mejor para análisis y presentaciones</li>
+      <li>Mantiene formato de números y fechas</li>
+      <li>Permite fórmulas y gráficos</li>
+    </ul>
+  </div>
 
-<strong>Paso 3: Seleccionar Columnas</strong><br />
-Por defecto están seleccionadas las columnas más importantes:<br />
-• Codi (Código)<br />
-• Nom (Nombre)<br />
-• Estoc (Stock Actual)<br />
-• Min (Stock Mínimo)<br />
-• Stock Máxim (Stock Máximo)<br />
-• Pasillo<br />
-• Estante<br />
-• Ubicación extra<br />
-• Codi provedor (Código de Proveedor)<br />
-• Control por lotes<br /><br />
+  <div class="space-y-3">
+    <h4 class="text-base font-semibold text-gray-600 dark:text-gray-400">CSV (.csv)</h4>
+    <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+      <li>Formato de texto separado por comas</li>
+      <li>Compatible con cualquier programa de hojas de cálculo</li>
+      <li>Más ligero y rápido</li>
+      <li>Ideal para importar en otros sistemas</li>
+    </ul>
+  </div>
+</section>
 
-Puedes seleccionar o deseleccionar cualquier columna según tus necesidades.<br /><br />
+<section class="space-y-3">
+  <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Paso 3: Seleccionar Columnas</h3>
+  <p class="text-sm">Por defecto están seleccionadas las columnas más importantes:</p>
+  <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+    <li>Codi (Código)</li>
+    <li>Nom (Nombre)</li>
+    <li>Estoc (Stock Actual)</li>
+    <li>Min (Stock Mínimo)</li>
+    <li>Stock Máxim (Stock Máximo)</li>
+    <li>Pasillo</li>
+    <li>Estante</li>
+    <li>Ubicación extra</li>
+    <li>Codi provedor (Código de Proveedor)</li>
+    <li>Control por lotes</li>
+  </ul>
+  <p class="text-sm mt-2">Puedes seleccionar o deseleccionar cualquier columna según tus necesidades.</p>
+</section>
 
-<strong>Paso 4: Opciones de Filtrado</strong><br />
-• <strong>Incluir filtros activos</strong>: Si está marcado, solo exporta los productos que coinciden con los filtros aplicados<br />
-• Si no está marcado, exporta TODOS los productos de la base de datos<br /><br />
+<section class="space-y-3">
+  <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Paso 4: Opciones de Filtrado</h3>
+  <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+    <li><strong>Incluir filtros activos:</strong> Si está marcado, solo exporta los productos que coinciden con los filtros aplicados</li>
+    <li>Si no está marcado, exporta <strong>TODOS</strong> los productos de la base de datos</li>
+  </ul>
+</section>
 
-<strong>Paso 5: Exportar</strong><br />
-• Haz clic en el botón "Exportar" dentro del modal<br />
-• El archivo se descargará automáticamente<br />
-• El nombre del archivo incluye la fecha y hora de exportación<br /><br />
+<section class="space-y-3">
+  <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-300">Paso 5: Exportar</h3>
+  <ul class="list-disc list-inside space-y-2 ml-4 text-sm">
+    <li>Haz clic en el botón <strong>"Exportar"</strong> dentro del modal</li>
+    <li>El archivo se descargará automáticamente</li>
+    <li>El nombre del archivo incluye la fecha y hora de exportación</li>
+  </ul>
+</section>
 
-<strong>⚠️ Importante:</strong><br />
-• La exportación incluye TODOS los productos que coinciden con los filtros, no solo los 25 visibles en la página<br />
-• Si tienes filtros activos y marcas "Incluir filtros activos", solo se exportarán los productos filtrados<br />
-• El archivo CSV incluye codificación UTF-8 con BOM para abrirse correctamente en Excel<br />
-• Los archivos Excel incluyen formato básico (anchos de columna, formato de números)`;
-          sources.push("/products");
+<div class="mt-6 p-4 bg-yellow-50 dark:bg-yellow-900/20 border-l-4 border-yellow-400 dark:border-yellow-600 rounded">
+  <strong class="text-yellow-800 dark:text-yellow-300">⚠️ Importante:</strong>
+  <p class="mt-2 text-yellow-700 dark:text-yellow-400">La exportación incluye <strong>TODOS</strong> los productos que coinciden con los filtros, no solo los 25 visibles en la página.</p>
+  <ul class="mt-2 space-y-1 text-sm text-yellow-700 dark:text-yellow-400 list-disc list-inside">
+    <li>Si tienes filtros activos y marcas "Incluir filtros activos", solo se exportarán los productos filtrados</li>
+    <li>El archivo CSV incluye codificación UTF-8 con BOM para abrirse correctamente en Excel</li>
+    <li>Los archivos Excel incluyen formato básico (anchos de columna, formato de números)</li>
+  </ul>
+</div>
+</div>`;
+          sources.push('/products');
           break;
 
-        case "use_scanner":
-          requiresPermission = "scanner.use";
+        case 'use_scanner':
+          requiresPermission = 'scanner.use';
           if (!userPermissions.includes(requiresPermission)) {
             return this.generatePermissionDeniedResponse(
-              "usar el escáner",
+              'usar el escáner',
               requiresPermission,
               userRole,
-              ["WAREHOUSE", "ADMIN"]
+              ['WAREHOUSE', 'ADMIN'],
             );
           }
           response = `<strong>📷 Cómo Usar el Escáner</strong><br /><br />
@@ -459,17 +699,17 @@ Puedes seleccionar o deseleccionar cualquier columna según tus necesidades.<br 
 • Si el código no se detecta, intenta escanearlo de nuevo<br />
 • Puedes escribir el código manualmente si el escáner no funciona<br />
 • Los códigos de barras y QR son compatibles`;
-          sources.push("/scanner");
+          sources.push('/scanner');
           break;
 
-        case "scanner_usb":
-          requiresPermission = "scanner.use";
+        case 'scanner_usb':
+          requiresPermission = 'scanner.use';
           if (!userPermissions.includes(requiresPermission)) {
             return this.generatePermissionDeniedResponse(
-              "usar el escáner USB",
+              'usar el escáner USB',
               requiresPermission,
               userRole,
-              ["WAREHOUSE", "ADMIN"]
+              ['WAREHOUSE', 'ADMIN'],
             );
           }
           response = `<strong>🔌 Escáner USB - Guía Completa</strong><br /><br />
@@ -493,17 +733,17 @@ Puedes seleccionar o deseleccionar cualquier columna según tus necesidades.<br 
 • Funciona con códigos de barras y QR<br /><br />
 
 <strong>Nota:</strong> El escáner USB se comporta como un teclado, por lo que escribe el código y envía Enter automáticamente.`;
-          sources.push("/scanner");
+          sources.push('/scanner');
           break;
 
-        case "scanner_camera":
-          requiresPermission = "scanner.use";
+        case 'scanner_camera':
+          requiresPermission = 'scanner.use';
           if (!userPermissions.includes(requiresPermission)) {
             return this.generatePermissionDeniedResponse(
-              "usar la cámara para escanear",
+              'usar la cámara para escanear',
               requiresPermission,
               userRole,
-              ["WAREHOUSE", "ADMIN"]
+              ['WAREHOUSE', 'ADMIN'],
             );
           }
           response = `<strong>📸 Escáner con Cámara - Guía Completa</strong><br /><br />
@@ -532,17 +772,17 @@ Puedes seleccionar o deseleccionar cualquier columna según tus necesidades.<br 
 • Acerca la cámara lo suficiente para que el código sea legible<br />
 • Evita reflejos y sombras<br />
 • Si no se detecta, intenta cambiar el ángulo o la distancia`;
-          sources.push("/scanner");
+          sources.push('/scanner');
           break;
 
-        case "create_movement_in":
-          requiresPermission = "movements.create_in";
+        case 'create_movement_in':
+          requiresPermission = 'movements.create_in';
           if (!userPermissions.includes(requiresPermission)) {
             return this.generatePermissionDeniedResponse(
-              "registrar entradas",
-              "movements.create_in",
+              'registrar entradas',
+              'movements.create_in',
               userRole,
-              ["WAREHOUSE", "ADMIN"]
+              ['WAREHOUSE', 'ADMIN'],
             );
           }
           response = `<strong>⬆️ Cómo Registrar una Entrada de Stock</strong><br /><br />
@@ -576,17 +816,17 @@ Una entrada aumenta el stock disponible de un producto. Se usa cuando:<br />
 • Si el producto tiene control por lotes, debes seleccionar o crear un lote<br />
 • El motivo es obligatorio para auditoría<br />
 • Los movimientos quedan registrados en el historial`;
-          sources.push("/movements", "/scanner");
+          sources.push('/movements', '/scanner');
           break;
 
-        case "create_movement_out":
-          requiresPermission = "movements.create_out";
+        case 'create_movement_out':
+          requiresPermission = 'movements.create_out';
           if (!userPermissions.includes(requiresPermission)) {
             return this.generatePermissionDeniedResponse(
-              "registrar salidas",
-              "movements.create_out",
+              'registrar salidas',
+              'movements.create_out',
               userRole,
-              ["WAREHOUSE", "ADMIN"]
+              ['WAREHOUSE', 'ADMIN'],
             );
           }
           response = `<strong>⬇️ Cómo Registrar una Salida de Stock</strong><br /><br />
@@ -622,10 +862,10 @@ Una salida disminuye el stock disponible de un producto. Se usa cuando:<br />
 • Si el producto tiene control por lotes, debes seleccionar el lote específico<br />
 • El motivo es obligatorio para auditoría<br />
 • Los movimientos quedan registrados en el historial`;
-          sources.push("/movements", "/scanner");
+          sources.push('/movements', '/scanner');
           break;
 
-        case "filter_movements":
+        case 'filter_movements':
           response = `<strong>🔎 Cómo Filtrar Movimientos</strong><br /><br />
 
 <strong>Paso 1: Acceder a Movimientos</strong><br />
@@ -661,10 +901,10 @@ Una salida disminuye el stock disponible de un producto. Se usa cuando:<br />
 <strong>📥 Exportar:</strong><br />
 • Puedes exportar los movimientos filtrados a Excel o CSV<br />
 • El archivo incluirá solo los movimientos que coincidan con los filtros activos`;
-          sources.push("/movements");
+          sources.push('/movements');
           break;
 
-        case "export_movements":
+        case 'export_movements':
           response = `<strong>📥 Cómo Exportar Movimientos</strong><br /><br />
 
 <strong>Paso 1: Acceder a Movimientos</strong><br />
@@ -696,10 +936,10 @@ El archivo exportado incluye todas las columnas de movimientos:<br />
 • Exporta movimientos de un producto específico usando el filtro de producto<br />
 • El formato Excel es mejor para análisis y presentaciones<br />
 • El formato CSV es mejor para importar en otros sistemas`;
-          sources.push("/movements");
+          sources.push('/movements');
           break;
 
-        case "change_language":
+        case 'change_language':
           response = `<strong>🌐 Cómo Cambiar el Idioma</strong><br /><br />
 
 <strong>Ubicación:</strong><br />
@@ -722,10 +962,10 @@ El archivo exportado incluye todas las columnas de movimientos:<br />
 • Se mantendrá en futuras sesiones<br />
 • Todos los textos de la interfaz cambiarán al idioma seleccionado<br />
 • Los mensajes del sistema también cambiarán de idioma`;
-          sources.push("/settings");
+          sources.push('/settings');
           break;
 
-        case "change_theme":
+        case 'change_theme':
           response = `<strong>🎨 Cómo Cambiar el Tema</strong><br /><br />
 
 <strong>Ubicación:</strong><br />
@@ -753,16 +993,16 @@ El archivo exportado incluye todas las columnas de movimientos:<br />
 • Se aplicará automáticamente en futuras sesiones<br />
 • Todos los componentes de la aplicación respetan el tema seleccionado<br />
 • Puedes cambiar el tema en cualquier momento`;
-          sources.push("/settings");
+          sources.push('/settings');
           break;
 
-        case "manage_users":
-          if (!userPermissions.includes("admin.users")) {
+        case 'manage_users':
+          if (!userPermissions.includes('admin.users')) {
             return this.generatePermissionDeniedResponse(
-              "gestionar usuarios",
-              "admin.users",
+              'gestionar usuarios',
+              'admin.users',
               userRole,
-              ["ADMIN"]
+              ['ADMIN'],
             );
           }
           response = `Gestión de Usuarios (Solo Administradores):<br /><br />
@@ -771,7 +1011,7 @@ El archivo exportado incluye todas las columnas de movimientos:<br />
    - Al iniciar sesión por primera vez, el usuario puede tener un rol por defecto (VIEWER).<br />
    - Un administrador puede cambiar el rol de un usuario editando la tabla user_profiles o mediante futuras funcionalidades de administración en la app.<br /><br />
 3. <strong>Perfiles</strong>: Puedes ver la información de los usuarios en la sección de configuración o auditoría (si está disponible).`;
-          sources.push("/admin", "/settings");
+          sources.push('/admin', '/settings');
           break;
 
         default:
@@ -783,21 +1023,25 @@ El archivo exportado incluye todas las columnas de movimientos:<br />
         return {
           content: response,
           sources,
-          requiresPermission
+          requiresPermission,
         };
       }
     }
 
     // Detectar qué acción quiere hacer
-    if (lowerQuestion.includes("producto")) {
-      if (lowerQuestion.includes("crear") || lowerQuestion.includes("añadir") || lowerQuestion.includes("nuevo")) {
-        requiresPermission = "products.create";
+    if (lowerQuestion.includes('producto')) {
+      if (
+        lowerQuestion.includes('crear') ||
+        lowerQuestion.includes('añadir') ||
+        lowerQuestion.includes('nuevo')
+      ) {
+        requiresPermission = 'products.create';
         if (!userPermissions.includes(requiresPermission)) {
           return this.generatePermissionDeniedResponse(
-            "crear productos",
+            'crear productos',
             requiresPermission,
             userRole,
-            ["WAREHOUSE", "ADMIN"]
+            ['WAREHOUSE', 'ADMIN'],
           );
         }
 
@@ -821,15 +1065,18 @@ El archivo exportado incluye todas las columnas de movimientos:<br />
 
 Una vez creado, serás redirigido a la lista de productos.`;
 
-        sources.push("/products/new");
-      } else if (lowerQuestion.includes("editar") || lowerQuestion.includes("modificar")) {
-        requiresPermission = "products.edit";
+        sources.push('/products/new');
+      } else if (
+        lowerQuestion.includes('editar') ||
+        lowerQuestion.includes('modificar')
+      ) {
+        requiresPermission = 'products.edit';
         if (!userPermissions.includes(requiresPermission)) {
           return this.generatePermissionDeniedResponse(
-            "editar productos",
+            'editar productos',
             requiresPermission,
             userRole,
-            ["WAREHOUSE", "ADMIN"]
+            ['WAREHOUSE', 'ADMIN'],
           );
         }
 
@@ -849,8 +1096,12 @@ Una vez creado, serás redirigido a la lista de productos.`;
 
 <strong>Nota</strong>: Solo puedes editar productos si tienes el permiso "products.edit".`;
 
-        sources.push("/products", "/products/:id/edit");
-      } else if (lowerQuestion.includes("exportar") || lowerQuestion.includes("excel") || lowerQuestion.includes("csv")) {
+        sources.push('/products', '/products/:id/edit');
+      } else if (
+        lowerQuestion.includes('exportar') ||
+        lowerQuestion.includes('excel') ||
+        lowerQuestion.includes('csv')
+      ) {
         response = `Para exportar productos:
 
 1. <strong>Ve a la página de Productos</strong>.
@@ -861,8 +1112,12 @@ Una vez creado, serás redirigido a la lista de productos.`;
 6. <strong>Haz clic en "Exportar"</strong> en el cuadro de diálogo.
 
 El archivo se descargará automáticamente.`;
-        sources.push("/products");
-      } else if (lowerQuestion.includes("filtrar") || lowerQuestion.includes("buscar") || lowerQuestion.includes("filtro")) {
+        sources.push('/products');
+      } else if (
+        lowerQuestion.includes('filtrar') ||
+        lowerQuestion.includes('buscar') ||
+        lowerQuestion.includes('filtro')
+      ) {
         response = `Puedes buscar y filtrar productos de varias formas:
 
 1. <strong>Búsqueda rápida</strong>: Usa la barra de búsqueda superior para buscar por nombre, código o código de barras.
@@ -879,7 +1134,7 @@ El archivo se descargará automáticamente.`;
    - <strong>Código de Proveedor</strong>: Busca por referencia de proveedor.
 
 Los filtros se combinan entre sí. Para limpiar todos los filtros, usa el botón "Limpiar filtros" dentro del menú avanzado o cierra las etiquetas de filtro activas.`;
-        sources.push("/products");
+        sources.push('/products');
       } else {
         response = `¿Qué te gustaría hacer con productos? Puedo ayudarte a:
 - Crear un nuevo producto
@@ -890,14 +1145,18 @@ Los filtros se combinan entre sí. Para limpiar todos los filtros, usa el botón
 
 ¿Cuál de estas acciones necesitas?`;
       }
-    } else if (lowerQuestion.includes("escanear") || lowerQuestion.includes("escáner") || lowerQuestion.includes("escanner")) {
-      requiresPermission = "scanner.use";
+    } else if (
+      lowerQuestion.includes('escanear') ||
+      lowerQuestion.includes('escáner') ||
+      lowerQuestion.includes('escanner')
+    ) {
+      requiresPermission = 'scanner.use';
       if (!userPermissions.includes(requiresPermission)) {
         return this.generatePermissionDeniedResponse(
-          "usar el escáner",
+          'usar el escáner',
           requiresPermission,
           userRole,
-          ["WAREHOUSE", "ADMIN"]
+          ['WAREHOUSE', 'ADMIN'],
         );
       }
 
@@ -920,15 +1179,22 @@ Los filtros se combinan entre sí. Para limpiar todos los filtros, usa el botón
 
 <strong>Tip</strong>: El escáner USB se comporta como un teclado, escribe el código y envía Enter automáticamente.`;
 
-      sources.push("/scanner");
-    } else if (lowerQuestion.includes("movimiento") || lowerQuestion.includes("entrada") || lowerQuestion.includes("salida")) {
-      requiresPermission = "movements.create_in";
-      if (!userPermissions.includes(requiresPermission) && !userPermissions.includes("movements.create_out")) {
+      sources.push('/scanner');
+    } else if (
+      lowerQuestion.includes('movimiento') ||
+      lowerQuestion.includes('entrada') ||
+      lowerQuestion.includes('salida')
+    ) {
+      requiresPermission = 'movements.create_in';
+      if (
+        !userPermissions.includes(requiresPermission) &&
+        !userPermissions.includes('movements.create_out')
+      ) {
         return this.generatePermissionDeniedResponse(
-          "registrar movimientos",
-          "movements.create_in",
+          'registrar movimientos',
+          'movements.create_in',
           userRole,
-          ["WAREHOUSE", "ADMIN"]
+          ['WAREHOUSE', 'ADMIN'],
         );
       }
 
@@ -953,9 +1219,13 @@ Los filtros se combinan entre sí. Para limpiar todos los filtros, usa el botón
 
 <strong>Nota</strong>: El stock se actualiza automáticamente después de registrar el movimiento.`;
 
-      sources.push("/movements", "/scanner");
-    } else if (lowerQuestion.includes("usuario") || lowerQuestion.includes("cuenta") || lowerQuestion.includes("perfil")) {
-      if (!userPermissions.includes("admin.users")) {
+      sources.push('/movements', '/scanner');
+    } else if (
+      lowerQuestion.includes('usuario') ||
+      lowerQuestion.includes('cuenta') ||
+      lowerQuestion.includes('perfil')
+    ) {
+      if (!userPermissions.includes('admin.users')) {
         response = `La gestión de usuarios está reservada para administradores.
 
 Como usuario normal, puedes ver tu perfil haciendo clic en tu avatar o nombre en la esquina superior derecha.
@@ -972,8 +1242,12 @@ Para cerrar sesión, abre el menú de usuario y selecciona "Cerrar Sesión".`;
 
 3. <strong>Perfiles</strong>: Puedes ver la información de los usuarios en la sección de configuración o auditoría (si está disponible).`;
       }
-      sources.push("/settings");
-    } else if (lowerQuestion.includes("dashboard") || lowerQuestion.includes("inicio") || lowerQuestion.includes("resumen")) {
+      sources.push('/settings');
+    } else if (
+      lowerQuestion.includes('dashboard') ||
+      lowerQuestion.includes('inicio') ||
+      lowerQuestion.includes('resumen')
+    ) {
       response = `El Dashboard (Inicio) te ofrece una visión general del estado del inventario:
 
 - <strong>KPIs</strong>: Tarjetas superiores con métricas clave (Stock Total, Valor, Productos Críticos, Movimientos hoy).
@@ -983,7 +1257,7 @@ Para cerrar sesión, abre el menú de usuario y selecciona "Cerrar Sesión".`;
 - <strong>Sugerencias IA</strong>: Recomendaciones inteligentes para optimizar el inventario (reabastecimiento, movimiento de lotes).
 
 Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
-      sources.push("/");
+      sources.push('/');
     } else {
       response = `Puedo ayudarte con varias tareas en la aplicación. Actúo como un manual interactivo:
 
@@ -1006,7 +1280,7 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
     return {
       content: response,
       sources,
-      requiresPermission
+      requiresPermission,
     };
   }
 
@@ -1014,15 +1288,12 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
    * Genera respuesta para consultas de datos
    * Esta respuesta indica que se debe usar el servicio MCP para obtener datos reales
    */
-  private generateDataQueryResponse(
-    question: string,
-    intent: QuestionIntent
-  ): AiResponse {
+  private generateDataQueryResponse(): AiResponse {
     // Las consultas de datos requieren llamar a los repositorios/MCP tools
     // Esta respuesta será procesada por el AiChatService que llamará a los repositorios
     return {
-      content: "PROCESS_DATA_QUERY", // Marcador especial para que el servicio sepa que debe consultar datos
-      suggestedActions: []
+      content: 'PROCESS_DATA_QUERY', // Marcador especial para que el servicio sepa que debe consultar datos
+      suggestedActions: [],
     };
   }
 
@@ -1034,15 +1305,15 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
     intent: QuestionIntent,
     structure: ProjectStructure,
     userPermissions: string[],
-    userRole?: string
+    userRole?: string,
   ): AiResponse {
     const lowerQuestion = question.toLowerCase();
-    let response = "";
+    let response = '';
 
-    if (lowerQuestion.includes("puedo") || lowerQuestion.includes("permiso")) {
+    if (lowerQuestion.includes('puedo') || lowerQuestion.includes('permiso')) {
       // Buscar qué permiso está preguntando
       const permissionInfo = this.codeAnalyzer.getPermissionInfo(
-        this.extractPermissionFromQuestion(lowerQuestion)
+        this.extractPermissionFromQuestion(lowerQuestion),
       );
 
       if (permissionInfo) {
@@ -1050,7 +1321,7 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
         if (hasPermission) {
           response = `Sí, tienes permiso para "${permissionInfo.description}" (${permissionInfo.key}).`;
         } else {
-          response = `No, no tienes permiso para "${permissionInfo.description}".\n\nEste permiso está disponible para los roles: ${permissionInfo.roles.join(", ")}.`;
+          response = `No, no tienes permiso para "${permissionInfo.description}".\n\nEste permiso está disponible para los roles: ${permissionInfo.roles.join(', ')}.`;
           if (userRole) {
             response += `\n\nTu rol actual es: ${userRole}.`;
           }
@@ -1060,14 +1331,14 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
         response = `Para saber qué permisos tienes, puedo ayudarte. ¿Qué acción específica quieres realizar? Por ejemplo: "¿Puedo crear productos?" o "¿Puedo usar el escáner?"`;
       }
     } else {
-      response = `Tu rol actual es: ${userRole || "No identificado"}.\n\n`;
+      response = `Tu rol actual es: ${userRole || 'No identificado'}.\n\n`;
       response += `Tienes los siguientes permisos:\n`;
-      response += userPermissions.map((p) => `- ${p}`).join("\n");
+      response += userPermissions.map((p) => `- ${p}`).join('\n');
     }
 
     return {
       content: response,
-      requiresPermission: this.extractPermissionFromQuestion(lowerQuestion)
+      requiresPermission: this.extractPermissionFromQuestion(lowerQuestion),
     };
   }
 
@@ -1077,14 +1348,14 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
   private generateFeaturesResponse(
     question: string,
     intent: QuestionIntent,
-    structure: ProjectStructure
+    structure: ProjectStructure,
   ): AiResponse {
     const routes = structure.routes;
     let response = `La aplicación incluye las siguientes funcionalidades principales:\n\n`;
 
     response += `<strong>Páginas disponibles:</strong><br />`;
     routes.forEach((route) => {
-      if (route.label && route.path !== "/") {
+      if (route.label && route.path !== '/') {
         response += `- <strong>${route.label}</strong> (${route.path})`;
         if (route.description) {
           response += `: ${route.description}`;
@@ -1095,12 +1366,12 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
 
     response += `<br /><strong>Servicios disponibles:</strong><br />`;
     structure.services.forEach((service) => {
-      response += `- <strong>${service.name}</strong>: ${service.description || ""}<br />`;
+      response += `- <strong>${service.name}</strong>: ${service.description || ''}<br />`;
     });
 
     return {
       content: response,
-      sources: routes.map((r) => r.path)
+      sources: routes.map((r) => r.path),
     };
   }
 
@@ -1109,28 +1380,28 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
    */
   private generateGeneralResponse(question: string): AiResponse {
     const lowerQuestion = question.toLowerCase().trim();
-    
+
     // Detectar si es un comando de menú
-    if (lowerQuestion.startsWith("menu:")) {
-      const menuId = lowerQuestion.replace("menu:", "");
+    if (lowerQuestion.startsWith('menu:')) {
+      const menuId = lowerQuestion.replace('menu:', '');
       return generateMenuResponse(menuId);
     }
-    
+
     // Detectar saludos - mostrar menú principal
     if (
-      lowerQuestion === "hola" ||
-      lowerQuestion === "hola!" ||
-      lowerQuestion === "hola." ||
-      lowerQuestion === "hi" ||
-      lowerQuestion === "hello" ||
-      lowerQuestion === "buenos días" ||
-      lowerQuestion === "buenos dias" ||
-      lowerQuestion === "buenas tardes" ||
-      lowerQuestion === "buenas noches" ||
-      lowerQuestion === "bon dia" ||
-      lowerQuestion === "bona tarda" ||
-      lowerQuestion === "bona nit" ||
-      lowerQuestion === "" ||
+      lowerQuestion === 'hola' ||
+      lowerQuestion === 'hola!' ||
+      lowerQuestion === 'hola.' ||
+      lowerQuestion === 'hi' ||
+      lowerQuestion === 'hello' ||
+      lowerQuestion === 'buenos días' ||
+      lowerQuestion === 'buenos dias' ||
+      lowerQuestion === 'buenas tardes' ||
+      lowerQuestion === 'buenas noches' ||
+      lowerQuestion === 'bon dia' ||
+      lowerQuestion === 'bona tarda' ||
+      lowerQuestion === 'bona nit' ||
+      lowerQuestion === '' ||
       lowerQuestion.length === 0
     ) {
       const menuResponse = generateMenuResponse();
@@ -1140,11 +1411,11 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
           id: opt.id,
           label: opt.label,
           emoji: opt.emoji,
-          hasSubOptions: !!opt.subOptions && opt.subOptions.length > 0
-        }))
+          hasSubOptions: !!opt.subOptions && opt.subOptions.length > 0,
+        })),
       };
     }
-    
+
     // Respuesta general para otras preguntas - mostrar menú principal
     const menuResponse = generateMenuResponse();
     return {
@@ -1153,8 +1424,8 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
         id: opt.id,
         label: opt.label,
         emoji: opt.emoji,
-        hasSubOptions: !!opt.subOptions && opt.subOptions.length > 0
-      }))
+        hasSubOptions: !!opt.subOptions && opt.subOptions.length > 0,
+      })),
     };
   }
 
@@ -1165,7 +1436,7 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
     action: string,
     requiredPermission: string,
     userRole?: string,
-    allowedRoles?: string[]
+    allowedRoles?: string[],
   ): AiResponse {
     const roleInfo = this.codeAnalyzer.getPermissionInfo(requiredPermission);
     let response = `No puedes ${action} porque no tienes el permiso necesario.<br /><br />`;
@@ -1177,7 +1448,7 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
       response += `<strong>Tu rol actual</strong>: ${userRole}<br />`;
     }
     if (allowedRoles && allowedRoles.length > 0) {
-      response += `<strong>Roles permitidos</strong>: ${allowedRoles.join(", ")}<br />`;
+      response += `<strong>Roles permitidos</strong>: ${allowedRoles.join(', ')}<br />`;
     }
     response += `<br />Contacta a un administrador si necesitas acceso a esta funcionalidad.`;
 
@@ -1186,10 +1457,10 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
       requiresPermission: requiredPermission,
       suggestedActions: [
         {
-          label: "Contactar administrador",
-          permission: "admin.users"
-        }
-      ]
+          label: 'Contactar administrador',
+          permission: 'admin.users',
+        },
+      ],
     };
   }
 
@@ -1199,17 +1470,17 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
   private extractPermissionFromQuestion(question: string): string {
     // Mapeo simple de palabras clave a permisos
     const mapping: Record<string, string> = {
-      producto: "products.view",
-      crear: "products.create",
-      editar: "products.edit",
-      modificar: "products.edit",
-      eliminar: "products.delete",
-      escanear: "scanner.use",
-      escáner: "scanner.use",
-      movimiento: "movements.view",
-      reporte: "reports.view",
-      exportar: "reports.export_excel",
-      lote: "batches.view"
+      producto: 'products.view',
+      crear: 'products.create',
+      editar: 'products.edit',
+      modificar: 'products.edit',
+      eliminar: 'products.delete',
+      escanear: 'scanner.use',
+      escáner: 'scanner.use',
+      movimiento: 'movements.view',
+      reporte: 'reports.view',
+      exportar: 'reports.export_excel',
+      lote: 'batches.view',
     };
 
     for (const [keyword, permission] of Object.entries(mapping)) {
@@ -1218,7 +1489,6 @@ Usa el dashboard para detectar problemas rápidamente al iniciar tu jornada.`;
       }
     }
 
-    return "";
+    return '';
   }
 }
-

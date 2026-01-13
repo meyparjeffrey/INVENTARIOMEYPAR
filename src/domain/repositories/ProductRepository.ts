@@ -2,6 +2,7 @@ import type {
   BatchDefectReport,
   Product,
   ProductBatch,
+  ProductLocation,
   ProductStockByWarehouse,
   UUID,
 } from '@domain/entities';
@@ -94,7 +95,7 @@ export interface CreateProductInput {
   locationExtra?: string | null;
   warehouse?: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA';
   costPrice: number;
-  salePrice?: string | null;
+  salePrice?: number | null;
   purchaseUrl?: string | null;
   imageUrl?: string | null;
   supplierCode?: string | null; // Código de Proveedor

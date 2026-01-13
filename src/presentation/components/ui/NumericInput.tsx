@@ -50,8 +50,8 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
         inputRef.current = node;
         if (typeof ref === 'function') {
           ref(node);
-        } else if (ref) {
-          ref.current = node;
+        } else if (ref && 'current' in ref) {
+          (ref as React.MutableRefObject<HTMLInputElement | null>).current = node;
         }
       },
       [ref],

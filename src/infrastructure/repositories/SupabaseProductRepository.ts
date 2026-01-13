@@ -1203,8 +1203,20 @@ export class SupabaseProductRepository
     // No creamos ubicaciones aquí porque ahora se gestionan desde ProductForm.tsx
 
     // Cargar ubicaciones (puede estar vacío si no se han añadido aún)
-    const locations = await this.getProductLocations(product.id);
-    return mapProduct(product, locations);
+    let locationsData: ProductLocationRow[] | undefined;
+    try {
+      const { data: locData } = await this.client
+        .from('product_locations')
+        .select('*')
+        .eq('product_id', product.id)
+        .order('is_primary', { ascending: false })
+        .order('created_at', { ascending: true });
+
+      locationsData = locData && Array.isArray(locData) ? locData : undefined;
+    } catch (err) {
+      console.warn('Error al cargar ubicaciones del producto:', err);
+    }
+    return mapProduct(product, locationsData);
   }
 
   async update(id: string, input: UpdateProductInput): Promise<Product> {

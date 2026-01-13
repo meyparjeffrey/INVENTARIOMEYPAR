@@ -298,6 +298,7 @@ export function ProductForm({
                   shelf: product.shelf,
                   warehouse: 'MEYPAR',
                   isPrimary: true,
+                  quantity: product.stockCurrent || 0,
                 },
               ]);
             } else if (product.warehouse === 'FURGONETA' && product.locationExtra) {
@@ -310,6 +311,7 @@ export function ProductForm({
                     shelf: techName,
                     warehouse: 'FURGONETA',
                     isPrimary: true,
+                    quantity: product.stockCurrent || 0,
                   },
                 ]);
               } else {
@@ -317,7 +319,13 @@ export function ProductForm({
               }
             } else if (product.warehouse === 'OLIVA_TORRAS') {
               setLocations([
-                { aisle: '', shelf: '', warehouse: 'OLIVA_TORRAS', isPrimary: true },
+                {
+                  aisle: '',
+                  shelf: '',
+                  warehouse: 'OLIVA_TORRAS',
+                  isPrimary: true,
+                  quantity: product.stockCurrent || 0,
+                },
               ]);
             } else {
               setLocations([]);
@@ -582,7 +590,7 @@ export function ProductForm({
         userId = user?.id;
       } catch (err) {
         console.warn('Error al obtener userId:', err);
-        userId = authContext?.user?.id;
+        userId = authContext?.profile?.id;
       }
 
       // Obtener el producto guardado (por código si es nuevo, por ID si es edición)
@@ -591,7 +599,9 @@ export function ProductForm({
         savedProduct = await repositoryRef.current.findById(product.id);
       } else {
         // Producto nuevo: buscarlo por código
-        savedProduct = await repositoryRef.current.findByCodeOrBarcode(submitData.code);
+        if (submitData.code) {
+          savedProduct = await repositoryRef.current.findByCodeOrBarcode(submitData.code);
+        }
       }
 
       if (savedProduct) {
@@ -1382,13 +1392,8 @@ export function ProductForm({
                                 // Permitir campo vacío y solo números
                                 if (val === '' || /^\d+$/.test(val)) {
                                   setEditingQuantityInput(val);
-                                  // Actualizar el valor numérico solo si hay un número válido
-                                  if (val !== '') {
-                                    const numVal = parseInt(val, 10);
-                                    if (!isNaN(numVal) && numVal >= 0) {
-                                      setEditingQuantityValue(numVal);
-                                    }
-                                  }
+                                  // Actualizar el valor del input
+                                  setEditingQuantityInput(val);
                                 }
                               }}
                               onKeyDown={(e) => {
@@ -1410,7 +1415,7 @@ export function ProductForm({
                               onBlur={() => {
                                 // Si el campo está vacío al perder el foco, establecer 0
                                 if (editingQuantityInput === '') {
-                                  setEditingQuantityValue(0);
+                                  setEditingQuantityInput('0');
                                 }
                               }}
                               className="w-24 rounded-lg border border-gray-300 bg-white px-2 py-1 text-sm focus:border-primary-500 focus:outline-none focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-800"
