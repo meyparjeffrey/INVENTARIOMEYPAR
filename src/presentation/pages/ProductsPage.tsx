@@ -34,6 +34,7 @@ import {
 } from '../constants/pageSizeOptions';
 import { SupabaseUserRepository } from '@infrastructure/repositories/SupabaseUserRepository';
 import { SupabaseProductRepository } from '@infrastructure/repositories/SupabaseProductRepository';
+import { debugProductStock } from '../../utils/debugProductStock';
 
 /**
  * Página principal de gestión de productos.
@@ -69,6 +70,16 @@ export function ProductsPage() {
   const [showColumnConfig, setShowColumnConfig] = React.useState(false);
   const [selectedProductIds, setSelectedProductIds] = React.useState<string[]>([]);
   const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = React.useState(false);
+
+  // Exponer función de depuración globalmente para uso desde la consola
+  React.useEffect(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (window as any).debugProductStock = debugProductStock;
+    // eslint-disable-next-line no-console
+    console.log(
+      '💡 Función de depuración disponible: debugProductStock("AAAA QRTEST-USB-1")',
+    );
+  }, []);
 
   // Configuración de columnas personalizables
   const defaultColumns: TableColumn[] = React.useMemo(
@@ -619,9 +630,7 @@ export function ProductsPage() {
       const allProducts = await getAll(currentFilters);
 
       // Filtrar solo los productos seleccionados
-      const selectedProducts = allProducts.filter((p) =>
-        selectedProductIds.includes(p.id),
-      );
+      let selectedProducts = allProducts.filter((p) => selectedProductIds.includes(p.id));
 
       if (selectedProducts.length === 0) {
         // eslint-disable-next-line no-console
@@ -629,9 +638,29 @@ export function ProductsPage() {
         return;
       }
 
-      const excelData = selectedProducts.map((product) => {
-        // Obtener almacenes únicos
-        let warehouses = '-';
+      // Enriquecer productos con ubicaciones si no las tienen (necesario para calcular stock por almacén)
+      selectedProducts = await enrichProductsWithLocations(selectedProducts);
+
+      // Función para calcular stock por almacén (misma lógica que handleExportExcel)
+      const calculateStockByWarehouse = (
+        product: Product,
+        warehouse: 'MEYPAR' | 'OLIVA_TORRAS' | 'FURGONETA',
+      ): number => {
+        if (
+          product.locations &&
+          Array.isArray(product.locations) &&
+          product.locations.length > 0
+        ) {
+          return product.locations
+            .filter((loc) => loc.warehouse === warehouse)
+            .reduce((sum, loc) => sum + (loc.quantity || 0), 0);
+        }
+        // Fallback: si el producto tiene warehouse pero no locations
+        return product.warehouse === warehouse ? product.stockCurrent : 0;
+      };
+
+      // Obtener almacenes únicos
+      const getWarehouses = (product: Product): string => {
         if (
           product.locations &&
           Array.isArray(product.locations) &&
@@ -643,20 +672,21 @@ export function ProductsPage() {
             else if (loc.warehouse === 'OLIVA_TORRAS') warehouseSet.add('Oliva Torras');
             else if (loc.warehouse === 'FURGONETA') warehouseSet.add('Furgoneta');
           });
-          warehouses = Array.from(warehouseSet).join(', ') || '-';
+          return Array.from(warehouseSet).join(', ') || '-';
         } else if (product.warehouse) {
-          warehouses =
-            product.warehouse === 'MEYPAR'
-              ? 'MEYPAR'
-              : product.warehouse === 'OLIVA_TORRAS'
-                ? 'Oliva Torras'
-                : product.warehouse === 'FURGONETA'
-                  ? 'Furgoneta'
-                  : '-';
+          return product.warehouse === 'MEYPAR'
+            ? 'MEYPAR'
+            : product.warehouse === 'OLIVA_TORRAS'
+              ? 'Oliva Torras'
+              : product.warehouse === 'FURGONETA'
+                ? 'Furgoneta'
+                : '-';
         }
+        return '-';
+      };
 
-        // Obtener ubicaciones formateadas
-        let locations = '-';
+      // Obtener ubicaciones formateadas
+      const getLocations = (product: Product): string => {
         if (
           product.locations &&
           Array.isArray(product.locations) &&
@@ -672,21 +702,29 @@ export function ProductsPage() {
               locationStrings.push('Oliva Torras');
             }
           });
-          locations = locationStrings.join(', ') || '-';
+          return locationStrings.join(', ') || '-';
         } else if (product.aisle && product.shelf) {
-          locations = `${product.aisle}${product.shelf}`;
+          return `${product.aisle}${product.shelf}`;
         }
+        return '-';
+      };
 
+      const excelData = selectedProducts.map((product) => {
         return {
           Código: product.code || '',
           Nombre: product.name || '',
           Categoría: product.category || '',
-          'Stock Actual': product.stockCurrent ?? 0,
+          'Stock MEYPAR': calculateStockByWarehouse(product, 'MEYPAR'),
+          'Stock OLIVA TORRAS': calculateStockByWarehouse(product, 'OLIVA_TORRAS'),
+          'Stock FURGONETA': calculateStockByWarehouse(product, 'FURGONETA'),
+          'Stock Total': product.stockCurrent ?? 0,
           'Stock Mínimo': product.stockMin ?? 0,
-          Almacén: warehouses,
-          Ubicación: locations,
-          'Precio Coste (€)': typeof product.costPrice === 'number' ? product.costPrice : 0,
-          'Precio Venta (€)': typeof product.salePrice === 'number' ? product.salePrice : '',
+          Almacén: getWarehouses(product),
+          Ubicación: getLocations(product),
+          'Precio Coste (€)':
+            typeof product.costPrice === 'number' ? product.costPrice : 0,
+          'Precio Venta (€)':
+            typeof product.salePrice === 'number' ? product.salePrice : '',
           'Cód.Provedor': product.supplierCode || '',
         };
       });
@@ -977,8 +1015,8 @@ export function ProductsPage() {
                     ? `${p.aisle}${p.shelf}`
                     : '-';
           },
-          costPrice: (p) => typeof p.costPrice === 'number' ? p.costPrice : 0,
-          salePrice: (p) => typeof p.salePrice === 'number' ? p.salePrice : '',
+          costPrice: (p) => (typeof p.costPrice === 'number' ? p.costPrice : 0),
+          salePrice: (p) => (typeof p.salePrice === 'number' ? p.salePrice : ''),
           supplierCode: (p) => p.supplierCode || '', // Se mapeará a "Cód.Provedor" en el label
           isBatchTracked: (p) => (p.isBatchTracked ? 'Sí' : 'No'),
           unitOfMeasure: (p) => p.unitOfMeasure || '',

@@ -27,13 +27,13 @@ function downloadBlob(blob: Blob, fileName: string): Promise<void> {
       link.href = url;
       link.download = fileName;
       link.style.display = 'none';
-      
+
       // Añadir al DOM
       document.body.appendChild(link);
-      
+
       // Hacer clic
       link.click();
-      
+
       // Limpiar después de un breve delay
       setTimeout(() => {
         document.body.removeChild(link);
@@ -57,7 +57,11 @@ export class ReportExportService {
    * @param includeCharts - Si incluir gráficos (no implementado aún)
    * @returns Nombre del archivo generado
    */
-  static async exportToExcel(report: Report, _includeCharts: boolean = false): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  static async exportToExcel(
+    report: Report,
+    _includeCharts: boolean = false,
+  ): Promise<string> {
     const workbook = XLSX.utils.book_new();
     if (!workbook) {
       throw new Error('No se pudo crear el workbook de Excel');
@@ -76,24 +80,28 @@ export class ReportExportService {
     });
 
     // Hoja 1: Datos de tabla - AHORA ES LA PRIMERA HOJA
-    if (report.tableData && report.tableData.headers && report.tableData.headers.length > 0) {
+    if (
+      report.tableData &&
+      report.tableData.headers &&
+      report.tableData.headers.length > 0
+    ) {
       console.log('📊 Preparando tabla principal (Dades)...');
-      
+
       // Construir la matriz de datos (headers + rows + totals)
       const tableRows: (string | number)[][] = [report.tableData.headers];
-      
+
       // Añadir datos
-      report.tableData.rows.forEach(row => {
-        const mappedRow = report.tableData.headers.map(header => {
+      report.tableData.rows.forEach((row) => {
+        const mappedRow = report.tableData.headers.map((header) => {
           const val = row[header];
           return val === null || val === undefined ? '' : val;
         });
         tableRows.push(mappedRow);
       });
-      
+
       // Añadir totales si existen
       if (report.tableData.totals) {
-        const totalsRow = report.tableData.headers.map(header => {
+        const totalsRow = report.tableData.headers.map((header) => {
           const val = report.tableData.totals?.[header];
           return val === null || val === undefined ? '' : val;
         });
@@ -101,7 +109,7 @@ export class ReportExportService {
       }
 
       const dataSheet = XLSX.utils.aoa_to_sheet(tableRows);
-      
+
       // Añadir la hoja de DATOS primero
       XLSX.utils.book_append_sheet(
         workbook,
@@ -116,7 +124,11 @@ export class ReportExportService {
         reportType: report.type,
       });
       const emptySheet = XLSX.utils.aoa_to_sheet([
-        [lang === 'ca-ES' ? 'No hi ha dades de taula disponibles' : 'No hay datos de tabla disponibles'],
+        [
+          lang === 'ca-ES'
+            ? 'No hi ha dades de taula disponibles'
+            : 'No hay datos de tabla disponibles',
+        ],
       ]);
       XLSX.utils.book_append_sheet(
         workbook,
@@ -134,11 +146,7 @@ export class ReportExportService {
       ]),
     ];
     const kpiSheet = XLSX.utils.aoa_to_sheet(kpiData);
-    XLSX.utils.book_append_sheet(
-      workbook,
-      kpiSheet,
-      lang === 'ca-ES' ? 'KPIs' : 'KPIs',
-    );
+    XLSX.utils.book_append_sheet(workbook, kpiSheet, lang === 'ca-ES' ? 'KPIs' : 'KPIs');
 
     // Hoja 3: Filtros aplicados
     if (Object.keys(report.filters).length > 0) {
@@ -165,7 +173,9 @@ export class ReportExportService {
     console.log('  Total de hojas:', workbook.SheetNames.length);
     workbook.SheetNames.forEach((name) => {
       const sheet = workbook.Sheets[name];
-      const cellCount = sheet ? Object.keys(sheet).filter(k => !k.startsWith('!')).length : 0;
+      const cellCount = sheet
+        ? Object.keys(sheet).filter((k) => !k.startsWith('!')).length
+        : 0;
       console.log(`  Hoja "${name}":`, {
         existe: !!sheet,
         rango: sheet?.['!ref'] || 'SIN RANGO',
@@ -184,25 +194,27 @@ export class ReportExportService {
         bookType: 'xlsx',
         type: 'binary',
       });
-      
+
       const s2ab = (s: string) => {
         const buf = new ArrayBuffer(s.length);
         const view = new Uint8Array(buf);
-        for (let i = 0; i !== s.length; ++i) view[i] = s.charCodeAt(i) & 0xFF;
+        for (let i = 0; i !== s.length; ++i) view[i] = s.charCodeAt(i) & 0xff;
         return buf;
       };
-      
+
       const blob = new Blob([s2ab(wbout)], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       });
-      
+
       console.log('💾 Archivo generado, tamaño:', blob.size, 'bytes');
-      
+
       await downloadBlob(blob, fileName);
       return fileName;
     } catch (error) {
       console.error('❌ Error exportando Excel:', error);
-      throw new Error(`No se pudo exportar el archivo Excel: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `No se pudo exportar el archivo Excel: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -224,10 +236,12 @@ export class ReportExportService {
       ),
     ];
 
-    const csvContent = rows.map((row) => row.map((cell) => `"${cell}"`).join(',')).join('\n');
+    const csvContent = rows
+      .map((row) => row.map((cell) => `"${cell}"`).join(','))
+      .join('\n');
     const fileName = `${report.type}_${new Date().toISOString().split('T')[0]}.csv`;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    
+
     await downloadBlob(blob, fileName);
     return fileName;
   }
@@ -242,7 +256,7 @@ export class ReportExportService {
     const jsonContent = JSON.stringify(report, null, 2);
     const fileName = `${report.type}_${new Date().toISOString().split('T')[0]}.json`;
     const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
-    
+
     await downloadBlob(blob, fileName);
     return fileName;
   }
@@ -272,11 +286,7 @@ export class ReportExportService {
     // Fecha de generación
     doc.setFontSize(10);
     const generatedDate = new Date(report.generatedAt).toLocaleDateString(lang);
-    doc.text(
-      `${isCatalan ? 'Generat el' : 'Generado el'}: ${generatedDate}`,
-      14,
-      40,
-    );
+    doc.text(`${isCatalan ? 'Generat el' : 'Generado el'}: ${generatedDate}`, 14, 40);
 
     let yPosition = 50;
 
@@ -306,11 +316,7 @@ export class ReportExportService {
       }
 
       doc.setFontSize(14);
-      doc.text(
-        isCatalan ? 'Dades' : 'Datos',
-        14,
-        yPosition,
-      );
+      doc.text(isCatalan ? 'Dades' : 'Datos', 14, yPosition);
       yPosition += 10;
 
       const tableData = [
@@ -354,15 +360,13 @@ export class ReportExportService {
         yPosition = 20;
       }
       doc.setFontSize(14);
-      doc.text(
-        isCatalan ? 'Dades' : 'Datos',
-        14,
-        yPosition,
-      );
+      doc.text(isCatalan ? 'Dades' : 'Datos', 14, yPosition);
       yPosition += 10;
       doc.setFontSize(10);
       doc.text(
-        isCatalan ? 'No hi ha dades de taula disponibles' : 'No hay datos de tabla disponibles',
+        isCatalan
+          ? 'No hi ha dades de taula disponibles'
+          : 'No hay datos de tabla disponibles',
         14,
         yPosition,
       );
@@ -372,11 +376,7 @@ export class ReportExportService {
     if (Object.keys(report.filters).length > 0) {
       doc.addPage();
       doc.setFontSize(14);
-      doc.text(
-        isCatalan ? 'Filtres Aplicats' : 'Filtros Aplicados',
-        14,
-        20,
-      );
+      doc.text(isCatalan ? 'Filtres Aplicats' : 'Filtros Aplicados', 14, 20);
 
       doc.setFontSize(10);
       let filterY = 30;
