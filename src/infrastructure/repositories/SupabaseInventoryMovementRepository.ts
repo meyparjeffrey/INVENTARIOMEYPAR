@@ -248,4 +248,43 @@ export class SupabaseInventoryMovementRepository
 
     this.handleError('eliminar movimiento', error);
   }
+
+  async getInventoryAtDate(date: Date) {
+    const { data, error } = await this.client.rpc('get_inventory_at_date', {
+      query_date: date.toISOString(),
+    });
+
+    this.handleError('obtener inventario a fecha', error);
+    return data as {
+      id: string;
+      code: string;
+      name: string;
+      category: string;
+      warehouse: string;
+      stock_current: number;
+      cost_price: number;
+      sale_price: number;
+      supplier_code: string;
+      total_value: number;
+    }[];
+  }
+
+  async getInventoryByWarehouseAtDate(date: Date) {
+    const { data, error } = await this.client.rpc('get_inventory_by_warehouse_at_date', {
+      query_date: date.toISOString(),
+    });
+
+    this.handleError('obtener inventario por almacén a fecha', error);
+    return data as {
+      product_id: string;
+      code: string;
+      name: string;
+      category: string;
+      warehouse: string;
+      stock_current: number;
+      cost_price: number;
+      sale_price: number;
+      supplier_code: string;
+    }[];
+  }
 }

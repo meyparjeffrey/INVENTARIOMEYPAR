@@ -223,12 +223,9 @@ export const ProductTable = React.memo(
             // Ordenar por ubicación formateada (usar primera ubicación si hay múltiples)
             const getLocationValue = (p: Product) => {
               if (p.warehouse === 'MEYPAR') {
-                if (
-                  p.locations &&
-                  Array.isArray(p.locations) &&
-                  p.locations.length > 0
-                ) {
-                  const primary = p.locations.find((loc) => loc.isPrimary) || p.locations[0];
+                if (p.locations && Array.isArray(p.locations) && p.locations.length > 0) {
+                  const primary =
+                    p.locations.find((loc) => loc.isPrimary) || p.locations[0];
                   return `${primary.aisle}${primary.shelf}`.toLowerCase();
                 }
                 return `${p.aisle}${p.shelf}`.toLowerCase();
@@ -613,6 +610,15 @@ export const ProductTable = React.memo(
                           align: 'center',
                         };
                       default:
+                        // Manejar columnas dinámicas de almacén
+                        if (col.id.startsWith('warehouse_')) {
+                          return {
+                            label:
+                              col.label || `Stock ${col.id.replace('warehouse_', '')}`,
+                            sortField: null,
+                            align: 'right',
+                          };
+                        }
                         return null;
                     }
                   };
@@ -690,9 +696,11 @@ export const ProductTable = React.memo(
                         config.align === 'center' && 'text-center',
                         config.align === 'left' && 'text-left',
                         // Solo código tiene cursor pointer y hover, el resto permite selección de texto
-                        config.sortField && col.id === 'code' &&
+                        config.sortField &&
+                          col.id === 'code' &&
                           'cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors',
-                        config.sortField && col.id !== 'code' &&
+                        config.sortField &&
+                          col.id !== 'code' &&
                           'select-text hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors',
                       )}
                       style={columnWidth ? { width: `${columnWidth}px` } : undefined}
@@ -715,7 +723,7 @@ export const ProductTable = React.memo(
                 })}
               </tr>
             </thead>
-            <tbody 
+            <tbody
               className={cn(
                 'divide-y divide-gray-200 bg-white dark:divide-gray-700 dark:bg-gray-800',
                 // Añadir cursor grab cuando se puede hacer scroll horizontal (solo en el cuerpo de la tabla)
@@ -728,12 +736,12 @@ export const ProductTable = React.memo(
                 const isCodeCell = target.closest('td[data-code-cell]');
                 const isButton = target.closest('button');
                 const isInput = target.closest('input, select, textarea');
-                
+
                 // Si es un header, celda de código, botón o input, no activar drag
                 if (isHeader || isCodeCell || isButton || isInput) {
                   return;
                 }
-                
+
                 // Activar drag para mover la tabla
                 handleDragStart(e);
               }}
@@ -928,21 +936,31 @@ export const ProductTable = React.memo(
                             // Obtener almacenes únicos de las ubicaciones del producto
                             const warehouses = new Set<string>();
                             if (product.locations && Array.isArray(product.locations)) {
-                              product.locations.forEach((loc) => warehouses.add(loc.warehouse));
+                              product.locations.forEach((loc) =>
+                                warehouses.add(loc.warehouse),
+                              );
                             } else if (product.warehouse) {
                               warehouses.add(product.warehouse);
                             }
-                            
+
                             // Convertir a nombres completos
-                            const warehouseNames = Array.from(warehouses).map((w) => {
-                              switch (w) {
-                                case 'MEYPAR': return t('form.warehouse.meypar') || 'MEYPAR';
-                                case 'OLIVA_TORRAS': return t('form.warehouse.olivaTorras') || 'Oliva Torras';
-                                case 'FURGONETA': return t('form.warehouse.furgoneta') || 'Furgoneta';
-                                default: return w;
-                              }
-                            }).join(', ');
-                            
+                            const warehouseNames = Array.from(warehouses)
+                              .map((w) => {
+                                switch (w) {
+                                  case 'MEYPAR':
+                                    return t('form.warehouse.meypar') || 'MEYPAR';
+                                  case 'OLIVA_TORRAS':
+                                    return (
+                                      t('form.warehouse.olivaTorras') || 'Oliva Torras'
+                                    );
+                                  case 'FURGONETA':
+                                    return t('form.warehouse.furgoneta') || 'Furgoneta';
+                                  default:
+                                    return w;
+                                }
+                              })
+                              .join(', ');
+
                             return (
                               <td
                                 key="warehouse"
@@ -956,27 +974,33 @@ export const ProductTable = React.memo(
                           case 'aisle': {
                             // Formatear ubicaciones: mostrar TODAS separadas por comas
                             let locationText = '-';
-                            
-                            if (product.locations && Array.isArray(product.locations) && product.locations.length > 0) {
+
+                            if (
+                              product.locations &&
+                              Array.isArray(product.locations) &&
+                              product.locations.length > 0
+                            ) {
                               // Recopilar todas las ubicaciones formateadas
                               const allLocations: string[] = [];
-                              
+
                               product.locations.forEach((loc) => {
                                 if (loc.warehouse === 'MEYPAR') {
                                   allLocations.push(`${loc.aisle}${loc.shelf}`);
                                 } else if (loc.warehouse === 'FURGONETA') {
                                   allLocations.push(loc.shelf);
                                 } else if (loc.warehouse === 'OLIVA_TORRAS') {
-                                  allLocations.push(t('form.warehouse.olivaTorras') || 'Oliva Torras');
+                                  allLocations.push(
+                                    t('form.warehouse.olivaTorras') || 'Oliva Torras',
+                                  );
                                 }
                               });
-                              
+
                               locationText = allLocations.join(', ');
                             } else if (product.aisle && product.shelf) {
                               // Fallback para productos antiguos
                               locationText = `${product.aisle}${product.shelf}`;
                             }
-                            
+
                             return (
                               <td
                                 key="aisle"
@@ -1109,6 +1133,22 @@ export const ProductTable = React.memo(
                           case 'actions':
                             return null; // Las acciones se renderizan después
                           default:
+                            // Manejar columnas dinámicas de almacén (warehouse_MEYPAR, warehouse_OLIVA_TORRAS, etc.)
+                            if (col.id.startsWith('warehouse_')) {
+                              const stockValue =
+                                ((product as Record<string, unknown>)[
+                                  col.id
+                                ] as number) || 0;
+                              return (
+                                <td
+                                  key={col.id}
+                                  className="whitespace-nowrap px-4 py-3 text-right text-sm font-medium text-gray-900 dark:text-gray-50"
+                                  style={cellStyle}
+                                >
+                                  {stockValue.toLocaleString()}
+                                </td>
+                              );
+                            }
                             return null;
                         }
                       };
