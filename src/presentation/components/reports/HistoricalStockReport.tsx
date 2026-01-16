@@ -939,11 +939,21 @@ export function HistoricalStockReport() {
         const headerKey = headerKeys[colIdx] || '';
         const isStock = headerKey.includes('Stock');
         const isCategory = headerKey === 'Categoria' || headerKey === 'Categoría';
+        const isCode = headerKey === 'Codi' || headerKey === 'Código';
 
         if (isStock || isCategory) {
-          // Columnas más estrechas para stock y categoría
+          // Columnas fijas y estrechas para stock y categoría
           column.width = 15;
+        } else if (isCode) {
+          // Ajuste preciso para el Código (sin exceso)
+          let maxCodeLength = 0;
+          column.eachCell!({ includeEmpty: true }, (cell) => {
+            const len = cell.value ? cell.value.toString().length : 0;
+            if (len > maxCodeLength) maxCodeLength = len;
+          });
+          column.width = Math.max(10, maxCodeLength + 2); // Un poco de aire pero ajustado
         } else {
+          // Ajuste flexible para el Nombre y otros
           let maxLength = 0;
           column.eachCell!({ includeEmpty: true }, (cell) => {
             const columnLength = cell.value ? cell.value.toString().length : 10;
