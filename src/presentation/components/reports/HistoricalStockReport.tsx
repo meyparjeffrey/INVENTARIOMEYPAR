@@ -724,35 +724,6 @@ export function HistoricalStockReport() {
         return row;
       };
 
-      // Subtítulo
-      const subtitleCell = summarySheet.getCell('A2');
-      subtitleCell.value =
-        language === 'ca-ES' ? "RESUM DE L'EXPORTACIÓ" : 'RESUMEN DE LA EXPORTACIÓN';
-      subtitleCell.font = { bold: true, size: 12, color: { argb: 'FF334155' } };
-      subtitleCell.alignment = { horizontal: 'center' };
-      summarySheet.mergeCells('A2:C2');
-      summarySheet.getRow(2).height = 25;
-
-      const addSummaryRow = (label: string, value: string | number, isHeader = false) => {
-        const row = summarySheet.addRow([label, value]);
-        row.height = 20;
-        if (isHeader) {
-          row.getCell(1).font = { bold: true, color: { argb: 'FFE62144' } };
-          row.getCell(1).fill = {
-            type: 'pattern',
-            pattern: 'solid',
-            fgColor: { argb: 'FFF1F5F9' },
-          };
-          summarySheet.mergeCells(`A${row.number}:C${row.number}`);
-        } else {
-          row.getCell(1).font = { bold: true, color: { argb: 'FF475569' } };
-          row.getCell(2).font = { bold: true, color: { argb: 'FF1E293B' } };
-          row.getCell(2).alignment = { horizontal: 'right' };
-          summarySheet.mergeCells(`B${row.number}:C${row.number}`);
-        }
-        return row;
-      };
-
       summarySheet.addRow([]); // Espacio
 
       addSummaryRow(
