@@ -567,6 +567,38 @@ export function HistoricalStockReport() {
       return row;
     });
 
+    // --- MEJORAS PREMIUM: FILA DE TOTALES DINÁMICA ---
+    if (exportData.length > 0) {
+      const summaryRow: Record<string, string | number> = {};
+      const firstRow = exportData[0];
+      const keys = Object.keys(firstRow);
+
+      keys.forEach((key) => {
+        const isCodi = key === (language === 'ca-ES' ? 'Codi' : 'Código');
+        const isNom = key === (language === 'ca-ES' ? 'Nom' : 'Nombre');
+
+        if (isCodi) {
+          summaryRow[key] = 'TOTAL';
+        } else if (isNom) {
+          const itemLabel = language === 'ca-ES' ? 'articles' : 'artículos';
+          summaryRow[key] = `${exportData.length} ${itemLabel}`;
+        } else {
+          // Si el primer registro es número, sumamos la columna
+          const isNumeric = typeof firstRow[key] === 'number';
+          if (isNumeric) {
+            const total = exportData.reduce(
+              (sum, row) => sum + ((row[key] as number) || 0),
+              0,
+            );
+            summaryRow[key] = total;
+          } else {
+            summaryRow[key] = '';
+          }
+        }
+      });
+      exportData.push(summaryRow);
+    }
+
     try {
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(exportData);
