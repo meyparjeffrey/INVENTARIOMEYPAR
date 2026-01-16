@@ -25,7 +25,8 @@ import { ProductTable } from '../products/ProductTable';
 import { Product } from '../../../domain/entities/Product';
 import { ExportDialog, ColumnOption } from '../products/ExportDialog';
 import { useToast } from '../ui/Toast';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import {
   BarChart,
   Bar,
@@ -98,10 +99,6 @@ export function HistoricalStockReport() {
 
   // Datos para el calendario personalizado
   const calendarData = useMemo(() => {
-    const now = new Date();
-    const currentMonth = now.getMonth();
-    const currentYear = now.getFullYear();
-
     const monthNames =
       language === 'ca-ES'
         ? [
@@ -138,7 +135,7 @@ export function HistoricalStockReport() {
         ? ['dl', 'dt', 'dm', 'dj', 'dv', 'ds', 'dg']
         : ['lu', 'ma', 'mi', 'ju', 'vi', 'sá', 'do'];
 
-    return { monthNames, dayNames, currentMonth, currentYear };
+    return { monthNames, dayNames };
   }, [language]);
 
   const [viewDate, setViewDate] = useState(new Date());
@@ -453,12 +450,8 @@ export function HistoricalStockReport() {
           wh === 'MEYPAR'
             ? 'MEYPAR'
             : wh === 'OLIVA_TORRAS'
-              ? language === 'ca-ES'
-                ? 'Oliva Torras'
-                : 'Oliva Torras'
-              : language === 'ca-ES'
-                ? 'Furgoneta'
-                : 'Furgoneta';
+              ? 'Oliva Torras'
+              : 'Furgoneta';
         baseColumns.push({
           id: `warehouse_${wh}`,
           label: `Stock ${warehouseLabel}`,
@@ -537,7 +530,7 @@ export function HistoricalStockReport() {
   }, [warehouses, t, language, selectedWarehouse]);
 
   const handleExport = async (columns: string[], format: 'xlsx' | 'csv') => {
-    // 1. Preparar datos base (sin totales)
+    // 1. Preparar datos base (sin totales aún)
     const rawData = tableProducts.map((p) => {
       const row: Record<string, string | number> = {};
       columns.forEach((col) => {
@@ -598,19 +591,115 @@ export function HistoricalStockReport() {
       });
     }
 
-    const finalExportData = [...rawData, summaryRow];
-
     try {
-      const workbook = XLSX.utils.book_new();
+      const workbook = new ExcelJS.Workbook();
+      workbook.creator = 'Meypar Inventario';
+      workbook.created = new Date();
 
       // --- HOJA 1: RESUMEN (PREMIUM) ---
-      const totalStock = rawData.reduce((sum, p) => {
-        const totalKey = language === 'ca-ES' ? 'Stock Total' : 'Stock Total';
-        return sum + ((p[totalKey] as number) || 0);
-      }, 0);
+      const summarySheet = workbook.addWorksheet(
+        language === 'ca-ES' ? 'Resum' : 'Resumen',
+        {
+          views: [{ showGridLines: false }],
+        },
+      );
 
-      // Calcular stocks por almacén para el resumen
-      const warehouseSummary: [string, string][] = [];
+      // Título Principal con Estilo
+      const titleCell = summarySheet.getCell('A1');
+      titleCell.value =
+        language === 'ca-ES'
+          ? "INFORME D'INVENTARI MEYPAR"
+          : 'INFORME DE INVENTARIO MEYPAR';
+      titleCell.font = { name: 'Arial Black', size: 16, color: { argb: 'FFFFFFFF' } };
+      titleCell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: 'FF1E40AF' },
+      };
+      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+      summarySheet.mergeCells('A1:B1');
+      summarySheet.getRow(1).height = 40;
+
+      // Subtítulo
+      const subtitleCell = summarySheet.getCell('A2');
+      subtitleCell.value =
+        language === 'ca-ES' ? "RESUM DE L'EXPORTACIÓ" : 'RESUMEN DE LA EXPORTACIÓN';
+      subtitleCell.font = { bold: true, size: 12, color: { argb: 'FF334155' } };
+      subtitleCell.alignment = { horizontal: 'center' };
+      summarySheet.mergeCells('A2:B2');
+      summarySheet.getRow(2).height = 25;
+
+      const addSummaryRow = (label: string, value: string | number, isHeader = false) => {
+        const row = summarySheet.addRow([label, value]);
+        row.height = 20;
+        if (isHeader) {
+          row.getCell(1).font = { bold: true, color: { argb: 'FF1E40AF' } };
+          row.getCell(1).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFF1F5F9' },
+          };
+          summarySheet.mergeCells(`A${row.number}:B${row.number}`);
+        } else {
+          row.getCell(1).font = { bold: true, color: { argb: 'FF475569' } };
+          row.getCell(2).font = { bold: true, color: { argb: 'FF1E293B' } };
+          row.getCell(2).alignment = { horizontal: 'right' };
+        }
+        return row;
+      };
+
+      summarySheet.addRow([]); // Espacio
+
+      addSummaryRow(
+        language === 'ca-ES' ? 'DATA DEL REPORT:' : 'FECHA DEL REPORTE:',
+        selectedDate
+          ? formatDate(selectedDate)
+          : formatDate(new Date().toISOString().split('T')[0]),
+      );
+      addSummaryRow(
+        language === 'ca-ES' ? 'ESTAT DEL DADES:' : 'ESTADO DE LOS DATOS:',
+        selectedDate
+          ? language === 'ca-ES'
+            ? 'Històric (Snapshot)'
+            : 'Histórico (Snapshot)'
+          : language === 'ca-ES'
+            ? 'Temps Real (En Directe)'
+            : 'Tiempo Real (En Vivo)',
+      );
+
+      summarySheet.addRow([]);
+      addSummaryRow(
+        language === 'ca-ES' ? 'CONFIGURACIÓ DE FILTRES' : 'CONFIGURACIÓN DE FILTROS',
+        '',
+        true,
+      );
+      addSummaryRow(
+        `   - ${language === 'ca-ES' ? 'Magatzem:' : 'Almacén:'}`,
+        selectedWarehouse === 'ALL'
+          ? language === 'ca-ES'
+            ? 'Tots els almacens'
+            : 'Todos los almacenes'
+          : selectedWarehouse,
+      );
+      addSummaryRow(
+        `   - ${language === 'ca-ES' ? 'Categoria:' : 'Categoría:'}`,
+        selectedCategory === 'ALL'
+          ? language === 'ca-ES'
+            ? 'Totes les categories'
+            : 'Todas las categorías'
+          : selectedCategory,
+      );
+      addSummaryRow(
+        `   - ${language === 'ca-ES' ? 'Cerca rápida:' : 'Búsqueda rápida:'}`,
+        searchTerm || (language === 'ca-ES' ? 'Cap filtre' : 'Sin filtro'),
+      );
+
+      summarySheet.addRow([]);
+      addSummaryRow(
+        language === 'ca-ES' ? "DESGLOSSAMENT D'ESTOCS" : 'DESGLOSE DE STOCKS',
+        '',
+        true,
+      );
       warehouses.forEach((wh) => {
         const warehouseLabel =
           wh === 'MEYPAR'
@@ -620,92 +709,58 @@ export function HistoricalStockReport() {
               : 'Furgoneta';
         const key = `Stock ${warehouseLabel}`;
         const totalWh = rawData.reduce((sum, p) => sum + ((p[key] as number) || 0), 0);
-        warehouseSummary.push([
+        addSummaryRow(
           `   • ${language === 'ca-ES' ? 'Estoc' : 'Stock'} ${warehouseLabel}:`,
           totalWh.toLocaleString(),
-        ]);
+        );
       });
 
-      const summaryAOA = [
-        [
-          language === 'ca-ES'
-            ? "INFORME D'INVENTARI MEYPAR"
-            : 'INFORME DE INVENTARIO MEYPAR',
-        ],
-        [language === 'ca-ES' ? "RESUM DE L'EXPORTACIÓ" : 'RESUMEN DE LA EXPORTACIÓN'],
-        ['------------------------------------------------------------'],
-        [],
-        [
-          language === 'ca-ES' ? 'DATA DEL REPORT:' : 'FECHA DEL REPORTE:',
-          selectedDate
-            ? formatDate(selectedDate)
-            : formatDate(new Date().toISOString().split('T')[0]),
-        ],
-        [
-          language === 'ca-ES' ? 'ESTAT DEL DADES:' : 'ESTADO DE LOS DATOS:',
-          selectedDate
-            ? language === 'ca-ES'
-              ? 'Històric (Snapshot)'
-              : 'Histórico (Snapshot)'
-            : language === 'ca-ES'
-              ? 'Temps Real (En Directe)'
-              : 'Tiempo Real (En Vivo)',
-        ],
-        [],
-        [language === 'ca-ES' ? 'CONFIGURACIÓ DE FILTRES:' : 'CONFIGURACIÓN DE FILTROS:'],
-        [
-          `   - ${language === 'ca-ES' ? 'Magatzem:' : 'Almacén:'}`,
-          selectedWarehouse === 'ALL'
-            ? language === 'ca-ES'
-              ? 'Tots els almacens'
-              : 'Todos los almacenes'
-            : selectedWarehouse,
-        ],
-        [
-          `   - ${language === 'ca-ES' ? 'Categoria:' : 'Categoría:'}`,
-          selectedCategory === 'ALL'
-            ? language === 'ca-ES'
-              ? 'Totes les categories'
-              : 'Todas las categorías'
-            : selectedCategory,
-        ],
-        [
-          `   - ${language === 'ca-ES' ? 'Cerca rápida:' : 'Búsqueda rápida:'}`,
-          searchTerm || (language === 'ca-ES' ? 'Cap filtre' : 'Sin filtro'),
-        ],
-        [],
-        ['------------------------------------------------------------'],
-        [language === 'ca-ES' ? "DESGLOSSAMENT D'ESTOCS:" : 'DESGLOSE DE STOCKS:'],
-        ...warehouseSummary,
-        [],
-        [
-          language === 'ca-ES'
-            ? 'TOTAL ARTICLES EXPORTATS:'
-            : 'TOTAL ARTÍCULOS EXPORTADOS:',
-          rawData.length.toLocaleString(),
-        ],
-        [
-          language === 'ca-ES' ? 'STOCK TOTAL GLOBAL:' : 'STOCK TOTAL GLOBAL:',
-          totalStock.toLocaleString(),
-        ],
-        ['------------------------------------------------------------'],
-        [],
-        [
-          language === 'ca-ES' ? 'Generat el:' : 'Generado el:',
-          new Date().toLocaleString(language === 'ca-ES' ? 'ca-ES' : 'es-ES'),
-        ],
-      ];
+      summarySheet.addRow([]);
+      const totalStock = rawData.reduce((sum, p) => {
+        const totalKey = language === 'ca-ES' ? 'Stock Total' : 'Stock Total';
+        return sum + ((p[totalKey] as number) || 0);
+      }, 0);
 
-      const summarySheet = XLSX.utils.aoa_to_sheet(summaryAOA);
-      summarySheet['!cols'] = [{ wch: 35 }, { wch: 30 }];
-
-      XLSX.utils.book_append_sheet(
-        workbook,
-        summarySheet,
-        language === 'ca-ES' ? 'Resum' : 'Resumen',
+      const itemsRow = addSummaryRow(
+        language === 'ca-ES'
+          ? 'TOTAL ARTICLES EXPORTATS:'
+          : 'TOTAL ARTÍCULOS EXPORTADOS:',
+        rawData.length.toLocaleString(),
       );
+      itemsRow.getCell(1).font = { bold: true, size: 11 };
+      itemsRow.getCell(2).font = { bold: true, size: 11 };
+
+      const grandTotalRow = addSummaryRow(
+        language === 'ca-ES' ? 'STOCK TOTAL GLOBAL:' : 'STOCK TOTAL GLOBAL:',
+        totalStock.toLocaleString(),
+      );
+      grandTotalRow.getCell(1).font = {
+        bold: true,
+        size: 12,
+        color: { argb: 'FF1E40AF' },
+      };
+      grandTotalRow.getCell(2).font = {
+        bold: true,
+        size: 12,
+        color: { argb: 'FF1E40AF' },
+      };
+
+      summarySheet.addRow([]);
+      summarySheet.addRow([]);
+      const footerRow = summarySheet.addRow([
+        language === 'ca-ES' ? 'Generat el:' : 'Generado el:',
+        new Date().toLocaleString(language === 'ca-ES' ? 'ca-ES' : 'es-ES'),
+      ]);
+      footerRow.getCell(1).font = { italic: true, size: 9, color: { argb: 'FF64748B' } };
+      footerRow.getCell(2).font = { italic: true, size: 9, color: { argb: 'FF64748B' } };
+
+      summarySheet.getColumn(1).width = 40;
+      summarySheet.getColumn(2).width = 30;
 
       // --- HOJA 2: DETALLES ---
+      const detailSheet = workbook.addWorksheet(language === 'ca-ES' ? 'Dades' : 'Datos');
+
+      // Título y filtros en la parte superior
       const detailTitle =
         language === 'ca-ES'
           ? `DETALL D'INVENTARI - ${selectedDate ? formatDate(selectedDate) : formatDate(new Date().toISOString().split('T')[0])}`
@@ -713,83 +768,108 @@ export function HistoricalStockReport() {
 
       const detailFilters = `${language === 'ca-ES' ? 'Filtres aplicats:' : 'Filtros aplicados:'} ${selectedWarehouse} / ${selectedCategory}${searchTerm ? ` / "${searchTerm}"` : ''}`;
 
-      const detailHeader = [
-        [detailTitle],
-        [detailFilters],
-        [], // Fila vacía de separación
-      ];
+      const titleRowDetail = detailSheet.addRow([detailTitle]);
+      titleRowDetail.getCell(1).font = {
+        bold: true,
+        size: 14,
+        color: { argb: 'FF1E40AF' },
+      };
+      detailSheet.mergeCells(1, 1, 1, columns.length);
 
-      const detailSheet = XLSX.utils.aoa_to_sheet(detailHeader);
+      const filterRowDetail = detailSheet.addRow([detailFilters]);
+      filterRowDetail.getCell(1).font = { italic: true, color: { argb: 'FF64748B' } };
+      detailSheet.mergeCells(2, 1, 2, columns.length);
 
-      // Añadir los datos JSON debajo del encabezado (fila 4 -> origin: A4)
-      XLSX.utils.sheet_add_json(detailSheet, finalExportData, {
-        origin: 'A4',
-        skipHeader: false,
+      detailSheet.addRow([]); // Espacio
+
+      // Cabeceras de la tabla
+      const headerKeys = Object.keys(rawData[0] || {});
+      const tableHeaderRow = detailSheet.addRow(headerKeys);
+      tableHeaderRow.height = 30;
+      tableHeaderRow.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } };
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
       });
 
-      // Mejoras de ancho de columna para la hoja de detalles
-      const objectMaxWidth: number[] = [];
-      const dataKeys = Object.keys(rawData[0] || {});
-
-      finalExportData.forEach((row) => {
-        dataKeys.forEach((key, i) => {
-          const value = row[key] ? row[key].toString() : '';
-          const columnLabel = key.toString();
-          const width = Math.max(columnLabel.length, value.length);
-          objectMaxWidth[i] = Math.max(objectMaxWidth[i] || 0, width);
+      // Datos
+      rawData.forEach((dataRow) => {
+        const row = detailSheet.addRow(Object.values(dataRow));
+        row.eachCell((cell) => {
+          if (typeof cell.value === 'number') {
+            cell.alignment = { horizontal: 'right' };
+          }
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+            right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+          };
         });
       });
 
-      detailSheet['!cols'] = objectMaxWidth.map((width) => ({
-        wch: width + 4,
-      }));
+      // Fila de Totales Dinámica en la tabla
+      const finalTotalRow = detailSheet.addRow(Object.values(summaryRow));
+      finalTotalRow.height = 25;
+      finalTotalRow.eachCell((cell) => {
+        cell.font = { bold: true, color: { argb: 'FF1E40AF' } };
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+        cell.alignment = { vertical: 'middle' };
+        cell.border = {
+          top: { style: 'medium', color: { argb: 'FF1E40AF' } },
+          left: { style: 'thin' },
+          bottom: { style: 'medium', color: { argb: 'FF1E40AF' } },
+          right: { style: 'thin' },
+        };
+      });
 
-      // Filtros automáticos (desde la fila 4 de encabezados de tabla)
-      const range = {
-        s: { r: 3, c: 0 },
-        e: { r: 3 + rawData.length, c: dataKeys.length - 1 },
+      // Auto-ajuste de columnas
+      detailSheet.columns.forEach((column) => {
+        let maxLength = 0;
+        column.eachCell!({ includeEmpty: true }, (cell) => {
+          const columnLength = cell.value ? cell.value.toString().length : 10;
+          if (columnLength > maxLength) {
+            maxLength = columnLength;
+          }
+        });
+        column.width = Math.min(Math.max(12, maxLength + 5), 60);
+      });
+
+      // Añadir Autofiltros a la tabla de datos
+      detailSheet.autoFilter = {
+        from: { row: 4, column: 1 },
+        to: { row: 4 + rawData.length, column: headerKeys.length },
       };
-      detailSheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
 
-      XLSX.utils.book_append_sheet(
-        workbook,
-        detailSheet,
-        language === 'ca-ES' ? 'Dades' : 'Datos',
-      );
-
-      // --- GENERACIÓN DE ARCHIVO ---
+      // --- GENERACIÓN Y DESCARGA ---
       const dateStr =
         isHistoricalMode && selectedDate
           ? selectedDate.replace(/-/g, '')
           : new Date().toISOString().split('T')[0].replace(/-/g, '');
-      const fileName = `Inventari_${isHistoricalMode ? 'Historic_' : ''}${dateStr}.${format}`;
+      const fileName = `Inventari_${isHistoricalMode ? 'Historic_' : ''}${dateStr}`;
 
       if (format === 'xlsx') {
-        const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-        const blob = new Blob([excelBuffer], {
+        const buffer = await workbook.xlsx.writeBuffer();
+        const blob = new Blob([buffer], {
           type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        link.click();
-        URL.revokeObjectURL(url);
+        saveAs(blob, `${fileName}.xlsx`);
       } else {
-        const csvData = XLSX.utils.sheet_to_csv(detailSheet);
-        const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = fileName;
-        link.click();
-        URL.revokeObjectURL(url);
+        const buffer = await workbook.csv.writeBuffer();
+        const blob = new Blob([buffer], { type: 'text/csv;charset=utf-8;' });
+        saveAs(blob, `${fileName}.csv`);
       }
 
       toast.success(t('reports.export.success'), `Exportado a ${format.toUpperCase()}`);
     } catch (e) {
       console.error(e);
-      toast.error(t('reports.export.error'), 'Falló la exportación');
+      toast.error(t('reports.error'), 'Falló la exportación Premium');
     }
   };
 
@@ -1734,7 +1814,6 @@ export function HistoricalStockReport() {
 
             <div className="flex-1 w-full min-h-[350px]">
               <ResponsiveContainer width="100%" height="100%">
-                {/* Usamos el timestamp de actualización como key para forzar animaciones suaves */}
                 <div
                   key={`${chartType}-${chartMetric}-${isUpdating}`}
                   className="w-full h-full"
