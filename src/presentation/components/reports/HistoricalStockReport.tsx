@@ -653,29 +653,35 @@ export function HistoricalStockReport() {
 
       // Añadir Logo si existe (Mantenimiento de Proporción)
       if (logoImageId !== null) {
-        const targetHeight = 40; // Altura fija
+        const targetHeight = 45; // Altura un poco mayor para visibilidad
         const targetWidth = targetHeight * logoRatio;
         summarySheet.addImage(logoImageId, {
-          tl: { col: 0.1, row: 0.1 },
+          tl: { col: 0.2, row: 0.15 }, // Posicionado en A1 con margen
           ext: { width: targetWidth, height: targetHeight },
         });
       }
 
-      // Título Principal con Estilo Corporativo (#e62144)
-      const titleCell = summarySheet.getCell('A1');
+      // Título Principal con Estilo Profesional (Texto Rojo, Fondo Blanco)
+      const titleCell = summarySheet.getCell('B1');
       titleCell.value =
         language === 'ca-ES'
-          ? "            INFORME D'INVENTARI MEYPAR"
-          : '            INFORME DE INVENTARIO MEYPAR';
-      titleCell.font = { name: 'Arial Black', size: 16, color: { argb: 'FFFFFFFF' } };
-      titleCell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: 'FFE62144' },
-      };
-      titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
-      summarySheet.mergeCells('A1:C1');
-      summarySheet.getRow(1).height = 50;
+          ? "INFORME D'INVENTARI MEYPAR"
+          : 'INFORME DE INVENTARIO MEYPAR';
+      titleCell.font = { name: 'Arial Black', size: 16, color: { argb: 'FFE62144' } };
+      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+      // Estilo de celda para el encabezado (Borde inferior corporativo)
+      const headerRow = summarySheet.getRow(1);
+      headerRow.height = 60;
+
+      // Aplicar borde inferior a las celdas del encabezado para un look premium
+      ['A1', 'B1', 'C1'].forEach((cellId) => {
+        summarySheet.getCell(cellId).border = {
+          bottom: { style: 'medium', color: { argb: 'FFE62144' } },
+        };
+      });
+
+      summarySheet.mergeCells('B1:C1');
 
       // Subtítulo
       const subtitleCell = summarySheet.getCell('A2');
