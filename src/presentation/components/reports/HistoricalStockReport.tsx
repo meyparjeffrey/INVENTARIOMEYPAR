@@ -537,7 +537,8 @@ export function HistoricalStockReport() {
   }, [warehouses, t, language, selectedWarehouse]);
 
   const handleExport = async (columns: string[], format: 'xlsx' | 'csv') => {
-    const exportData = tableProducts.map((p) => {
+    // 1. Preparar datos base (sin totales)
+    const rawData = tableProducts.map((p) => {
       const row: Record<string, string | number> = {};
       columns.forEach((col) => {
         if (col === 'code') {
@@ -567,10 +568,10 @@ export function HistoricalStockReport() {
       return row;
     });
 
-    // --- MEJORAS PREMIUM: FILA DE TOTALES DINÁMICA ---
-    if (exportData.length > 0) {
-      const summaryRow: Record<string, string | number> = {};
-      const firstRow = exportData[0];
+    // 2. Crear fila de totales dinámicos
+    const summaryRow: Record<string, string | number> = {};
+    if (rawData.length > 0) {
+      const firstRow = rawData[0];
       const keys = Object.keys(firstRow);
 
       keys.forEach((key) => {
@@ -581,12 +582,11 @@ export function HistoricalStockReport() {
           summaryRow[key] = 'TOTAL';
         } else if (isNom) {
           const itemLabel = language === 'ca-ES' ? 'articles' : 'artículos';
-          summaryRow[key] = `${exportData.length} ${itemLabel}`;
+          summaryRow[key] = `${rawData.length} ${itemLabel}`;
         } else {
-          // Si el primer registro es número, sumamos la columna
           const isNumeric = typeof firstRow[key] === 'number';
           if (isNumeric) {
-            const total = exportData.reduce(
+            const total = rawData.reduce(
               (sum, row) => sum + ((row[key] as number) || 0),
               0,
             );
@@ -596,52 +596,132 @@ export function HistoricalStockReport() {
           }
         }
       });
-      exportData.push(summaryRow);
     }
+
+    const finalExportData = [...rawData, summaryRow];
 
     try {
       const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(exportData);
 
-      // --- MEJORAS PREMIUM EXCEL ---
+      // --- HOJA 1: RESUMEN (PREMIUM) ---
+      const summaryAOA = [
+        [language === 'ca-ES' ? "RESUM DE L'EXPORTACIÓ" : 'RESUMEN DE LA EXPORTACIÓN'],
+        [],
+        [
+          language === 'ca-ES' ? 'Data del Report' : 'Fecha del Reporte',
+          selectedDate
+            ? formatDate(selectedDate)
+            : language === 'ca-ES'
+              ? 'Temps Real'
+              : 'Tiempo Real',
+        ],
+        [
+          language === 'ca-ES' ? 'Magatzem Filtrat' : 'Almacén Filtrado',
+          selectedWarehouse === 'ALL'
+            ? language === 'ca-ES'
+              ? 'Tots'
+              : 'Todos'
+            : selectedWarehouse,
+        ],
+        [
+          language === 'ca-ES' ? 'Categoria Filtrada' : 'Categoría Filtrada',
+          selectedCategory === 'ALL'
+            ? language === 'ca-ES'
+              ? 'Totes'
+              : 'Todas'
+            : selectedCategory,
+        ],
+        [
+          language === 'ca-ES' ? 'Cerca Aplicada' : 'Búsqueda Aplicada',
+          searchTerm || (language === 'ca-ES' ? 'Cap' : 'Ninguna'),
+        ],
+        [
+          language === 'ca-ES' ? 'Total Articles' : 'Total Artículos',
+          rawData.length.toLocaleString(),
+        ],
+        [
+          language === 'ca-ES' ? 'Stock Total Exportat' : 'Stock Total Exportado',
+          rawData
+            .reduce((sum, p) => {
+              const totalKey = language === 'ca-ES' ? 'Stock Total' : 'Stock Total';
+              return sum + ((p[totalKey] as number) || 0);
+            }, 0)
+            .toLocaleString(),
+        ],
+        [],
+        [
+          language === 'ca-ES' ? 'Generat el:' : 'Generado el:',
+          new Date().toLocaleString(language === 'ca-ES' ? 'ca-ES' : 'es-ES'),
+        ],
+      ];
 
-      // 1. Auto-ajuste de ancho de columnas
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryAOA);
+      summarySheet['!cols'] = [{ wch: 25 }, { wch: 40 }];
+
+      XLSX.utils.book_append_sheet(
+        workbook,
+        summarySheet,
+        language === 'ca-ES' ? 'Resum' : 'Resumen',
+      );
+
+      // --- HOJA 2: DETALLES ---
+      const detailTitle =
+        language === 'ca-ES'
+          ? `EVOLUCIÓ D'ESTOC - ${selectedDate ? formatDate(selectedDate) : 'TEMPS REAL'}`
+          : `EVOLUCIÓN DE STOCK - ${selectedDate ? formatDate(selectedDate) : 'TIEMPO REAL'}`;
+
+      const detailFilters = `${language === 'ca-ES' ? 'Filtres:' : 'Filtros:'} ${selectedWarehouse}/${selectedCategory}${searchTerm ? ` - "${searchTerm}"` : ''}`;
+
+      const detailHeader = [
+        [detailTitle],
+        [detailFilters],
+        [], // Fila vacía de separación
+      ];
+
+      const detailSheet = XLSX.utils.aoa_to_sheet(detailHeader);
+
+      // Añadir los datos JSON debajo del encabezado (fila 4 -> origin: A4)
+      XLSX.utils.sheet_add_json(detailSheet, finalExportData, {
+        origin: 'A4',
+        skipHeader: false,
+      });
+
+      // Mejoras de ancho de columna para la hoja de detalles
       const objectMaxWidth: number[] = [];
-      const dataKeys = Object.keys(exportData[0] || {});
+      const dataKeys = Object.keys(rawData[0] || {});
 
-      // Calcular el ancho máximo basado en el contenido de cada celda
-      exportData.forEach((row: Record<string, string | number>) => {
+      finalExportData.forEach((row) => {
         dataKeys.forEach((key, i) => {
           const value = row[key] ? row[key].toString() : '';
           const columnLabel = key.toString();
-          // Comparar ancho de cabecera vs ancho de datos
           const width = Math.max(columnLabel.length, value.length);
           objectMaxWidth[i] = Math.max(objectMaxWidth[i] || 0, width);
         });
       });
 
-      // Aplicar anchos con un pequeño margen extra para legibilidad
-      worksheet['!cols'] = objectMaxWidth.map((width) => ({
+      detailSheet['!cols'] = objectMaxWidth.map((width) => ({
         wch: width + 4,
       }));
 
-      // 2. Activar Auto-filtros en la cabecera
-      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
-      worksheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
-
-      // --- FIN MEJORAS PREMIUM ---
+      // Filtros automáticos (desde la fila 4 de encabezados de tabla)
+      const range = {
+        s: { r: 3, c: 0 },
+        e: { r: 3 + rawData.length, c: dataKeys.length - 1 },
+      };
+      detailSheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
 
       XLSX.utils.book_append_sheet(
         workbook,
-        worksheet,
+        detailSheet,
         language === 'ca-ES' ? 'Dades' : 'Datos',
       );
 
+      // --- GENERACIÓN DE ARCHIVO ---
       const dateStr =
         isHistoricalMode && selectedDate
           ? selectedDate.replace(/-/g, '')
           : new Date().toISOString().split('T')[0].replace(/-/g, '');
-      const fileName = `Inventario_${isHistoricalMode ? 'Historico_' : ''}${dateStr}.${format}`;
+      const fileName = `Inventari_${isHistoricalMode ? 'Historic_' : ''}${dateStr}.${format}`;
 
       if (format === 'xlsx') {
         const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
@@ -655,7 +735,7 @@ export function HistoricalStockReport() {
         link.click();
         URL.revokeObjectURL(url);
       } else {
-        const csvData = XLSX.utils.sheet_to_csv(worksheet);
+        const csvData = XLSX.utils.sheet_to_csv(detailSheet);
         const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
