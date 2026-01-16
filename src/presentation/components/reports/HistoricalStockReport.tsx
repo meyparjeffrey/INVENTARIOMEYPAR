@@ -445,22 +445,27 @@ export function HistoricalStockReport() {
 
     // Agregar columnas por almacén
     warehouses.forEach((wh, index) => {
-      const warehouseLabel =
-        wh === 'MEYPAR'
-          ? 'MEYPAR'
-          : wh === 'OLIVA_TORRAS'
-            ? language === 'ca-ES'
-              ? 'Oliva Torras'
-              : 'Oliva Torras'
-            : language === 'ca-ES'
-              ? 'Furgoneta'
-              : 'Furgoneta';
-      baseColumns.push({
-        id: `warehouse_${wh}`,
-        label: `Stock ${warehouseLabel}`,
-        visible: true,
-        order: 4 + index,
-      });
+      // Mejora Premium: Solo mostrar la columna si el almacén está seleccionado o si se muestran todos
+      const isVisible = selectedWarehouse === 'ALL' || selectedWarehouse === wh;
+
+      if (isVisible) {
+        const warehouseLabel =
+          wh === 'MEYPAR'
+            ? 'MEYPAR'
+            : wh === 'OLIVA_TORRAS'
+              ? language === 'ca-ES'
+                ? 'Oliva Torras'
+                : 'Oliva Torras'
+              : language === 'ca-ES'
+                ? 'Furgoneta'
+                : 'Furgoneta';
+        baseColumns.push({
+          id: `warehouse_${wh}`,
+          label: `Stock ${warehouseLabel}`,
+          visible: true,
+          order: 4 + index,
+        });
+      }
     });
 
     // Columna de stock total
@@ -472,7 +477,7 @@ export function HistoricalStockReport() {
     });
 
     return baseColumns;
-  }, [warehouses, t, language]);
+  }, [warehouses, t, language, selectedWarehouse]);
 
   // Preparar productos para la tabla con columnas de almacén
   const tableProducts = useMemo(() => {
@@ -504,13 +509,22 @@ export function HistoricalStockReport() {
     ];
 
     warehouses.forEach((wh) => {
-      const warehouseLabel =
-        wh === 'MEYPAR' ? 'MEYPAR' : wh === 'OLIVA_TORRAS' ? 'Oliva Torras' : 'Furgoneta';
-      cols.push({
-        key: `warehouse_${wh}`,
-        label: `Stock ${warehouseLabel}`,
-        defaultSelected: true,
-      });
+      // Mejora Premium: Solo incluir en exportación si el almacén está seleccionado o si se muestran todos
+      const isVisible = selectedWarehouse === 'ALL' || selectedWarehouse === wh;
+
+      if (isVisible) {
+        const warehouseLabel =
+          wh === 'MEYPAR'
+            ? 'MEYPAR'
+            : wh === 'OLIVA_TORRAS'
+              ? 'Oliva Torras'
+              : 'Furgoneta';
+        cols.push({
+          key: `warehouse_${wh}`,
+          label: `Stock ${warehouseLabel}`,
+          defaultSelected: true,
+        });
+      }
     });
 
     cols.push({
@@ -520,17 +534,25 @@ export function HistoricalStockReport() {
     });
 
     return cols;
-  }, [warehouses, t, language]);
+  }, [warehouses, t, language, selectedWarehouse]);
 
   const handleExport = async (columns: string[], format: 'xlsx' | 'csv') => {
     const exportData = tableProducts.map((p) => {
       const row: Record<string, string | number> = {};
       columns.forEach((col) => {
-        if (col === 'code') row.code = p.code;
-        else if (col === 'name') row.name = p.name;
-        else if (col === 'category') row.category = p.category || '-';
-        else if (col === 'stockCurrent') row.stockTotal = p.stockCurrent;
-        else if (col.startsWith('warehouse_')) {
+        if (col === 'code') {
+          const label = language === 'ca-ES' ? 'Codi' : 'Código';
+          row[label] = p.code;
+        } else if (col === 'name') {
+          const label = language === 'ca-ES' ? 'Nom' : 'Nombre';
+          row[label] = p.name;
+        } else if (col === 'category') {
+          const label = language === 'ca-ES' ? 'Categoria' : 'Categoría';
+          row[label] = p.category || '-';
+        } else if (col === 'stockCurrent') {
+          const label = language === 'ca-ES' ? 'Stock Total' : 'Stock Total';
+          row[label] = p.stockCurrent;
+        } else if (col.startsWith('warehouse_')) {
           const wh = col.replace('warehouse_', '');
           const warehouseLabel =
             wh === 'MEYPAR'
@@ -1395,7 +1417,7 @@ export function HistoricalStockReport() {
                         : 'bg-red-100 text-red-700'
                   }`}
                 >
-                  {isHistoricalMode ? 'Snapshot' : 'Live'}
+                  {language === 'ca-ES' ? 'En Directe' : 'En Vivo'}
                 </div>
               </div>
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
