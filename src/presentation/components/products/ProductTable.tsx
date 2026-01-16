@@ -614,7 +614,8 @@ export const ProductTable = React.memo(
                         if (col.id.startsWith('warehouse_')) {
                           return {
                             label:
-                              col.label || `Stock ${col.id.replace('warehouse_', '')}`,
+                              (col as any).label ||
+                              `Stock ${col.id.replace('warehouse_', '')}`,
                             sortField: null,
                             align: 'right',
                           };
@@ -1136,7 +1137,7 @@ export const ProductTable = React.memo(
                             // Manejar columnas dinámicas de almacén (warehouse_MEYPAR, warehouse_OLIVA_TORRAS, etc.)
                             if (col.id.startsWith('warehouse_')) {
                               const stockValue =
-                                ((product as Record<string, unknown>)[
+                                ((product as any)[
                                   col.id
                                 ] as number) || 0;
                               return (

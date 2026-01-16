@@ -255,12 +255,12 @@ export function HistoricalStockReport() {
             };
           });
 
-          setLocalProducts(enrichedProducts);
+          setLocalProducts(enrichedProducts as Product[]);
         } else {
           // Modo actual: cargar productos normales
           const productsData = await getAll({ includeInactive: false });
           if (productsData) {
-            setLocalProducts(productsData);
+            setLocalProducts(productsData as Product[]);
           }
         }
       } catch (error) {
@@ -1102,7 +1102,7 @@ export function HistoricalStockReport() {
                 fill="#64748b"
                 fontSize={10}
                 fontWeight={800}
-                formatter={(val: number) => val.toLocaleString()}
+                formatter={(val: any) => val.toLocaleString()}
                 offset={10}
               />
             </Bar>
@@ -1149,7 +1149,7 @@ export function HistoricalStockReport() {
                 fill="#3b82f6"
                 fontSize={10}
                 fontWeight={800}
-                formatter={(val: number) => val.toLocaleString()}
+                formatter={(val: any) => val.toLocaleString()}
               />
             </Line>
           </LineChart>
@@ -1200,7 +1200,7 @@ export function HistoricalStockReport() {
                 fill="#3b82f6"
                 fontSize={10}
                 fontWeight={800}
-                formatter={(val: number) => val.toLocaleString()}
+                formatter={(val: any) => val.toLocaleString()}
               />
             </Area>
           </AreaChart>
@@ -1224,7 +1224,7 @@ export function HistoricalStockReport() {
                 fill: '#64748b',
                 fontSize: 10,
                 fontWeight: 800,
-                formatter: (val: number) => val.toLocaleString(),
+                formatter: (val: any) => val.toLocaleString(),
               }}
               labelLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
             >
@@ -1286,7 +1286,7 @@ export function HistoricalStockReport() {
                 fill="#3b82f6"
                 fontSize={10}
                 fontWeight={800}
-                formatter={(val: number) => val.toLocaleString()}
+                formatter={(val: any) => val.toLocaleString()}
               />
             </Bar>
             <Line
@@ -1667,14 +1667,14 @@ export function HistoricalStockReport() {
                     </button>
                     {categories.map((cat) => (
                       <button
-                        key={cat}
+                        key={cat || 'no-category'}
                         onClick={() => {
-                          setSelectedCategory(cat);
+                          setSelectedCategory(cat || 'ALL');
                           setShowCategoryDropdown(false);
                         }}
                         className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-bold transition-all ${selectedCategory === cat ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50'}`}
                       >
-                        <span>{cat}</span>
+                        <span>{cat || t('products.noCategory')}</span>
                         {selectedCategory === cat && <Check className="h-3.5 w-3.5" />}
                       </button>
                     ))}

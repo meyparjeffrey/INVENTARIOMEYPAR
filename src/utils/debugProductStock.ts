@@ -41,7 +41,7 @@ function calculateStockByWarehouse(
 /**
  * Analiza el stock de un producto y muestra información detallada
  */
-export async function debugProductStock(productCode: string): Promise<void> {
+export async function debugProductStock(productCode: string): Promise<any> {
   // Importar dinámicamente para evitar problemas de dependencias circulares
   const { SupabaseProductRepository } =
     await import('@infrastructure/repositories/SupabaseProductRepository');
