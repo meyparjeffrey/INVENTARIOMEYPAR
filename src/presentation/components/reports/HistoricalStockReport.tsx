@@ -884,10 +884,22 @@ export function HistoricalStockReport() {
       // Datos
       rawData.forEach((dataRow) => {
         const row = detailSheet.addRow(Object.values(dataRow));
-        row.eachCell((cell) => {
+        row.eachCell((cell, colNumber) => {
+          const headerKey = headerKeys[colNumber - 1];
+          const isStock = headerKey.includes('Stock');
+          const isCategory = headerKey === 'Categoria' || headerKey === 'Categoría';
+
           if (typeof cell.value === 'number') {
-            cell.alignment = { horizontal: 'right' };
+            cell.alignment = {
+              horizontal: isStock ? 'center' : 'right',
+              vertical: 'middle',
+            };
+          } else if (isCategory) {
+            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+          } else {
+            cell.alignment = { vertical: 'middle' };
           }
+
           cell.border = {
             top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
             left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
@@ -900,14 +912,20 @@ export function HistoricalStockReport() {
       // Fila de Totales Dinámica en la tabla
       const finalTotalRow = detailSheet.addRow(Object.values(summaryRow));
       finalTotalRow.height = 25;
-      finalTotalRow.eachCell((cell) => {
+      finalTotalRow.eachCell((cell, colNumber) => {
+        const headerKey = headerKeys[colNumber - 1];
+        const isStock = headerKey.includes('Stock');
+
         cell.font = { bold: true, color: { argb: 'FFE62144' } };
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
           fgColor: { argb: 'FFFEE2E2' },
         };
-        cell.alignment = { vertical: 'middle' };
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal: isStock ? 'center' : 'left',
+        };
         cell.border = {
           top: { style: 'medium', color: { argb: 'FFE62144' } },
           left: { style: 'thin' },
@@ -917,15 +935,24 @@ export function HistoricalStockReport() {
       });
 
       // Auto-ajuste de columnas
-      detailSheet.columns.forEach((column) => {
-        let maxLength = 0;
-        column.eachCell!({ includeEmpty: true }, (cell) => {
-          const columnLength = cell.value ? cell.value.toString().length : 10;
-          if (columnLength > maxLength) {
-            maxLength = columnLength;
-          }
-        });
-        column.width = Math.min(Math.max(12, maxLength + 5), 60);
+      detailSheet.columns.forEach((column, colIdx) => {
+        const headerKey = headerKeys[colIdx] || '';
+        const isStock = headerKey.includes('Stock');
+        const isCategory = headerKey === 'Categoria' || headerKey === 'Categoría';
+
+        if (isStock || isCategory) {
+          // Columnas más estrechas para stock y categoría
+          column.width = 15;
+        } else {
+          let maxLength = 0;
+          column.eachCell!({ includeEmpty: true }, (cell) => {
+            const columnLength = cell.value ? cell.value.toString().length : 10;
+            if (columnLength > maxLength) {
+              maxLength = columnLength;
+            }
+          });
+          column.width = Math.min(Math.max(12, maxLength + 5), 60);
+        }
       });
 
       // Añadir Autofiltros a la tabla de datos
