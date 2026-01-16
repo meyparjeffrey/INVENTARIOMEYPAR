@@ -570,6 +570,35 @@ export function HistoricalStockReport() {
     try {
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(exportData);
+
+      // --- MEJORAS PREMIUM EXCEL ---
+
+      // 1. Auto-ajuste de ancho de columnas
+      const objectMaxWidth: number[] = [];
+      const dataKeys = Object.keys(exportData[0] || {});
+
+      // Calcular el ancho máximo basado en el contenido de cada celda
+      exportData.forEach((row: Record<string, string | number>) => {
+        dataKeys.forEach((key, i) => {
+          const value = row[key] ? row[key].toString() : '';
+          const columnLabel = key.toString();
+          // Comparar ancho de cabecera vs ancho de datos
+          const width = Math.max(columnLabel.length, value.length);
+          objectMaxWidth[i] = Math.max(objectMaxWidth[i] || 0, width);
+        });
+      });
+
+      // Aplicar anchos con un pequeño margen extra para legibilidad
+      worksheet['!cols'] = objectMaxWidth.map((width) => ({
+        wch: width + 4,
+      }));
+
+      // 2. Activar Auto-filtros en la cabecera
+      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+      worksheet['!autofilter'] = { ref: XLSX.utils.encode_range(range) };
+
+      // --- FIN MEJORAS PREMIUM ---
+
       XLSX.utils.book_append_sheet(
         workbook,
         worksheet,
