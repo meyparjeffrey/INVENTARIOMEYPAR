@@ -596,6 +596,43 @@ export function HistoricalStockReport() {
       workbook.creator = 'Meypar Inventario';
       workbook.created = new Date();
 
+      // --- INTENTAR AÑADIR LOGO (PREMIUM) ---
+      let logoImageId: number | null = null;
+      try {
+        const response = await fetch('/logochat.svg');
+        const svgText = await response.text();
+        const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
+        const url = URL.createObjectURL(svgBlob);
+
+        const img = new Image();
+        const logoBase64 = await new Promise<string>((resolve) => {
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width || 200;
+            canvas.height = img.height || 200;
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.fillStyle = 'white';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              ctx.drawImage(img, 0, 0);
+            }
+            resolve(canvas.toDataURL('image/png').split(',')[1]);
+            URL.revokeObjectURL(url);
+          };
+          img.onerror = () => resolve('');
+          img.src = url;
+        });
+
+        if (logoBase64) {
+          logoImageId = workbook.addImage({
+            base64: logoBase64,
+            extension: 'png',
+          });
+        }
+      } catch (err) {
+        console.warn('No se pudo cargar el logo para el Excel:', err);
+      }
+
       // --- HOJA 1: RESUMEN (PREMIUM) ---
       const summarySheet = workbook.addWorksheet(
         language === 'ca-ES' ? 'Resum' : 'Resumen',
@@ -604,21 +641,29 @@ export function HistoricalStockReport() {
         },
       );
 
-      // Título Principal con Estilo
+      // Añadir Logo si existe
+      if (logoImageId !== null) {
+        summarySheet.addImage(logoImageId, {
+          tl: { col: 0.1, row: 0.1 },
+          ext: { width: 50, height: 50 },
+        });
+      }
+
+      // Título Principal con Estilo Corporativo (#e62144)
       const titleCell = summarySheet.getCell('A1');
       titleCell.value =
         language === 'ca-ES'
-          ? "INFORME D'INVENTARI MEYPAR"
-          : 'INFORME DE INVENTARIO MEYPAR';
+          ? "      INFORME D'INVENTARI MEYPAR"
+          : '      INFORME DE INVENTARIO MEYPAR';
       titleCell.font = { name: 'Arial Black', size: 16, color: { argb: 'FFFFFFFF' } };
       titleCell.fill = {
         type: 'pattern',
         pattern: 'solid',
-        fgColor: { argb: 'FF1E40AF' },
+        fgColor: { argb: 'FFE62144' },
       };
-      titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
-      summarySheet.mergeCells('A1:B1');
-      summarySheet.getRow(1).height = 40;
+      titleCell.alignment = { vertical: 'middle', horizontal: 'left' };
+      summarySheet.mergeCells('A1:C1');
+      summarySheet.getRow(1).height = 50;
 
       // Subtítulo
       const subtitleCell = summarySheet.getCell('A2');
@@ -626,24 +671,25 @@ export function HistoricalStockReport() {
         language === 'ca-ES' ? "RESUM DE L'EXPORTACIÓ" : 'RESUMEN DE LA EXPORTACIÓN';
       subtitleCell.font = { bold: true, size: 12, color: { argb: 'FF334155' } };
       subtitleCell.alignment = { horizontal: 'center' };
-      summarySheet.mergeCells('A2:B2');
+      summarySheet.mergeCells('A2:C2');
       summarySheet.getRow(2).height = 25;
 
       const addSummaryRow = (label: string, value: string | number, isHeader = false) => {
         const row = summarySheet.addRow([label, value]);
         row.height = 20;
         if (isHeader) {
-          row.getCell(1).font = { bold: true, color: { argb: 'FF1E40AF' } };
+          row.getCell(1).font = { bold: true, color: { argb: 'FFE62144' } };
           row.getCell(1).fill = {
             type: 'pattern',
             pattern: 'solid',
             fgColor: { argb: 'FFF1F5F9' },
           };
-          summarySheet.mergeCells(`A${row.number}:B${row.number}`);
+          summarySheet.mergeCells(`A${row.number}:C${row.number}`);
         } else {
           row.getCell(1).font = { bold: true, color: { argb: 'FF475569' } };
           row.getCell(2).font = { bold: true, color: { argb: 'FF1E293B' } };
           row.getCell(2).alignment = { horizontal: 'right' };
+          summarySheet.mergeCells(`B${row.number}:C${row.number}`);
         }
         return row;
       };
@@ -737,12 +783,12 @@ export function HistoricalStockReport() {
       grandTotalRow.getCell(1).font = {
         bold: true,
         size: 12,
-        color: { argb: 'FF1E40AF' },
+        color: { argb: 'FFE62144' },
       };
       grandTotalRow.getCell(2).font = {
         bold: true,
         size: 12,
-        color: { argb: 'FF1E40AF' },
+        color: { argb: 'FFE62144' },
       };
 
       summarySheet.addRow([]);
@@ -753,9 +799,11 @@ export function HistoricalStockReport() {
       ]);
       footerRow.getCell(1).font = { italic: true, size: 9, color: { argb: 'FF64748B' } };
       footerRow.getCell(2).font = { italic: true, size: 9, color: { argb: 'FF64748B' } };
+      summarySheet.mergeCells(`B${footerRow.number}:C${footerRow.number}`);
 
       summarySheet.getColumn(1).width = 40;
-      summarySheet.getColumn(2).width = 30;
+      summarySheet.getColumn(2).width = 20;
+      summarySheet.getColumn(3).width = 20;
 
       // --- HOJA 2: DETALLES ---
       const detailSheet = workbook.addWorksheet(language === 'ca-ES' ? 'Dades' : 'Datos');
@@ -772,7 +820,7 @@ export function HistoricalStockReport() {
       titleRowDetail.getCell(1).font = {
         bold: true,
         size: 14,
-        color: { argb: 'FF1E40AF' },
+        color: { argb: 'FFE62144' },
       };
       detailSheet.mergeCells(1, 1, 1, columns.length);
 
@@ -788,7 +836,11 @@ export function HistoricalStockReport() {
       tableHeaderRow.height = 30;
       tableHeaderRow.eachCell((cell) => {
         cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E40AF' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE62144' },
+        };
         cell.alignment = { vertical: 'middle', horizontal: 'center' };
         cell.border = {
           top: { style: 'thin' },
@@ -818,13 +870,17 @@ export function HistoricalStockReport() {
       const finalTotalRow = detailSheet.addRow(Object.values(summaryRow));
       finalTotalRow.height = 25;
       finalTotalRow.eachCell((cell) => {
-        cell.font = { bold: true, color: { argb: 'FF1E40AF' } };
-        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+        cell.font = { bold: true, color: { argb: 'FFE62144' } };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFFEE2E2' },
+        };
         cell.alignment = { vertical: 'middle' };
         cell.border = {
-          top: { style: 'medium', color: { argb: 'FF1E40AF' } },
+          top: { style: 'medium', color: { argb: 'FFE62144' } },
           left: { style: 'thin' },
-          bottom: { style: 'medium', color: { argb: 'FF1E40AF' } },
+          bottom: { style: 'medium', color: { argb: 'FFE62144' } },
           right: { style: 'thin' },
         };
       });
