@@ -651,37 +651,78 @@ export function HistoricalStockReport() {
         },
       );
 
+      // Definir anchos de columna base para el diseño
+      summarySheet.getColumn(1).width = 30; // Columna para el Logo (Suficiente para no solapar)
+      summarySheet.getColumn(2).width = 20;
+      summarySheet.getColumn(3).width = 20;
+      summarySheet.getColumn(4).width = 20;
+      summarySheet.getColumn(5).width = 20;
+
       // Añadir Logo si existe (Mantenimiento de Proporción)
       if (logoImageId !== null) {
-        const targetHeight = 45; // Altura un poco mayor para visibilidad
+        const targetHeight = 45; // Altura elegante
         const targetWidth = targetHeight * logoRatio;
         summarySheet.addImage(logoImageId, {
-          tl: { col: 0.2, row: 0.15 }, // Posicionado en A1 con margen
+          tl: { col: 0.1, row: 0.1 }, // Un poco de aire desde el borde
           ext: { width: targetWidth, height: targetHeight },
         });
       }
 
-      // Título Principal con Estilo Profesional (Texto Rojo, Fondo Blanco)
+      // Título Principal - Ahora combinado en más columnas para evitar cortes
       const titleCell = summarySheet.getCell('B1');
       titleCell.value =
         language === 'ca-ES'
           ? "INFORME D'INVENTARI MEYPAR"
           : 'INFORME DE INVENTARIO MEYPAR';
-      titleCell.font = { name: 'Arial Black', size: 16, color: { argb: 'FFE62144' } };
+      titleCell.font = {
+        name: 'Arial Black',
+        size: 16,
+        color: { argb: 'FFE62144' }, // Rojo Corporativo
+      };
       titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
-      // Estilo de celda para el encabezado (Borde inferior corporativo)
-      const headerRow = summarySheet.getRow(1);
-      headerRow.height = 60;
+      // Combinar desde B hasta E para que el título tenga espacio de sobra
+      summarySheet.mergeCells('B1:E1');
 
-      // Aplicar borde inferior a las celdas del encabezado para un look premium
-      ['A1', 'B1', 'C1'].forEach((cellId) => {
+      // Estilo de la fila de encabezado
+      const headerRow = summarySheet.getRow(1);
+      headerRow.height = 65; // Un poco más de aire
+
+      // Aplicar borde inferior corporativo a todo el ancho del informe (A-E)
+      ['A1', 'B1', 'C1', 'D1', 'E1'].forEach((cellId) => {
         summarySheet.getCell(cellId).border = {
           bottom: { style: 'medium', color: { argb: 'FFE62144' } },
         };
       });
 
-      summarySheet.mergeCells('B1:C1');
+      // Subtítulo - También centrado en el mismo ancho
+      const subtitleCell = summarySheet.getCell('A2');
+      subtitleCell.value =
+        language === 'ca-ES' ? "RESUM DE L'EXPORTACIÓ" : 'RESUMEN DE LA EXPORTACIÓN';
+      subtitleCell.font = { bold: true, size: 12, color: { argb: 'FF334155' } };
+      subtitleCell.alignment = { horizontal: 'center' };
+      summarySheet.mergeCells('A2:E2');
+      summarySheet.getRow(2).height = 30;
+
+      const addSummaryRow = (label: string, value: string | number, isHeader = false) => {
+        const row = summarySheet.addRow([label, value]);
+        row.height = 22;
+        if (isHeader) {
+          row.getCell(1).font = { bold: true, color: { argb: 'FFE62144' } };
+          row.getCell(1).fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'FFF1F5F9' },
+          };
+          summarySheet.mergeCells(`A${row.number}:E${row.number}`);
+        } else {
+          row.getCell(1).font = { bold: true, color: { argb: 'FF475569' } };
+          row.getCell(2).font = { bold: true, color: { argb: 'FF1E293B' } };
+          row.getCell(2).alignment = { horizontal: 'right' };
+          summarySheet.mergeCells(`B${row.number}:E${row.number}`);
+        }
+        return row;
+      };
 
       // Subtítulo
       const subtitleCell = summarySheet.getCell('A2');
@@ -817,11 +858,7 @@ export function HistoricalStockReport() {
       ]);
       footerRow.getCell(1).font = { italic: true, size: 9, color: { argb: 'FF64748B' } };
       footerRow.getCell(2).font = { italic: true, size: 9, color: { argb: 'FF64748B' } };
-      summarySheet.mergeCells(`B${footerRow.number}:C${footerRow.number}`);
-
-      summarySheet.getColumn(1).width = 40;
-      summarySheet.getColumn(2).width = 20;
-      summarySheet.getColumn(3).width = 20;
+      summarySheet.mergeCells(`B${footerRow.number}:E${footerRow.number}`);
 
       // --- HOJA 2: DETALLES ---
       const detailSheet = workbook.addWorksheet(language === 'ca-ES' ? 'Dades' : 'Datos');
