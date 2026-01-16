@@ -604,50 +604,91 @@ export function HistoricalStockReport() {
       const workbook = XLSX.utils.book_new();
 
       // --- HOJA 1: RESUMEN (PREMIUM) ---
+      const totalStock = rawData.reduce((sum, p) => {
+        const totalKey = language === 'ca-ES' ? 'Stock Total' : 'Stock Total';
+        return sum + ((p[totalKey] as number) || 0);
+      }, 0);
+
+      // Calcular stocks por almacén para el resumen
+      const warehouseSummary: [string, string][] = [];
+      warehouses.forEach((wh) => {
+        const warehouseLabel =
+          wh === 'MEYPAR'
+            ? 'MEYPAR'
+            : wh === 'OLIVA_TORRAS'
+              ? 'Oliva Torras'
+              : 'Furgoneta';
+        const key = `Stock ${warehouseLabel}`;
+        const totalWh = rawData.reduce((sum, p) => sum + ((p[key] as number) || 0), 0);
+        warehouseSummary.push([
+          `   • ${language === 'ca-ES' ? 'Estoc' : 'Stock'} ${warehouseLabel}:`,
+          totalWh.toLocaleString(),
+        ]);
+      });
+
       const summaryAOA = [
+        [
+          language === 'ca-ES'
+            ? "INFORME D'INVENTARI MEYPAR"
+            : 'INFORME DE INVENTARIO MEYPAR',
+        ],
         [language === 'ca-ES' ? "RESUM DE L'EXPORTACIÓ" : 'RESUMEN DE LA EXPORTACIÓN'],
+        ['------------------------------------------------------------'],
         [],
         [
-          language === 'ca-ES' ? 'Data del Report' : 'Fecha del Reporte',
+          language === 'ca-ES' ? 'DATA DEL REPORT:' : 'FECHA DEL REPORTE:',
           selectedDate
             ? formatDate(selectedDate)
-            : language === 'ca-ES'
-              ? 'Temps Real'
-              : 'Tiempo Real',
+            : formatDate(new Date().toISOString().split('T')[0]),
         ],
         [
-          language === 'ca-ES' ? 'Magatzem Filtrat' : 'Almacén Filtrado',
+          language === 'ca-ES' ? 'ESTAT DEL DADES:' : 'ESTADO DE LOS DATOS:',
+          selectedDate
+            ? language === 'ca-ES'
+              ? 'Històric (Snapshot)'
+              : 'Histórico (Snapshot)'
+            : language === 'ca-ES'
+              ? 'Temps Real (En Directe)'
+              : 'Tiempo Real (En Vivo)',
+        ],
+        [],
+        [language === 'ca-ES' ? 'CONFIGURACIÓ DE FILTRES:' : 'CONFIGURACIÓN DE FILTROS:'],
+        [
+          `   - ${language === 'ca-ES' ? 'Magatzem:' : 'Almacén:'}`,
           selectedWarehouse === 'ALL'
             ? language === 'ca-ES'
-              ? 'Tots'
-              : 'Todos'
+              ? 'Tots els almacens'
+              : 'Todos los almacenes'
             : selectedWarehouse,
         ],
         [
-          language === 'ca-ES' ? 'Categoria Filtrada' : 'Categoría Filtrada',
+          `   - ${language === 'ca-ES' ? 'Categoria:' : 'Categoría:'}`,
           selectedCategory === 'ALL'
             ? language === 'ca-ES'
-              ? 'Totes'
-              : 'Todas'
+              ? 'Totes les categories'
+              : 'Todas las categorías'
             : selectedCategory,
         ],
         [
-          language === 'ca-ES' ? 'Cerca Aplicada' : 'Búsqueda Aplicada',
-          searchTerm || (language === 'ca-ES' ? 'Cap' : 'Ninguna'),
+          `   - ${language === 'ca-ES' ? 'Cerca rápida:' : 'Búsqueda rápida:'}`,
+          searchTerm || (language === 'ca-ES' ? 'Cap filtre' : 'Sin filtro'),
         ],
+        [],
+        ['------------------------------------------------------------'],
+        [language === 'ca-ES' ? "DESGLOSSAMENT D'ESTOCS:" : 'DESGLOSE DE STOCKS:'],
+        ...warehouseSummary,
+        [],
         [
-          language === 'ca-ES' ? 'Total Articles' : 'Total Artículos',
+          language === 'ca-ES'
+            ? 'TOTAL ARTICLES EXPORTATS:'
+            : 'TOTAL ARTÍCULOS EXPORTADOS:',
           rawData.length.toLocaleString(),
         ],
         [
-          language === 'ca-ES' ? 'Stock Total Exportat' : 'Stock Total Exportado',
-          rawData
-            .reduce((sum, p) => {
-              const totalKey = language === 'ca-ES' ? 'Stock Total' : 'Stock Total';
-              return sum + ((p[totalKey] as number) || 0);
-            }, 0)
-            .toLocaleString(),
+          language === 'ca-ES' ? 'STOCK TOTAL GLOBAL:' : 'STOCK TOTAL GLOBAL:',
+          totalStock.toLocaleString(),
         ],
+        ['------------------------------------------------------------'],
         [],
         [
           language === 'ca-ES' ? 'Generat el:' : 'Generado el:',
@@ -656,7 +697,7 @@ export function HistoricalStockReport() {
       ];
 
       const summarySheet = XLSX.utils.aoa_to_sheet(summaryAOA);
-      summarySheet['!cols'] = [{ wch: 25 }, { wch: 40 }];
+      summarySheet['!cols'] = [{ wch: 35 }, { wch: 30 }];
 
       XLSX.utils.book_append_sheet(
         workbook,
@@ -667,10 +708,10 @@ export function HistoricalStockReport() {
       // --- HOJA 2: DETALLES ---
       const detailTitle =
         language === 'ca-ES'
-          ? `EVOLUCIÓ D'ESTOC - ${selectedDate ? formatDate(selectedDate) : 'TEMPS REAL'}`
-          : `EVOLUCIÓN DE STOCK - ${selectedDate ? formatDate(selectedDate) : 'TIEMPO REAL'}`;
+          ? `DETALL D'INVENTARI - ${selectedDate ? formatDate(selectedDate) : formatDate(new Date().toISOString().split('T')[0])}`
+          : `DETALLE DE INVENTARIO - ${selectedDate ? formatDate(selectedDate) : formatDate(new Date().toISOString().split('T')[0])}`;
 
-      const detailFilters = `${language === 'ca-ES' ? 'Filtres:' : 'Filtros:'} ${selectedWarehouse}/${selectedCategory}${searchTerm ? ` - "${searchTerm}"` : ''}`;
+      const detailFilters = `${language === 'ca-ES' ? 'Filtres aplicats:' : 'Filtros aplicados:'} ${selectedWarehouse} / ${selectedCategory}${searchTerm ? ` / "${searchTerm}"` : ''}`;
 
       const detailHeader = [
         [detailTitle],
