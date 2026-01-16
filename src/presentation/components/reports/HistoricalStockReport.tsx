@@ -598,36 +598,46 @@ export function HistoricalStockReport() {
 
       // --- INTENTAR AÑADIR LOGO (PREMIUM) ---
       let logoImageId: number | null = null;
+      let logoRatio = 1;
       try {
-        const response = await fetch('/logochat.svg');
+        const response = await fetch('/logo.svg');
         const svgText = await response.text();
         const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
         const url = URL.createObjectURL(svgBlob);
 
         const img = new Image();
-        const logoBase64 = await new Promise<string>((resolve) => {
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.width || 200;
-            canvas.height = img.height || 200;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.fillStyle = 'white';
-              ctx.fillRect(0, 0, canvas.width, canvas.height);
-              ctx.drawImage(img, 0, 0);
-            }
-            resolve(canvas.toDataURL('image/png').split(',')[1]);
-            URL.revokeObjectURL(url);
-          };
-          img.onerror = () => resolve('');
-          img.src = url;
-        });
+        const logoData = await new Promise<{ base64: string; ratio: number }>(
+          (resolve) => {
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              // Aumentamos resolución para que no se vea pixelado
+              const scale = 4;
+              canvas.width = (img.width || 300) * scale;
+              canvas.height = (img.height || 100) * scale;
+              const ctx = canvas.getContext('2d');
+              if (ctx) {
+                ctx.fillStyle = 'white';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.scale(scale, scale);
+                ctx.drawImage(img, 0, 0);
+              }
+              resolve({
+                base64: canvas.toDataURL('image/png').split(',')[1],
+                ratio: (img.width || 300) / (img.height || 100),
+              });
+              URL.revokeObjectURL(url);
+            };
+            img.onerror = () => resolve({ base64: '', ratio: 1 });
+            img.src = url;
+          },
+        );
 
-        if (logoBase64) {
+        if (logoData.base64) {
           logoImageId = workbook.addImage({
-            base64: logoBase64,
+            base64: logoData.base64,
             extension: 'png',
           });
+          logoRatio = logoData.ratio;
         }
       } catch (err) {
         console.warn('No se pudo cargar el logo para el Excel:', err);
@@ -641,11 +651,13 @@ export function HistoricalStockReport() {
         },
       );
 
-      // Añadir Logo si existe
+      // Añadir Logo si existe (Mantenimiento de Proporción)
       if (logoImageId !== null) {
+        const targetHeight = 40; // Altura fija
+        const targetWidth = targetHeight * logoRatio;
         summarySheet.addImage(logoImageId, {
           tl: { col: 0.1, row: 0.1 },
-          ext: { width: 50, height: 50 },
+          ext: { width: targetWidth, height: targetHeight },
         });
       }
 
@@ -653,8 +665,8 @@ export function HistoricalStockReport() {
       const titleCell = summarySheet.getCell('A1');
       titleCell.value =
         language === 'ca-ES'
-          ? "      INFORME D'INVENTARI MEYPAR"
-          : '      INFORME DE INVENTARIO MEYPAR';
+          ? "            INFORME D'INVENTARI MEYPAR"
+          : '            INFORME DE INVENTARIO MEYPAR';
       titleCell.font = { name: 'Arial Black', size: 16, color: { argb: 'FFFFFFFF' } };
       titleCell.fill = {
         type: 'pattern',
