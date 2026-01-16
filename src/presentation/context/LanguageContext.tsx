@@ -2727,6 +2727,11 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // Actualizar el atributo 'lang' del HTML para ayudar al navegador
+  React.useEffect(() => {
+    document.documentElement.lang = language.split('-')[0];
+  }, [language]);
+
   return (
     <LanguageContext.Provider value={{ language, setLanguage, t }}>
       {children}

@@ -1,15 +1,24 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
-  Calendar,
+  Calendar as CalendarIcon,
   Download,
   Package,
   RefreshCw,
   Search,
   BarChart3,
   LayoutGrid,
-  Clock,
+  TrendingUp,
+  PieChart,
+  AreaChart as AreaChartIcon,
+  ChevronLeft,
+  ChevronRight,
+  ChevronDown,
+  Warehouse,
+  Tag,
+  Filter,
+  Check,
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../../context/LanguageContext';
 import { useProducts } from '../../hooks/useProducts';
 import { ProductTable } from '../products/ProductTable';
@@ -34,6 +43,7 @@ import {
   AreaChart,
   Area,
   ComposedChart,
+  LabelList,
 } from 'recharts';
 import { SupabaseInventoryMovementRepository } from '../../../infrastructure/repositories/SupabaseInventoryMovementRepository';
 
@@ -45,7 +55,8 @@ export function HistoricalStockReport() {
   const toast = useToast();
   const { loading: hookLoading, getAll } = useProducts();
   const [localProducts, setLocalProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true); // Inicialmente cargando
+  const [isUpdating, setIsUpdating] = useState(false); // Para actualizaciones posteriores
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [isHistoricalMode, setIsHistoricalMode] = useState(false);
 
@@ -53,15 +64,128 @@ export function HistoricalStockReport() {
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [searchTerm, setSearchTerm] = useState('');
   const [showExport, setShowExport] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [showWarehouseDropdown, setShowWarehouseDropdown] = useState(false);
+  const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
   const [chartType, setChartType] = useState<ChartType>('bar');
-  const [chartMetric, setChartMetric] = useState<ChartMetric>('category');
+  const [chartMetric, setChartMetric] = useState<ChartMetric>('warehouse');
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const warehouseDropdownRef = useRef<HTMLDivElement>(null);
+  const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   const movementRepositoryRef = React.useRef(new SupabaseInventoryMovementRepository());
+
+  // Cerrar dropdowns al hacer clic fuera
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Node;
+      if (calendarRef.current && !calendarRef.current.contains(target)) {
+        setShowCalendar(false);
+      }
+      if (
+        warehouseDropdownRef.current &&
+        !warehouseDropdownRef.current.contains(target)
+      ) {
+        setShowWarehouseDropdown(false);
+      }
+      if (categoryDropdownRef.current && !categoryDropdownRef.current.contains(target)) {
+        setShowCategoryDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Datos para el calendario personalizado
+  const calendarData = useMemo(() => {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    const monthNames =
+      language === 'ca-ES'
+        ? [
+            'Gener',
+            'Febrer',
+            'Març',
+            'Abril',
+            'Maig',
+            'Juny',
+            'Juliol',
+            'Agost',
+            'Setembre',
+            'Octubre',
+            'Novembre',
+            'Desembre',
+          ]
+        : [
+            'Enero',
+            'Febrero',
+            'Marzo',
+            'Abril',
+            'Mayo',
+            'Junio',
+            'Julio',
+            'Agosto',
+            'Septiembre',
+            'Octubre',
+            'Noviembre',
+            'Diciembre',
+          ];
+
+    const dayNames =
+      language === 'ca-ES'
+        ? ['dl', 'dt', 'dm', 'dj', 'dv', 'ds', 'dg']
+        : ['lu', 'ma', 'mi', 'ju', 'vi', 'sá', 'do'];
+
+    return { monthNames, dayNames, currentMonth, currentYear };
+  }, [language]);
+
+  const [viewDate, setViewDate] = useState(new Date());
+
+  const calendarDays = useMemo(() => {
+    const year = viewDate.getFullYear();
+    const month = viewDate.getMonth();
+    const firstDay = new Date(year, month, 1).getDay();
+    // Ajustar para que la semana empiece en lunes (0: lunes, ..., 6: domingo)
+    const startingDay = firstDay === 0 ? 6 : firstDay - 1;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+    const days = [];
+    // Días vacíos al principio
+    for (let i = 0; i < startingDay; i++) {
+      days.push(null);
+    }
+    // Días del mes
+    for (let i = 1; i <= daysInMonth; i++) {
+      days.push(new Date(year, month, i));
+    }
+    return days;
+  }, [viewDate]);
+
+  const handlePrevMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1));
+  };
+
+  const handleNextMonth = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const nextMonth = new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1);
+    if (nextMonth <= new Date()) {
+      setViewDate(nextMonth);
+    }
+  };
 
   // Cargar productos actuales o históricos según el modo
   useEffect(() => {
     const loadProducts = async () => {
-      setLoading(true);
+      // Si ya tenemos productos, usamos isUpdating para no mostrar el esqueleto completo
+      if (localProducts.length > 0) {
+        setIsUpdating(true);
+      } else {
+        setLoading(true);
+      }
+
       try {
         if (isHistoricalMode && selectedDate) {
           // Cargar datos históricos por almacén
@@ -147,11 +271,12 @@ export function HistoricalStockReport() {
         toast.error(t('reports.error'), 'Error al cargar productos');
       } finally {
         setLoading(false);
+        setIsUpdating(false);
       }
     };
 
     loadProducts();
-  }, [getAll, t, isHistoricalMode, selectedDate, toast]);
+  }, [getAll, t, isHistoricalMode, selectedDate, toast, localProducts.length]);
 
   // Manejar cambio de fecha
   const handleDateChange = (date: string) => {
@@ -217,13 +342,26 @@ export function HistoricalStockReport() {
 
   // KPIs
   const kpis = useMemo(() => {
-    const totalStock = filteredProducts.reduce((sum, p) => sum + p.stockCurrent, 0);
+    const totalStock = filteredProducts.reduce((sum, p) => {
+      const stockToUse =
+        selectedWarehouse === 'ALL'
+          ? p.stockCurrent
+          : getStockByWarehouse(p, selectedWarehouse);
+      return sum + stockToUse;
+    }, 0);
+
     const totalProducts = filteredProducts.length;
-    const lowStockCount = filteredProducts.filter(
-      (p) => p.stockCurrent <= p.stockMin,
-    ).length;
+
+    const lowStockCount = filteredProducts.filter((p) => {
+      const stockToUse =
+        selectedWarehouse === 'ALL'
+          ? p.stockCurrent
+          : getStockByWarehouse(p, selectedWarehouse);
+      return stockToUse <= p.stockMin;
+    }).length;
+
     return { totalStock, totalProducts, lowStockCount };
-  }, [filteredProducts]);
+  }, [filteredProducts, selectedWarehouse]);
 
   // Datos para gráficos
   const chartData = useMemo(() => {
@@ -232,33 +370,56 @@ export function HistoricalStockReport() {
       filteredProducts.forEach((p) => {
         const cat =
           p.category || (language === 'ca-ES' ? 'Sense Categoria' : 'Sin Categoría');
-        categoryMap.set(cat, (categoryMap.get(cat) || 0) + p.stockCurrent);
+        const stockToUse =
+          selectedWarehouse === 'ALL'
+            ? p.stockCurrent
+            : getStockByWarehouse(p, selectedWarehouse);
+        categoryMap.set(cat, (categoryMap.get(cat) || 0) + stockToUse);
       });
 
       return Array.from(categoryMap.entries())
         .map(([name, value]) => ({ name, value }))
+        .filter((item) => item.value > 0)
         .sort((a, b) => b.value - a.value)
         .slice(0, 10);
     } else if (chartMetric === 'warehouse') {
       const warehouseMap = new Map<string, number>();
       filteredProducts.forEach((p) => {
-        warehouses.forEach((wh) => {
-          const stock = getStockByWarehouse(p, wh);
-          warehouseMap.set(wh, (warehouseMap.get(wh) || 0) + stock);
-        });
+        // Si hay un almacén seleccionado, solo mostramos ese en el gráfico "por almacén"
+        if (selectedWarehouse !== 'ALL') {
+          const stock = getStockByWarehouse(p, selectedWarehouse);
+          warehouseMap.set(
+            selectedWarehouse,
+            (warehouseMap.get(selectedWarehouse) || 0) + stock,
+          );
+        } else {
+          // Si no hay filtro, mostramos todos los almacenes
+          warehouses.forEach((wh) => {
+            const stock = getStockByWarehouse(p, wh);
+            warehouseMap.set(wh, (warehouseMap.get(wh) || 0) + stock);
+          });
+        }
       });
 
       return Array.from(warehouseMap.entries())
         .map(([name, value]) => ({ name, value }))
+        .filter((item) => item.value > 0)
         .sort((a, b) => b.value - a.value);
     } else {
       // Stock por producto (top 10)
       return filteredProducts
-        .map((p) => ({ name: p.name.substring(0, 20), value: p.stockCurrent }))
+        .map((p) => {
+          const stockToUse =
+            selectedWarehouse === 'ALL'
+              ? p.stockCurrent
+              : getStockByWarehouse(p, selectedWarehouse);
+          return { name: p.name.substring(0, 20), value: stockToUse };
+        })
+        .filter((item) => item.value > 0)
         .sort((a, b) => b.value - a.value)
         .slice(0, 10);
     }
-  }, [filteredProducts, chartMetric, warehouses, language]);
+  }, [filteredProducts, chartMetric, warehouses, language, selectedWarehouse]);
 
   // Colores para gráficos
   const chartColors = [
@@ -435,41 +596,107 @@ export function HistoricalStockReport() {
       margin: { top: 20, right: 30, left: 20, bottom: 20 },
     };
 
+    const tooltipStyle = {
+      backgroundColor: 'rgba(255, 255, 255, 0.9)',
+      backdropFilter: 'blur(12px)',
+      borderRadius: '16px',
+      border: '1px solid rgba(255, 255, 255, 0.4)',
+      boxShadow:
+        '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+      padding: '16px',
+    };
+
+    const CustomTooltip = ({
+      active,
+      payload,
+      label,
+    }: {
+      active?: boolean;
+      payload?: Array<{ value: number; fill?: string; stroke?: string }>;
+      label?: string;
+    }) => {
+      if (active && payload && payload.length) {
+        return (
+          <div style={tooltipStyle} className="border-none shadow-2xl">
+            <p className="mb-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+              {label}
+            </p>
+            <div className="flex items-center gap-2">
+              <div
+                className="h-3 w-3 rounded-full shadow-sm"
+                style={{ backgroundColor: payload[0].fill || payload[0].stroke }}
+              />
+              <p className="text-xl font-black text-slate-900 dark:text-slate-800">
+                {payload[0].value.toLocaleString()}
+                <span className="ml-1 text-[10px] font-bold text-slate-400">UDS</span>
+              </p>
+            </div>
+          </div>
+        );
+      }
+      return null;
+    };
+
     switch (chartType) {
       case 'bar':
         return (
           <BarChart {...commonProps} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
+            <defs>
+              {chartColors.map((color, i) => (
+                <linearGradient
+                  key={`grad-${i}`}
+                  id={`barGrad-${i}`}
+                  x1="0"
+                  y1="0"
+                  x2="1"
+                  y2="0"
+                >
+                  <stop offset="0%" stopColor={color} stopOpacity={0.8} />
+                  <stop offset="100%" stopColor={color} stopOpacity={1} />
+                </linearGradient>
+              ))}
+            </defs>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              horizontal={false}
+              stroke="rgba(0,0,0,0.03)"
+            />
             <XAxis
               type="number"
-              tick={{ fill: '#6b7280' }}
+              tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
               tickFormatter={(val) => val.toLocaleString()}
+              axisLine={false}
+              tickLine={false}
             />
             <YAxis
               dataKey="name"
               type="category"
-              width={120}
-              tick={{ fill: '#6b7280' }}
+              width={100}
+              tick={{ fill: '#64748b', fontSize: 10, fontWeight: 800 }}
+              axisLine={false}
+              tickLine={false}
             />
             <Tooltip
-              contentStyle={{
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                borderRadius: '8px',
-                border: '1px solid #e5e7eb',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              }}
-              formatter={(value: number) => [
-                value.toLocaleString(),
-                language === 'ca-ES' ? 'Stock' : 'Stock',
-              ]}
+              content={<CustomTooltip />}
+              cursor={{ fill: 'rgba(0,0,0,0.02)', radius: 10 }}
             />
-            <Bar dataKey="value" radius={[0, 8, 8, 0]} fill="#3b82f6">
+            <Bar dataKey="value" radius={[0, 10, 10, 0]} barSize={20}>
               {chartData.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
-                  fill={chartColors[index % chartColors.length]}
+                  fill={`url(#barGrad-${index % chartColors.length})`}
+                  className="transition-all duration-500 hover:opacity-80"
                 />
               ))}
+              <LabelList
+                dataKey="value"
+                position="right"
+                fill="#64748b"
+                fontSize={10}
+                fontWeight={800}
+                formatter={(val: number) => val.toLocaleString()}
+                offset={10}
+              />
             </Bar>
           </BarChart>
         );
@@ -477,38 +704,46 @@ export function HistoricalStockReport() {
       case 'line':
         return (
           <LineChart {...commonProps}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(0,0,0,0.03)"
+              vertical={false}
+            />
             <XAxis
               dataKey="name"
-              tick={{ fill: '#6b7280' }}
-              angle={-45}
+              tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
+              angle={-25}
               textAnchor="end"
-              height={80}
+              height={60}
+              axisLine={false}
+              tickLine={false}
             />
             <YAxis
-              tick={{ fill: '#6b7280' }}
+              tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
               tickFormatter={(val) => val.toLocaleString()}
+              axisLine={false}
+              tickLine={false}
             />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                borderRadius: '8px',
-                border: '1px solid #e5e7eb',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              }}
-              formatter={(value: number) => [
-                value.toLocaleString(),
-                language === 'ca-ES' ? 'Stock' : 'Stock',
-              ]}
-            />
+            <Tooltip content={<CustomTooltip />} />
             <Line
               type="monotone"
               dataKey="value"
               stroke="#3b82f6"
-              strokeWidth={3}
-              dot={{ fill: '#3b82f6', r: 4 }}
-              activeDot={{ r: 6 }}
-            />
+              strokeWidth={5}
+              dot={{ fill: '#3b82f6', r: 5, strokeWidth: 3, stroke: '#fff' }}
+              activeDot={{ r: 8, strokeWidth: 0, fill: '#3b82f6' }}
+              animationDuration={1500}
+            >
+              <LabelList
+                dataKey="value"
+                position="top"
+                offset={15}
+                fill="#3b82f6"
+                fontSize={10}
+                fontWeight={800}
+                formatter={(val: number) => val.toLocaleString()}
+              />
+            </Line>
           </LineChart>
         );
 
@@ -517,41 +752,49 @@ export function HistoricalStockReport() {
           <AreaChart {...commonProps}>
             <defs>
               <linearGradient id="colorStock" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.1} />
+                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
               </linearGradient>
             </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(0,0,0,0.03)"
+              vertical={false}
+            />
             <XAxis
               dataKey="name"
-              tick={{ fill: '#6b7280' }}
-              angle={-45}
+              tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
+              angle={-25}
               textAnchor="end"
-              height={80}
+              height={60}
+              axisLine={false}
+              tickLine={false}
             />
             <YAxis
-              tick={{ fill: '#6b7280' }}
+              tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
               tickFormatter={(val) => val.toLocaleString()}
+              axisLine={false}
+              tickLine={false}
             />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                borderRadius: '8px',
-                border: '1px solid #e5e7eb',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              }}
-              formatter={(value: number) => [
-                value.toLocaleString(),
-                language === 'ca-ES' ? 'Stock' : 'Stock',
-              ]}
-            />
+            <Tooltip content={<CustomTooltip />} />
             <Area
               type="monotone"
               dataKey="value"
               stroke="#3b82f6"
-              strokeWidth={2}
+              strokeWidth={4}
               fill="url(#colorStock)"
-            />
+              animationDuration={1500}
+            >
+              <LabelList
+                dataKey="value"
+                position="top"
+                offset={15}
+                fill="#3b82f6"
+                fontSize={10}
+                fontWeight={800}
+                formatter={(val: number) => val.toLocaleString()}
+              />
+            </Area>
           </AreaChart>
         );
 
@@ -562,77 +805,88 @@ export function HistoricalStockReport() {
               data={chartData}
               cx="50%"
               cy="50%"
-              labelLine={false}
-              label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-              outerRadius={120}
-              fill="#8884d8"
+              innerRadius={70}
+              outerRadius={100}
+              paddingAngle={8}
               dataKey="value"
+              stroke="none"
+              animationBegin={0}
+              animationDuration={1500}
+              label={{
+                fill: '#64748b',
+                fontSize: 10,
+                fontWeight: 800,
+                formatter: (val: number) => val.toLocaleString(),
+              }}
+              labelLine={{ stroke: '#cbd5e1', strokeWidth: 1 }}
             >
               {chartData.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
                   fill={chartColors[index % chartColors.length]}
+                  className="transition-all duration-500 hover:opacity-80"
                 />
               ))}
             </Pie>
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                borderRadius: '8px',
-                border: '1px solid #e5e7eb',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              }}
-              formatter={(value: number) => value.toLocaleString()}
-            />
+            <Tooltip content={<CustomTooltip />} />
             <Legend
               verticalAlign="bottom"
               height={36}
-              formatter={(value) => <span style={{ color: '#374151' }}>{value}</span>}
+              iconType="circle"
+              formatter={(value) => (
+                <span className="text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400">
+                  {value}
+                </span>
+              )}
             />
           </RechartsPieChart>
         );
 
       case 'composed':
         return (
-          <ComposedChart {...commonProps} layout="vertical">
-            <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e5e7eb" />
+          <ComposedChart {...commonProps}>
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="rgba(0,0,0,0.03)"
+              vertical={false}
+            />
             <XAxis
-              type="number"
-              tick={{ fill: '#6b7280' }}
-              tickFormatter={(val) => val.toLocaleString()}
+              dataKey="name"
+              tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
+              axisLine={false}
+              tickLine={false}
             />
             <YAxis
-              dataKey="name"
-              type="category"
-              width={120}
-              tick={{ fill: '#6b7280' }}
+              tick={{ fill: '#94a3b8', fontSize: 10, fontWeight: 700 }}
+              tickFormatter={(val) => val.toLocaleString()}
+              axisLine={false}
+              tickLine={false}
             />
-            <Tooltip
-              contentStyle={{
-                backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                borderRadius: '8px',
-                border: '1px solid #e5e7eb',
-                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              }}
-              formatter={(value: number) => [
-                value.toLocaleString(),
-                language === 'ca-ES' ? 'Stock' : 'Stock',
-              ]}
-            />
-            <Bar dataKey="value" fill="#3b82f6" radius={[0, 8, 8, 0]}>
+            <Tooltip content={<CustomTooltip />} />
+            <Bar dataKey="value" fill="#3b82f6" radius={[6, 6, 0, 0]} barSize={30}>
               {chartData.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
                   fill={chartColors[index % chartColors.length]}
+                  fillOpacity={0.4}
                 />
               ))}
+              <LabelList
+                dataKey="value"
+                position="top"
+                offset={10}
+                fill="#3b82f6"
+                fontSize={10}
+                fontWeight={800}
+                formatter={(val: number) => val.toLocaleString()}
+              />
             </Bar>
             <Line
               type="monotone"
               dataKey="value"
-              stroke="#ef4444"
-              strokeWidth={2}
-              dot={false}
+              stroke="#3b82f6"
+              strokeWidth={4}
+              dot={{ r: 4, fill: '#3b82f6', strokeWidth: 2, stroke: '#fff' }}
             />
           </ComposedChart>
         );
@@ -653,296 +907,618 @@ export function HistoricalStockReport() {
     });
   };
 
+  // Solo mostrar el esqueleto en la carga inicial cuando no hay productos
+  if (loading && localProducts.length === 0) {
+    return (
+      <div className="space-y-8 p-4 md:p-8 animate-pulse">
+        <div className="flex justify-between items-center">
+          <div className="space-y-3">
+            <div className="h-8 w-64 bg-slate-200 dark:bg-slate-800 rounded-xl" />
+            <div className="h-4 w-48 bg-slate-100 dark:bg-slate-900 rounded-lg" />
+          </div>
+          <div className="h-12 w-32 bg-slate-200 dark:bg-slate-800 rounded-2xl" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-5 h-32 bg-slate-100 dark:bg-slate-800 rounded-3xl" />
+          <div className="lg:col-span-7 h-32 bg-slate-100 dark:bg-slate-800 rounded-3xl" />
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-4 space-y-4">
+            <div className="h-40 bg-slate-100 dark:bg-slate-800 rounded-3xl" />
+            <div className="h-40 bg-slate-100 dark:bg-slate-800 rounded-3xl" />
+            <div className="h-40 bg-slate-100 dark:bg-slate-800 rounded-3xl" />
+          </div>
+          <div className="lg:col-span-8 h-full bg-slate-100 dark:bg-slate-800 rounded-3xl" />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-6">
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="space-y-8 bg-slate-50/50 p-4 md:p-8 rounded-3xl dark:bg-slate-900/50"
+    >
       {/* Header */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-50">
-            {language === 'ca-ES' ? "Evolució de l'Estoc" : 'Evolución del Stock'}
-          </h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+          <div className="flex items-center gap-4">
+            <h1 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+              {language === 'ca-ES' ? "Evolució de l'Estoc" : 'Evolución del Stock'}
+            </h1>
+            {isUpdating && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.5 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+              >
+                <RefreshCw className="h-3 w-3 animate-spin" />
+                {language === 'ca-ES' ? 'Actualitzant...' : 'Actualizando...'}
+              </motion.div>
+            )}
+          </div>
+          <p className="mt-1 text-slate-500 dark:text-slate-400 font-medium">
             {isHistoricalMode && selectedDate
               ? language === 'ca-ES'
-                ? `Consulta l'estoc del ${formatDate(selectedDate)}`
-                : `Consulta el stock del ${formatDate(selectedDate)}`
+                ? `Mostrant dades històriques del ${formatDate(selectedDate)}`
+                : `Mostrando datos históricos del ${formatDate(selectedDate)}`
               : language === 'ca-ES'
-                ? "Consulta l'estoc actual de tots els productes"
-                : 'Consulta el stock actual de todos los productos'}
+                ? "Resum en temps real de l'estoc actual"
+                : 'Resumen en tiempo real del stock actual'}
           </p>
         </div>
-        <div className="flex gap-2">
-          <button
+        <div className="flex items-center gap-3">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => setShowExport(true)}
-            className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-green-700"
+            className="flex items-center gap-2 rounded-2xl bg-slate-900 px-6 py-3 text-sm font-bold text-white shadow-xl shadow-slate-900/20 transition-all hover:bg-slate-800 dark:bg-white dark:text-slate-900 dark:shadow-white/10"
           >
             <Download className="h-4 w-4" />
             {t('actions.export')}
-          </button>
+          </motion.button>
         </div>
       </div>
 
-      {/* Selector de Fecha Premium */}
-      <div className="rounded-xl border border-gray-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-sm dark:border-gray-700 dark:from-gray-800 dark:to-gray-900">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-600 text-white shadow-lg">
-              <Calendar className="h-6 w-6" />
-            </div>
-            <div>
-              <label className="block text-sm font-semibold text-gray-900 dark:text-gray-50">
-                {language === 'ca-ES' ? 'Seleccionar Data' : 'Seleccionar Fecha'}
-              </label>
-              <p className="text-xs text-gray-600 dark:text-gray-400">
-                {language === 'ca-ES'
-                  ? "Tria una data per veure l'estoc d'aquest dia"
-                  : 'Elige una fecha para ver el stock de ese día'}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="relative group">
-              <input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => handleDateChange(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
-                lang={language === 'ca-ES' ? 'ca-ES' : 'es-ES'}
-                title={
-                  language === 'ca-ES' ? 'Selecciona una data' : 'Selecciona una fecha'
-                }
-                className="w-full sm:w-48 rounded-lg border border-gray-300 bg-white px-4 py-2.5 pr-10 text-sm font-bold text-gray-900 shadow-sm transition-all focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-50 [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:inset-0 [&::-webkit-calendar-picker-indicator]:w-full [&::-webkit-calendar-picker-indicator]:h-full"
-                style={{
-                  colorScheme: 'light dark',
-                }}
-              />
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400 group-hover:text-blue-500 transition-colors">
-                <Calendar className="h-5 w-5" />
+      {/* Main Controls Section */}
+      <div
+        className={`grid grid-cols-1 lg:grid-cols-12 gap-6 mb-8 relative ${showCalendar ? 'z-40' : 'z-20'}`}
+      >
+        {/* Selector de Fecha Premium */}
+        <div
+          className={`lg:col-span-5 rounded-3xl border border-white bg-white/60 p-6 shadow-2xl shadow-slate-200/50 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-800/60 dark:shadow-none transition-all ${showCalendar ? 'z-50 relative' : 'z-10'}`}
+        >
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600/10 text-blue-600 shadow-inner">
+                <CalendarIcon className="h-5 w-5" />
               </div>
+              <span className="font-bold text-slate-900 dark:text-white uppercase text-xs tracking-widest">
+                {language === 'ca-ES' ? 'Històric' : 'Histórico'}
+              </span>
             </div>
-
             {isHistoricalMode && (
               <motion.button
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
                 onClick={handleResetToCurrent}
-                className="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-bold text-blue-700 transition-all hover:bg-blue-100 dark:border-blue-900/30 dark:bg-blue-900/20 dark:text-blue-300 dark:hover:bg-blue-900/40 shadow-sm"
+                className="text-[10px] font-black uppercase tracking-tighter bg-blue-100 text-blue-700 px-2 py-1 rounded-lg dark:bg-blue-900/30 dark:text-blue-300"
               >
-                <Clock className="h-4 w-4" />
-                {language === 'ca-ES' ? 'Veure Actual' : 'Ver Actual'}
+                {language === 'ca-ES' ? 'Tornar al present' : 'Volver al presente'}
               </motion.button>
             )}
           </div>
+
+          <div className="relative" ref={calendarRef}>
+            <button
+              onClick={() => setShowCalendar(!showCalendar)}
+              className="w-full flex items-center justify-between rounded-2xl bg-slate-100 px-5 py-4 text-sm font-black shadow-inner transition-all hover:bg-slate-200 focus:ring-2 focus:ring-blue-500/20 dark:bg-slate-900 dark:text-white dark:hover:bg-slate-800"
+            >
+              <div className="flex items-center gap-2">
+                <span
+                  className={`text-sm font-black ${selectedDate ? 'text-slate-900 dark:text-white' : 'text-slate-400 italic'}`}
+                >
+                  {selectedDate
+                    ? formatDate(selectedDate)
+                    : language === 'ca-ES'
+                      ? 'Selecciona una data...'
+                      : 'Selecciona una fecha...'}
+                </span>
+              </div>
+              <CalendarIcon className="h-5 w-5 text-blue-600/50" />
+            </button>
+
+            <AnimatePresence>
+              {showCalendar && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                  className="absolute left-0 right-0 mt-3 z-50 rounded-3xl border border-white bg-white p-5 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <button
+                      onClick={handlePrevMonth}
+                      className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400"
+                    >
+                      <ChevronLeft className="h-5 w-5" />
+                    </button>
+                    <div className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white">
+                      {calendarData.monthNames[viewDate.getMonth()]}{' '}
+                      {viewDate.getFullYear()}
+                    </div>
+                    <button
+                      onClick={handleNextMonth}
+                      disabled={
+                        viewDate.getMonth() === new Date().getMonth() &&
+                        viewDate.getFullYear() === new Date().getFullYear()
+                      }
+                      className="p-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-400 disabled:opacity-30 disabled:cursor-not-allowed"
+                    >
+                      <ChevronRight className="h-5 w-5" />
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1 mb-2">
+                    {calendarData.dayNames.map((day) => (
+                      <div
+                        key={day}
+                        className="text-[10px] font-black uppercase text-slate-400 text-center py-1"
+                      >
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-7 gap-1">
+                    {calendarDays.map((day, idx) => {
+                      if (!day) return <div key={`empty-${idx}`} />;
+
+                      const isSelected = selectedDate === day.toISOString().split('T')[0];
+                      const isToday =
+                        day.toISOString().split('T')[0] ===
+                        new Date().toISOString().split('T')[0];
+                      const isFuture = day > new Date();
+
+                      return (
+                        <button
+                          key={day.toISOString()}
+                          disabled={isFuture}
+                          onClick={() => {
+                            handleDateChange(day.toISOString().split('T')[0]);
+                            setShowCalendar(false);
+                          }}
+                          className={`
+                            h-9 w-full rounded-xl text-xs font-bold transition-all flex items-center justify-center
+                            ${
+                              isSelected
+                                ? 'bg-blue-600 text-white shadow-lg shadow-blue-600/30 scale-110 z-10'
+                                : isToday
+                                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                                  : 'hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                            }
+                            ${isFuture ? 'opacity-20 cursor-not-allowed' : ''}
+                          `}
+                        >
+                          {day.getDate()}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700 flex justify-between gap-2">
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleResetToCurrent();
+                        setShowCalendar(false);
+                      }}
+                      className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-all"
+                    >
+                      {language === 'ca-ES' ? 'Actual' : 'Hoy'}
+                    </button>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setShowCalendar(false);
+                      }}
+                      className="flex-1 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest bg-slate-900 text-white hover:bg-slate-800 dark:bg-white dark:text-slate-900 transition-all"
+                    >
+                      {language === 'ca-ES' ? 'Tancar' : 'Cerrar'}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
-        {isHistoricalMode && selectedDate && (
-          <div className="mt-4 flex items-center gap-2 rounded-lg bg-blue-100 px-4 py-2 text-sm text-blue-800 dark:bg-blue-900/30 dark:text-blue-200">
-            <Clock className="h-4 w-4" />
-            <span>
-              {language === 'ca-ES'
-                ? `Mostrant dades històriques del ${formatDate(selectedDate)}`
-                : `Mostrando datos históricos del ${formatDate(selectedDate)}`}
+        {/* Filters Bar */}
+        <div
+          className={`lg:col-span-7 rounded-3xl border border-white bg-white/60 p-6 shadow-2xl shadow-slate-200/50 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-800/60 dark:shadow-none ${showCalendar || showWarehouseDropdown || showCategoryDropdown ? 'z-40 relative' : 'z-10'}`}
+        >
+          <div className="flex items-center gap-3 mb-6">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-600/10 text-indigo-600 shadow-inner">
+              <Filter className="h-5 w-5" />
+            </div>
+            <span className="font-bold text-slate-900 dark:text-white uppercase text-xs tracking-widest">
+              {language === 'ca-ES' ? 'Filtres Avançats' : 'Filtros Avanzados'}
             </span>
           </div>
-        )}
-      </div>
 
-      {/* Filters Bar */}
-      <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <div className="flex flex-wrap items-end gap-4">
-          <div className="flex-1 min-w-[200px]">
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {t('table.warehouse')}
-            </label>
-            <select
-              value={selectedWarehouse}
-              onChange={(e) => setSelectedWarehouse(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-50"
-            >
-              <option value="ALL">{t('filters.all')}</option>
-              {warehouses.map((wh) => (
-                <option key={wh} value={wh}>
-                  {wh === 'MEYPAR'
-                    ? 'MEYPAR'
-                    : wh === 'OLIVA_TORRAS'
-                      ? language === 'ca-ES'
-                        ? 'Oliva Torras'
-                        : 'Oliva Torras'
-                      : language === 'ca-ES'
-                        ? 'Furgoneta'
-                        : 'Furgoneta'}
-                </option>
-              ))}
-            </select>
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Warehouse Custom Dropdown */}
+            <div className="space-y-1.5 relative" ref={warehouseDropdownRef}>
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter ml-1">
+                {t('table.warehouse')}
+              </label>
+              <button
+                onClick={() => setShowWarehouseDropdown(!showWarehouseDropdown)}
+                className="w-full flex items-center justify-between rounded-xl bg-slate-100 px-4 py-3 text-xs font-bold text-slate-700 shadow-inner transition-all hover:bg-slate-200 focus:ring-2 focus:ring-indigo-500/20 dark:bg-slate-900 dark:text-slate-200"
+              >
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <Warehouse className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                  <span className="truncate">
+                    {selectedWarehouse === 'ALL'
+                      ? t('filters.all')
+                      : selectedWarehouse === 'MEYPAR'
+                        ? 'MEYPAR'
+                        : selectedWarehouse === 'OLIVA_TORRAS'
+                          ? 'Oliva Torras'
+                          : 'Furgoneta'}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${showWarehouseDropdown ? 'rotate-180' : ''}`}
+                />
+              </button>
 
-          <div className="flex-1 min-w-[200px]">
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {t('table.category')}
-            </label>
-            <select
-              value={selectedCategory}
-              onChange={(e) => setSelectedCategory(e.target.value)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-50"
-            >
-              <option value="ALL">{t('filters.all')}</option>
-              {categories.map((cat) => (
-                <option key={cat} value={cat}>
-                  {cat}
-                </option>
-              ))}
-            </select>
-          </div>
+              <AnimatePresence>
+                {showWarehouseDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute left-0 right-0 mt-2 z-[60] max-h-60 overflow-y-auto rounded-2xl border border-white bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
+                  >
+                    <button
+                      onClick={() => {
+                        setSelectedWarehouse('ALL');
+                        setShowWarehouseDropdown(false);
+                      }}
+                      className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-bold transition-all ${selectedWarehouse === 'ALL' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50'}`}
+                    >
+                      <span>{t('filters.all')}</span>
+                      {selectedWarehouse === 'ALL' && <Check className="h-3.5 w-3.5" />}
+                    </button>
+                    {warehouses.map((wh) => {
+                      const label =
+                        wh === 'MEYPAR'
+                          ? 'MEYPAR'
+                          : wh === 'OLIVA_TORRAS'
+                            ? 'Oliva Torras'
+                            : 'Furgoneta';
+                      return (
+                        <button
+                          key={wh}
+                          onClick={() => {
+                            setSelectedWarehouse(wh);
+                            setShowWarehouseDropdown(false);
+                          }}
+                          className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-bold transition-all ${selectedWarehouse === wh ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50'}`}
+                        >
+                          <span>{label}</span>
+                          {selectedWarehouse === wh && <Check className="h-3.5 w-3.5" />}
+                        </button>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
-          <div className="flex-1 min-w-[200px]">
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">
-              {language === 'ca-ES' ? 'Cercar' : 'Buscar'}
-            </label>
-            <div className="relative">
-              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-              <input
-                type="text"
-                placeholder={
-                  language === 'ca-ES'
-                    ? 'Cercar per codi o nom...'
-                    : 'Buscar por código o nombre...'
-                }
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white pl-10 pr-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-gray-50"
-              />
+            {/* Category Custom Dropdown */}
+            <div className="space-y-1.5 relative" ref={categoryDropdownRef}>
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter ml-1">
+                {t('table.category')}
+              </label>
+              <button
+                onClick={() => setShowCategoryDropdown(!showCategoryDropdown)}
+                className="w-full flex items-center justify-between rounded-xl bg-slate-100 px-4 py-3 text-xs font-bold text-slate-700 shadow-inner transition-all hover:bg-slate-200 focus:ring-2 focus:ring-indigo-500/20 dark:bg-slate-900 dark:text-slate-200"
+              >
+                <div className="flex items-center gap-2 overflow-hidden">
+                  <Tag className="h-3.5 w-3.5 text-indigo-500 shrink-0" />
+                  <span className="truncate">
+                    {selectedCategory === 'ALL' ? t('filters.all') : selectedCategory}
+                  </span>
+                </div>
+                <ChevronDown
+                  className={`h-4 w-4 text-slate-400 transition-transform duration-300 ${showCategoryDropdown ? 'rotate-180' : ''}`}
+                />
+              </button>
+
+              <AnimatePresence>
+                {showCategoryDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute left-0 right-0 mt-2 z-[60] max-h-60 overflow-y-auto rounded-2xl border border-white bg-white p-2 shadow-2xl dark:border-slate-700 dark:bg-slate-800"
+                  >
+                    <button
+                      onClick={() => {
+                        setSelectedCategory('ALL');
+                        setShowCategoryDropdown(false);
+                      }}
+                      className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-bold transition-all ${selectedCategory === 'ALL' ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50'}`}
+                    >
+                      <span>{t('filters.all')}</span>
+                      {selectedCategory === 'ALL' && <Check className="h-3.5 w-3.5" />}
+                    </button>
+                    {categories.map((cat) => (
+                      <button
+                        key={cat}
+                        onClick={() => {
+                          setSelectedCategory(cat);
+                          setShowCategoryDropdown(false);
+                        }}
+                        className={`w-full flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-bold transition-all ${selectedCategory === cat ? 'bg-indigo-50 text-indigo-600 dark:bg-indigo-900/30' : 'text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-slate-700/50'}`}
+                      >
+                        <span>{cat}</span>
+                        {selectedCategory === cat && <Check className="h-3.5 w-3.5" />}
+                      </button>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-black uppercase text-slate-400 tracking-tighter ml-1">
+                {language === 'ca-ES' ? 'Cerca Ràpida' : 'Búsqueda Rápida'}
+              </label>
+              <div className="relative group">
+                <input
+                  type="text"
+                  placeholder={
+                    language === 'ca-ES' ? 'Codi o nom...' : 'Código o nombre...'
+                  }
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full rounded-xl border-none bg-slate-100 px-4 py-3 text-xs font-bold text-slate-700 shadow-inner transition-all focus:ring-2 focus:ring-indigo-500/20 dark:bg-slate-900 dark:text-slate-200 pl-10 group-hover:bg-slate-200 dark:group-hover:bg-slate-800"
+                />
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    <RefreshCw className="h-3 w-3" />
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </div>
 
       {/* KPI Cards y Gráficos - Layout de 2 columnas */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {/* Columna izquierda: KPIs */}
-        <div className="flex flex-col gap-3 lg:col-span-1 h-full">
-          <motion.div
-            whileHover={{ scale: 1.02, translateY: -2 }}
-            className="flex-1 rounded-xl bg-gradient-to-br from-blue-50 to-blue-100 p-4 shadow-sm ring-1 ring-blue-200 dark:from-blue-900/20 dark:to-blue-800/20 dark:ring-blue-800 flex items-center"
-          >
-            <div className="flex flex-col gap-2 w-full">
+      <div
+        className={`grid grid-cols-1 gap-8 lg:grid-cols-12 relative z-0 transition-all duration-500 ${isUpdating ? 'opacity-60 blur-[2px]' : 'opacity-100 blur-0'}`}
+      >
+        {isUpdating && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="rounded-full bg-white/80 px-6 py-3 shadow-2xl backdrop-blur-md dark:bg-slate-800/80"
+            >
               <div className="flex items-center gap-3">
+                <RefreshCw className="h-5 w-5 animate-spin text-blue-600" />
+                <span className="text-sm font-black uppercase tracking-widest text-slate-700 dark:text-slate-200">
+                  {language === 'ca-ES' ? 'Actualitzant...' : 'Actualizando...'}
+                </span>
+              </div>
+            </motion.div>
+          </div>
+        )}
+        {/* Columna izquierda: KPIs */}
+        <div className="lg:col-span-4 flex flex-col gap-4">
+          {[
+            {
+              label: language === 'ca-ES' ? 'Unitats Totals' : 'Unidades Totales',
+              value: kpis.totalStock,
+              icon: Package,
+              color: 'blue',
+              desc: language === 'ca-ES' ? 'Estoc acumulat' : 'Stock acumulado',
+            },
+            {
+              label:
+                language === 'ca-ES' ? 'Productes Diferents' : 'Productos Diferentes',
+              value: kpis.totalProducts,
+              icon: RefreshCw,
+              color: 'amber',
+              desc: language === 'ca-ES' ? 'Varietat de SKUs' : 'Variedad de SKUs',
+            },
+            {
+              label: language === 'ca-ES' ? 'Productes en Alerta' : 'Productos en Alerta',
+              value: kpis.lowStockCount,
+              icon: Package,
+              color: 'red',
+              desc: language === 'ca-ES' ? 'Sota estoc mínim' : 'Bajo stock mínimo',
+            },
+          ].map((kpi, idx) => (
+            <motion.div
+              key={kpi.label}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 * idx }}
+              whileHover={{ scale: 1.02, translateY: -4 }}
+              className={`relative overflow-hidden flex-1 rounded-3xl p-6 shadow-xl transition-all border border-white dark:border-slate-800 backdrop-blur-md ${
+                kpi.color === 'blue'
+                  ? 'bg-gradient-to-br from-blue-500/10 to-indigo-500/5 shadow-blue-500/5'
+                  : kpi.color === 'amber'
+                    ? 'bg-gradient-to-br from-amber-500/10 to-orange-500/5 shadow-amber-500/5'
+                    : 'bg-gradient-to-br from-red-500/10 to-rose-500/5 shadow-red-500/5'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-4">
                 <motion.div
                   whileHover={{ rotate: 15, scale: 1.1 }}
-                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                  animate={{
+                    y: [0, -4, 0],
+                  }}
+                  transition={{
+                    duration: 4,
+                    repeat: Infinity,
+                    ease: 'easeInOut',
+                    delay: idx * 0.5,
+                  }}
+                  className={`p-3 rounded-2xl ${
+                    kpi.color === 'blue'
+                      ? 'bg-blue-500 text-white'
+                      : kpi.color === 'amber'
+                        ? 'bg-amber-500 text-white'
+                        : 'bg-red-500 text-white'
+                  } shadow-lg shadow-current/20`}
                 >
-                  <Package className="h-5 w-5" />
+                  <kpi.icon className="h-5 w-5" />
                 </motion.div>
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-blue-700 dark:text-blue-300 uppercase tracking-wider">
-                    {language === 'ca-ES' ? 'Unitats Totals' : 'Unidades Totales'}
-                  </p>
-                  <p className="text-2xl font-black text-blue-900 dark:text-blue-50">
-                    {kpis.totalStock.toLocaleString()}
-                  </p>
+                <div
+                  className={`text-[10px] font-black uppercase tracking-widest px-2 py-1 rounded-lg ${
+                    kpi.color === 'blue'
+                      ? 'bg-blue-100 text-blue-700'
+                      : kpi.color === 'amber'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-red-100 text-red-700'
+                  }`}
+                >
+                  {isHistoricalMode ? 'Snapshot' : 'Live'}
                 </div>
               </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.02, translateY: -2 }}
-            className="flex-1 rounded-xl bg-gradient-to-br from-amber-50 to-amber-100 p-4 shadow-sm ring-1 ring-amber-200 dark:from-amber-900/20 dark:to-amber-800/20 dark:ring-amber-800 flex items-center"
-          >
-            <div className="flex flex-col gap-2 w-full">
-              <div className="flex items-center gap-3">
-                <motion.div
-                  whileHover={{ rotate: -15, scale: 1.1 }}
-                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-600 text-white shadow-lg shadow-amber-600/20"
-                >
-                  <RefreshCw className="h-5 w-5" />
-                </motion.div>
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-amber-700 dark:text-amber-300 uppercase tracking-wider">
-                    {language === 'ca-ES'
-                      ? 'Productes Diferents'
-                      : 'Productos Diferentes'}
-                  </p>
-                  <p className="text-2xl font-black text-amber-900 dark:text-amber-50">
-                    {kpis.totalProducts.toLocaleString()}
-                  </p>
-                </div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-1">
+                {kpi.label}
+              </p>
+              <motion.p
+                key={kpi.value}
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                className="text-4xl font-black text-slate-900 dark:text-white mb-1"
+              >
+                {kpi.value.toLocaleString()}
+              </motion.p>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400 italic">
+                {kpi.desc}
+              </p>
+              {/* Decoración de fondo */}
+              <div className="absolute -right-4 -bottom-4 opacity-[0.03] rotate-12">
+                <kpi.icon className="h-24 w-24" />
               </div>
-            </div>
-          </motion.div>
-
-          <motion.div
-            whileHover={{ scale: 1.02, translateY: -2 }}
-            className="flex-1 rounded-xl bg-gradient-to-br from-red-50 to-red-100 p-4 shadow-sm ring-1 ring-red-200 dark:from-red-900/20 dark:to-red-800/20 dark:ring-red-800 flex items-center"
-          >
-            <div className="flex flex-col gap-2 w-full">
-              <div className="flex items-center gap-3">
-                <motion.div
-                  whileHover={{ scale: 1.2 }}
-                  className="flex h-10 w-10 items-center justify-center rounded-lg bg-red-600 text-white shadow-lg shadow-red-600/20"
-                >
-                  <Package className="h-5 w-5" />
-                </motion.div>
-                <div className="flex-1">
-                  <p className="text-xs font-bold text-red-700 dark:text-red-300 uppercase tracking-wider">
-                    {language === 'ca-ES' ? 'Productes en Alerta' : 'Productos en Alerta'}
-                  </p>
-                  <p className="text-2xl font-black text-red-900 dark:text-red-50">
-                    {kpis.lowStockCount.toLocaleString()}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
+            </motion.div>
+          ))}
         </div>
 
         {/* Columna derecha: Gráficos Interactivos Premium */}
-        <div className="lg:col-span-2 h-full">
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800 h-full flex flex-col">
-            <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-              <h3 className="text-base font-bold text-gray-900 dark:text-gray-50 uppercase tracking-tight">
-                {language === 'ca-ES'
-                  ? 'Visualització de Dades'
-                  : 'Visualización de Datos'}
-              </h3>
+        <div className="lg:col-span-8">
+          <div className="h-full rounded-3xl border border-white bg-white/60 p-8 shadow-2xl shadow-slate-200/50 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-800/60 dark:shadow-none flex flex-col relative overflow-hidden group">
+            {/* Fondo decorativo sutil para impacto premium */}
+            <div className="absolute -right-24 -top-24 h-64 w-64 rounded-full bg-blue-500/5 blur-3xl transition-all duration-1000 group-hover:bg-blue-500/10" />
 
-              {/* Selector de tipo de gráfico */}
-              <div className="flex flex-wrap gap-2">
-                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-900 shadow-inner">
-                  <BarChart3 className="h-3.5 w-3.5 text-gray-500" />
-                  <select
-                    value={chartType}
-                    onChange={(e) => setChartType(e.target.value as ChartType)}
-                    className="bg-transparent text-xs font-bold text-gray-700 dark:text-gray-300 focus:outline-none"
-                  >
-                    <option value="bar">
-                      {language === 'ca-ES' ? 'Barres' : 'Barras'}
-                    </option>
-                    <option value="line">
-                      {language === 'ca-ES' ? 'Línia' : 'Línea'}
-                    </option>
-                    <option value="area">{language === 'ca-ES' ? 'Àrea' : 'Área'}</option>
-                    <option value="pie">
-                      {language === 'ca-ES' ? 'Circular' : 'Circular'}
-                    </option>
-                    <option value="composed">
-                      {language === 'ca-ES' ? 'Combinat' : 'Combinado'}
-                    </option>
-                  </select>
+            <div className="mb-8 flex flex-col gap-6 md:flex-row md:items-center md:justify-between relative z-10">
+              <div className="flex items-center gap-6">
+                <div>
+                  <h3 className="text-xl font-black text-slate-900 dark:text-white tracking-tight uppercase">
+                    {language === 'ca-ES'
+                      ? 'Visualització de Dades'
+                      : 'Visualización de Datos'}
+                  </h3>
+                  <div className="mt-1 h-1.5 w-16 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-full" />
                 </div>
 
-                <div className="flex items-center gap-2 rounded-lg border border-gray-200 bg-gray-50 p-1 dark:border-gray-700 dark:bg-gray-900 shadow-inner">
-                  <LayoutGrid className="h-3.5 w-3.5 text-gray-500" />
+                {/* Resumen rápido de datos en el gráfico */}
+                <div className="hidden sm:flex items-center gap-4 border-l border-slate-100 dark:border-slate-700 pl-6">
+                  <div className="text-center">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-tight">
+                      Total
+                    </p>
+                    <p className="text-lg font-black text-blue-600 leading-tight">
+                      {chartData
+                        .reduce((sum, item) => sum + item.value, 0)
+                        .toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-tight">
+                      Items
+                    </p>
+                    <p className="text-lg font-black text-slate-900 dark:text-white leading-tight">
+                      {chartData.length}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-4">
+                <div className="flex items-center gap-1 rounded-2xl bg-slate-100 p-1.5 dark:bg-slate-900 shadow-inner">
+                  {[
+                    {
+                      value: 'bar',
+                      icon: BarChart3,
+                      label: language === 'ca-ES' ? 'Barras' : 'Barras',
+                    },
+                    {
+                      value: 'line',
+                      icon: TrendingUp,
+                      label: language === 'ca-ES' ? 'Línea' : 'Línea',
+                    },
+                    {
+                      value: 'area',
+                      icon: AreaChartIcon,
+                      label: language === 'ca-ES' ? 'Área' : 'Área',
+                    },
+                    {
+                      value: 'pie',
+                      icon: PieChart,
+                      label: language === 'ca-ES' ? 'Circular' : 'Circular',
+                    },
+                  ].map((btn) => (
+                    <button
+                      key={btn.value}
+                      onClick={() => setChartType(btn.value as ChartType)}
+                      title={btn.label}
+                      className={`group relative flex h-10 w-10 items-center justify-center rounded-xl transition-all ${
+                        chartType === btn.value
+                          ? 'bg-white text-blue-600 shadow-lg dark:bg-slate-800'
+                          : 'text-slate-400 hover:bg-white/50 hover:text-slate-600 dark:hover:bg-slate-800/50'
+                      }`}
+                    >
+                      <btn.icon
+                        className={`h-5 w-5 transition-transform duration-300 ${chartType === btn.value ? 'scale-110' : 'group-hover:scale-110'}`}
+                      />
+                      {chartType === btn.value && (
+                        <motion.div
+                          layoutId="activeChart"
+                          className="absolute -bottom-1 h-1 w-4 rounded-full bg-blue-600"
+                        />
+                      )}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="relative flex items-center gap-2 rounded-2xl bg-white px-4 py-2 dark:bg-slate-900 shadow-xl border border-slate-100 dark:border-slate-800">
+                  <LayoutGrid className="h-4 w-4 text-blue-600" />
                   <select
                     value={chartMetric}
                     onChange={(e) => setChartMetric(e.target.value as ChartMetric)}
-                    className="bg-transparent text-xs font-bold text-gray-700 dark:text-gray-300 focus:outline-none"
+                    className="bg-transparent text-[11px] font-black uppercase tracking-widest text-slate-700 dark:text-slate-300 focus:outline-none cursor-pointer pr-2"
                   >
-                    <option value="category">
-                      {language === 'ca-ES' ? 'Per Categoria' : 'Por Categoría'}
-                    </option>
                     <option value="warehouse">
                       {language === 'ca-ES' ? 'Per Almacén' : 'Por Almacén'}
+                    </option>
+                    <option value="category">
+                      {language === 'ca-ES' ? 'Per Categoria' : 'Por Categoría'}
                     </option>
                     <option value="stock">
                       {language === 'ca-ES' ? 'Top Productes' : 'Top Productos'}
@@ -952,9 +1528,15 @@ export function HistoricalStockReport() {
               </div>
             </div>
 
-            <div className="flex-1 w-full min-h-[300px]">
+            <div className="flex-1 w-full min-h-[350px]">
               <ResponsiveContainer width="100%" height="100%">
-                {renderChart()}
+                {/* Usamos el timestamp de actualización como key para forzar animaciones suaves */}
+                <div
+                  key={`${chartType}-${chartMetric}-${isUpdating}`}
+                  className="w-full h-full"
+                >
+                  {renderChart()}
+                </div>
               </ResponsiveContainer>
             </div>
           </div>
@@ -962,24 +1544,35 @@ export function HistoricalStockReport() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-800">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+        className={`rounded-3xl border border-white bg-white/60 shadow-2xl shadow-slate-200/50 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-800/60 dark:shadow-none overflow-hidden transition-all duration-500 ${isUpdating ? 'opacity-60 blur-[1px]' : 'opacity-100 blur-0'}`}
+      >
+        <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center justify-between">
+          <h3 className="font-black text-slate-900 dark:text-white uppercase text-xs tracking-widest">
+            {language === 'ca-ES' ? 'Detall de Productes' : 'Detalle de Productos'}
+          </h3>
+          <span className="text-[10px] font-black text-blue-600 bg-blue-50 px-2 py-1 rounded-lg dark:bg-blue-900/30">
+            {filteredProducts.length} TOTAL
+          </span>
+        </div>
         <ProductTable
           products={tableProducts as Product[]}
-          loading={loading || hookLoading}
+          loading={(loading || hookLoading) && localProducts.length === 0}
           searchTerm={searchTerm}
           visibleColumns={tableColumns}
         />
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-500 text-center">
-          {filteredProducts.length}{' '}
-          {language === 'ca-ES' ? 'productes mostrats' : 'productos mostrados'}
+        <div className="p-4 bg-slate-50/50 dark:bg-slate-900/50 border-t border-slate-100 dark:border-slate-700 text-[10px] font-black text-slate-400 text-center uppercase tracking-[0.2em]">
+          {language === 'ca-ES' ? 'Fin de la llista' : 'Fin de la lista'}
           {isHistoricalMode && selectedDate && (
-            <span className="ml-2 text-blue-600 dark:text-blue-400">
-              • {language === 'ca-ES' ? 'Dades del' : 'Datos del'}{' '}
-              {formatDate(selectedDate)}
+            <span className="ml-2 text-blue-600">
+              • SNAPSHOT: {formatDate(selectedDate)}
             </span>
           )}
         </div>
-      </div>
+      </motion.div>
 
       <ExportDialog
         isOpen={showExport}
@@ -988,6 +1581,6 @@ export function HistoricalStockReport() {
         onExport={(cols, format) => handleExport(cols, format)}
         fileName={`inventario_${isHistoricalMode && selectedDate ? selectedDate.replace(/-/g, '') : new Date().toISOString().split('T')[0].replace(/-/g, '')}`}
       />
-    </div>
+    </motion.div>
   );
 }
